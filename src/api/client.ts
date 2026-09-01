@@ -13,16 +13,30 @@ export interface ApiErrorBody {
 }
 
 export class ApiError extends Error {
+  readonly status: number
+
+  readonly code: string
+
+  readonly details: Record<string, unknown> | undefined
+
+  /** 서버 로그와 이어 붙일 값. 사용자가 오류를 제보할 때 이것 하나면 된다. */
+  readonly requestId: string | undefined
+
+  // 매개변수 프로퍼티를 쓰지 않는다 — tsconfig 의 erasableSyntaxOnly 가 금지한다.
+  // 타입만 지우면 실행되는 코드로 유지하겠다는 결정이며, 그 대가가 이 몇 줄이다.
   constructor(
-    readonly status: number,
-    readonly code: string,
+    status: number,
+    code: string,
     message: string,
-    readonly details?: Record<string, unknown>,
-    /** 서버 로그와 이어 붙일 값. 사용자가 오류를 제보할 때 이것 하나면 된다. */
-    readonly requestId?: string,
+    details?: Record<string, unknown>,
+    requestId?: string,
   ) {
     super(message)
     this.name = 'ApiError'
+    this.status = status
+    this.code = code
+    this.details = details
+    this.requestId = requestId
   }
 }
 

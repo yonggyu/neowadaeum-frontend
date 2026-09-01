@@ -24,6 +24,10 @@ concurrency:
 
 env:
   NODE_VERSION: "22"
+  # 빌드와 테스트가 설정을 요구한다 — src/api/config.ts 가 값이 없으면 던진다.
+  # CI 가 만드는 번들은 배포물이 아니므로 로컬 주소로 충분하다. 운영 오리진은
+  # 이 레포 어디에도 적지 않는다.
+  VITE_API_BASE_URL: "http://localhost:8080"
   # 이동 가능한 태그를 쓰지 않는다는 관례를 바이너리에도 적용한다.
   # 체크섬은 릴리스의 gitleaks_<버전>_checksums.txt 에 게시된 값이다.
   GITLEAKS_VERSION: "8.30.1"
