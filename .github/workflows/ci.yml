@@ -1,0 +1,108 @@
+# ─────────────────────────────────────────────────────────────
+# CI 파이프라인
+#
+# 잡은 정확히 3개이며 이름이 곧 브랜치 보호의 필수 status check 이름이다.
+# 백엔드 레포와 같은 이름을 쓴다 — 두 레포의 보호 설정을 한 규칙으로 읽기 위해서다.
+# 이름을 바꾸면 세 브랜치의 보호 설정이 조용히 헐거워진다.
+#
+# ※ 시크릿을 넣지 않는다. 내장 GITHUB_TOKEN 외의 자격 증명을 쓰지 않는다.
+# ─────────────────────────────────────────────────────────────
+name: CI
+
+on:
+  pull_request:
+    branches: [frontend, dev, main]
+  push:
+    branches: [frontend]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: "22"
+  # 이동 가능한 태그를 쓰지 않는다는 관례를 바이너리에도 적용한다.
+  # 체크섬은 릴리스의 gitleaks_<버전>_checksums.txt 에 게시된 값이다.
+  GITLEAKS_VERSION: "8.30.1"
+  GITLEAKS_SHA256: "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb"
+
+jobs:
+  build:
+    name: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: 체크아웃
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Node 준비
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      # lockfile 이 아직 없다. 첫 로컬 설치에서 생성해 커밋하면 그 뒤로 npm ci 로 바꾼다 —
+      # 그것이 진짜 고정이다. 지금 npm ci 를 쓰면 lockfile 부재로 잡이 실패한다.
+      - name: 의존성 설치
+        run: npm install --no-audit --no-fund
+
+      - name: 타입 검사
+        run: npm run typecheck
+
+      - name: 린트
+        run: npm run lint
+
+      - name: 빌드
+        run: npm run build
+
+  test:
+    name: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: 체크아웃
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Node 준비
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: 의존성 설치
+        run: npm install --no-audit --no-fund
+
+      - name: 테스트
+        run: npm test
+
+  gitleaks:
+    name: gitleaks
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      # 전체 이력을 봐야 한다. 얕은 클론이면 과거 커밋의 유출을 못 본다.
+      # 어느 브랜치에 있든 유출은 유출이다 — 공개 레포에서는 브랜치도 공개다.
+      - name: 체크아웃 (전체 이력)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      # 액션 대신 바이너리를 직접 받는다. 버전·체크섬을 우리가 고정한다.
+      - name: gitleaks 설치
+        run: |
+          set -euo pipefail
+          curl -sSfL -o /tmp/gitleaks.tar.gz \
+            "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          echo "${GITLEAKS_SHA256}  /tmp/gitleaks.tar.gz" | sha256sum -c -
+          tar xzf /tmp/gitleaks.tar.gz -C /tmp gitleaks
+
+      # --redact 는 생략하지 않는다. 탐지된 값이 로그에 찍히면 공개 레포의 실행 로그가
+      # 두 번째 유출 경로가 된다.
+      - name: 전체 이력 스캔
+        run: /tmp/gitleaks git . --redact --no-banner --verbose
