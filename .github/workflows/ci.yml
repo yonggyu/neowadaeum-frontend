@@ -48,11 +48,13 @@ jobs:
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: ${{ env.NODE_VERSION }}
+          # lockfile 이 캐시 키다. 없을 때는 켤 수 없었다.
+          cache: npm
 
-      # lockfile 이 아직 없다. 첫 로컬 설치에서 생성해 커밋하면 그 뒤로 npm ci 로 바꾼다 —
-      # 그것이 진짜 고정이다. 지금 npm ci 를 쓰면 lockfile 부재로 잡이 실패한다.
+      # npm ci 다. lockfile 과 package.json 이 어긋나면 **실패한다** — 누군가 package.json 만
+      # 고치고 lockfile 을 안 올리면 여기서 잡힌다. npm install 은 그것을 조용히 맞춰 버린다.
       - name: 의존성 설치
-        run: npm install --no-audit --no-fund
+        run: npm ci --no-audit --no-fund
 
       - name: 타입 검사
         run: npm run typecheck
@@ -77,9 +79,11 @@ jobs:
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: ${{ env.NODE_VERSION }}
+          # lockfile 이 캐시 키다. 없을 때는 켤 수 없었다.
+          cache: npm
 
       - name: 의존성 설치
-        run: npm install --no-audit --no-fund
+        run: npm ci --no-audit --no-fund
 
       - name: 테스트
         run: npm test
