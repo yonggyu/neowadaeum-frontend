@@ -9,7 +9,8 @@ import {
   type MyStoryItem,
 } from '../../api/endpoints/me'
 import { usePagedApi, type PagedApi } from '../../hooks/usePagedApi'
-import { resumePath, ROUTES, storyDetailPath } from '../../routes/routes'
+import { myStoryPath, resumePath, ROUTES, storyDetailPath } from '../../routes/routes'
+import { AiNoticeFooter } from '../library/parts'
 import shared from './account.module.css'
 import { ErrorNotice } from './ErrorNotice'
 import styles from './MyStoriesScreen.module.css'
@@ -129,9 +130,9 @@ function SessionsTab({ status }: { status: 'active' | 'completed' }) {
 /**
  * 내가 만든 작품.
  *
- * 카드에 "상태 보기" · "작품 관리" · "이어서 작성" 링크를 달지 않는다 — **작품 만들기 화면이
- * 아직 없다** (4순위이며 라우트도 뚫려 있지 않다). 없는 화면으로 보내는 버튼을 만드는 것보다
- * 상태를 정확히 보여 주고 멈추는 편이 낫다.
+ * "상태 보기" 하나만 단다 (3g). 목적지는 `3f` · `6c` 의 공개 범위 · 검수 상태 화면이고, 그것이
+ * `MyStoryReviewScreen` 이다. "이어서 작성" 은 아직 없다 — **작품 만들기 화면이 없다.** 없는
+ * 화면으로 보내는 버튼은 눌러 보기 전까지 있는 것처럼 보인다.
  */
 function AuthoredTab() {
   const page = usePagedApi<MyStoryItem>((cursor, signal) => getMyStories({ cursor, signal }), 'authored')
@@ -158,6 +159,11 @@ function AuthoredTab() {
             {story.rejectReasons.length > 0 ? (
               <p className={shared.meta}>{story.rejectReasons.join(' · ')}</p>
             ) : null}
+            <div className={styles.cardActions}>
+              <Link className={shared.button} to={myStoryPath(story.storyId)}>
+                상태 보기
+              </Link>
+            </div>
           </div>
         </article>
       ))}
@@ -183,21 +189,23 @@ function PagedList({
   children: React.ReactNode
 }) {
   if (page.status === 'loading') {
-    return <p className={shared.status}>불러오는 중…</p>
+    return withNotice(page, <p className={shared.status}>불러오는 중…</p>)
   }
   if (page.status === 'error' && page.items.length === 0) {
-    return <ErrorNotice error={page.error} onRetry={page.reload} />
+    return withNotice(page, <ErrorNotice error={page.error} onRetry={page.reload} />)
   }
   if (page.items.length === 0) {
-    return (
+    return withNotice(
+      page,
       <div className={shared.empty}>
         <p className={shared.body}>{empty}</p>
         {emptyAction === undefined ? null : <div className={shared.actions}>{emptyAction}</div>}
-      </div>
+      </div>,
     )
   }
 
-  return (
+  return withNotice(
+    page,
     <>
       <div className={styles.list}>{children}</div>
       {page.hasMore ? (
@@ -218,6 +226,22 @@ function PagedList({
           {page.error instanceof Error ? page.error.message : String(page.error)}
         </p>
       ) : null}
+    </>,
+  )
+}
+
+/**
+ * 고지문을 목록 아래에 붙인다.
+ *
+ * **두 번째 Footer 를 만들지 않는다** — Library 가 쓰는 `AiNoticeFooter` 그대로다. 문구는
+ * 이 탭이 이미 받은 응답의 `noticeText` 이고 (백엔드 #281), 탭마다 자기 응답의 것을 낸다.
+ * `/landing` 을 따로 부르면 같은 화면에서 다른 시점의 문구가 보인다 (#257).
+ */
+function withNotice(page: PagedApi<unknown>, body: React.ReactNode): React.ReactNode {
+  return (
+    <>
+      {body}
+      {page.noticeText === null ? null : <AiNoticeFooter text={page.noticeText} />}
     </>
   )
 }

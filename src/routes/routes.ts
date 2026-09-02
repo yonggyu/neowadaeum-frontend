@@ -16,6 +16,7 @@ export const ROUTES = {
   resume: '/sessions/:sessionId/resume',
   history: '/sessions/:sessionId/history',
   myStories: '/me/stories',
+  myStory: '/me/stories/:storyId',
   accountSettings: '/me/settings',
 } as const
 
@@ -27,3 +28,4 @@ export const storyDetailPath = (storyId: string): string => `/stories/${storyId}
 export const playPath = (sessionId: string): string => `/sessions/${sessionId}`
 export const resumePath = (sessionId: string): string => `/sessions/${sessionId}/resume`
 export const historyPath = (sessionId: string): string => `/sessions/${sessionId}/history`
+export const myStoryPath = (storyId: string): string => `/me/stories/${storyId}`

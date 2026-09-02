@@ -4,6 +4,7 @@ import { AccountSettingsScreen } from '../screens/account/AccountSettingsScreen'
 import { HistoryScreen } from '../screens/account/HistoryScreen'
 import { LoginScreen } from '../screens/account/LoginScreen'
 import { MyStoriesScreen } from '../screens/account/MyStoriesScreen'
+import { MyStoryReviewScreen } from '../screens/account/MyStoryReviewScreen'
 import { ResumeScreen } from '../screens/account/ResumeScreen'
 import { LandingScreen } from '../screens/library/LandingScreen'
 import { LibraryScreen } from '../screens/library/LibraryScreen'
@@ -42,6 +43,7 @@ export function AppRoutes() {
         <Route path={ROUTES.resume} element={<ResumeScreen />} />
         <Route path={ROUTES.history} element={<HistoryScreen />} />
         <Route path={ROUTES.myStories} element={<MyStoriesScreen />} />
+        <Route path={ROUTES.myStory} element={<MyStoryReviewScreen />} />
         {/*
          * 계정 설정 (6d). 셸이 붙는다 — 6d 의 모바일 프레임이 **하단 탭바를 유지**하고 그
          * 세 번째 칸이 이 화면이다. 자기 자리로 돌아오는 길이 보여야 한다.
