@@ -2,12 +2,9 @@ import { useCallback, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 
 import type { ApiError } from '../../api/client'
-import {
-  getStoryDetail,
-  startSession,
-  type CharacterCard,
-  type MySessionBrief,
-} from '../../api/endpoints/library'
+import { getStoryDetail, type CharacterCard, type MySessionBrief } from '../../api/endpoints/library'
+// 세션 생성은 플레이 슬라이스의 것이다 (#22) — 탐색은 시작만 시킬 뿐 세션을 소유하지 않는다.
+import { startSession } from '../../api/endpoints/play'
 import { playPath, resumePath } from '../../routes/routes'
 import css from './discovery.module.css'
 import own from './story.module.css'
@@ -125,7 +122,7 @@ function StoryCta({ storyId, mySession }: { storyId: string; mySession: MySessio
   const start = () => {
     setPending(true)
     setError(null)
-    startSession(storyId, mySession !== null).then(
+    startSession(storyId, { restart: mySession !== null }).then(
       (created) => {
         void navigate(playPath(created.sessionId))
       },
