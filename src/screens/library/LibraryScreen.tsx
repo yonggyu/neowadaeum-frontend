@@ -1,7 +1,10 @@
+import { Link } from 'react-router-dom'
+
 import type { ContinueSession, Genre } from '../../api/endpoints/library'
+import { librarySectionPath } from '../../routes/routes'
 import css from './discovery.module.css'
 import { AiNoticeFooter, ContinueTile, ErrorBlock, StoryTile, TileSkeleton } from './parts'
-import { canLoadMore } from './sections'
+import { canLoadMore, COMMUNITY_SECTION } from './sections'
 import { useLibrary, type SectionState } from './useLibrary'
 
 /** 스켈레톤 개수. 가장 좁은 폭(2열)에서도 그리드가 차 보이는 최소 수다. */
@@ -157,6 +160,15 @@ function StorySection({
     <section className={css.section}>
       <div className={css.sectionHead}>
         <h2 className={css.sectionTitle}>{section.sectionTitle}</h2>
+        {/*
+         * “전체 보기 ›” (3g). 커뮤니티에만 둔다 — 3g 가 이 섹션을 **맛보기**로 정하고 전체를
+         * 별도 목록으로 보냈다. 공식·장르 섹션에는 그런 목록이 없으므로 링크도 없다.
+         */}
+        {section.sectionKey === COMMUNITY_SECTION && (
+          <Link className={css.sectionMore} to={librarySectionPath(section.sectionKey)}>
+            전체 보기 ›
+          </Link>
+        )}
       </div>
 
       {/* Empty(장르 결과 없음) — 1f 가 정한 문구다 */}

@@ -7,6 +7,7 @@ import { MyStoriesScreen } from '../screens/account/MyStoriesScreen'
 import { ResumeScreen } from '../screens/account/ResumeScreen'
 import { LandingScreen } from '../screens/library/LandingScreen'
 import { LibraryScreen } from '../screens/library/LibraryScreen'
+import { LibrarySectionScreen } from '../screens/library/LibrarySectionScreen'
 import { StoryDetailScreen } from '../screens/library/StoryDetailScreen'
 import { PlayScreen } from '../screens/play/PlayScreen'
 import { AppShell } from '../shell/AppShell'
@@ -36,6 +37,7 @@ export function AppRoutes() {
       <Route element={<AppShell />}>
         <Route path={ROUTES.landing} element={<LandingScreen />} />
         <Route path={ROUTES.library} element={<LibraryScreen />} />
+        <Route path={ROUTES.librarySection} element={<LibrarySectionScreen />} />
         <Route path={ROUTES.storyDetail} element={<StoryDetailScreen />} />
         <Route path={ROUTES.resume} element={<ResumeScreen />} />
         <Route path={ROUTES.history} element={<HistoryScreen />} />
