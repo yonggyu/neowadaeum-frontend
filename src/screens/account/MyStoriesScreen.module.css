@@ -1,0 +1,135 @@
+/*
+ * My Stories — 3탭 (와이어프레임 1i · 3g).
+ *
+ * 상단에 사용자 정보(이메일 · 닉네임 · provider)를 두지 않는다. `GET /me` 가 없어서 읽을
+ * 방법이 없고, 있더라도 `player_ref` 는 화면에 오지 않는다 (F-6).
+ */
+
+/*
+ * 목록 페이지의 폭. 읽기 화면(`--read-width`)보다 넓다 — 여기 오는 것은 문장이 아니라
+ * 표지와 상태 배지가 붙은 카드이고, 62ch 로 묶으면 1440 에서 한 열밖에 서지 않는다.
+ */
+.wide {
+  max-width: 1120px;
+  margin: 0 auto;
+}
+
+.tabs {
+  display: flex;
+  gap: var(--sp-2);
+  margin-bottom: var(--sp-6);
+  overflow-x: auto;
+}
+
+.tab {
+  flex: 0 0 auto;
+  min-height: 44px;
+  padding: 0 var(--sp-4);
+  border: 1px solid var(--border);
+  border-radius: var(--r-xl);
+  background: var(--bg);
+  color: var(--fg-muted);
+  font: inherit;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.tab:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.tabSelected {
+  border-color: var(--fg);
+  background: var(--fg);
+  color: var(--bg);
+}
+
+/*
+ * 카드 목록.
+ *
+ * 폭이 넓다고 행을 그대로 늘리지 않는다 — 1440 에서 한 줄이 1400px 이 되면 표지와 제목
+ * 사이가 비어 버린다. 열을 늘려 채운다.
+ */
+.list {
+  display: grid;
+  gap: var(--sp-4);
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 1024px) {
+  .list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1440px) {
+  .list {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.cardBody {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.cardTitle {
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-size: 1rem;
+  line-height: 1.4;
+}
+
+.cardActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  margin-top: auto;
+  padding-top: var(--sp-2);
+}
+
+.cardActions > * {
+  min-height: 40px;
+  padding: 0 var(--sp-3);
+  font-size: 0.875rem;
+}
+
+.badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+}
+
+.more {
+  display: flex;
+  justify-content: center;
+  margin-top: var(--sp-6);
+}
+
+/* 삭제 확인 Modal (1i — Session 카드 액션) */
+.scrim {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--sp-4);
+  background: rgb(0 0 0 / 45%);
+}
+
+.dialog {
+  width: 100%;
+  max-width: 420px;
+  padding: var(--sp-6);
+  border-radius: var(--r-lg);
+  background: var(--bg);
+}
+
+.dialogTitle {
+  margin: 0 0 var(--sp-3);
+  font-size: 1.125rem;
+}

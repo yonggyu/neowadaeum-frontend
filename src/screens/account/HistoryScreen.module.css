@@ -1,0 +1,61 @@
+/*
+ * 지난 기록 (와이어프레임 2e).
+ *
+ * 읽기 전용이다 — 여기에 누를 수 있는 선택지가 없다. `HistoryItem` 에 `choiceId` 가 오지
+ * 않으므로 만들 수도 없다 (I-1).
+ */
+
+.chapter {
+  margin: var(--sp-8) 0 var(--sp-4);
+  color: var(--fg-subtle);
+  font-size: 0.8125rem;
+  letter-spacing: 0.08em;
+}
+
+.turn {
+  padding: var(--sp-4) 0;
+  border-top: 1px solid var(--border);
+}
+
+.turnNo {
+  color: var(--fg-subtle);
+  font-size: 0.8125rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.paragraph {
+  margin: var(--paragraph-gap) 0 0;
+  line-height: 1.8;
+}
+
+.speaker {
+  display: block;
+  color: var(--fg-muted);
+  font-size: 0.875rem;
+}
+
+/* 지난 Choice 는 ✓ 로만 표시한다 — 버튼이 아니다 */
+.chosen {
+  display: flex;
+  gap: var(--sp-2);
+  margin-top: var(--sp-4);
+  padding: var(--sp-3);
+  border-radius: var(--r-sm);
+  background: var(--bg-sunken);
+  color: var(--fg-muted);
+}
+
+.pending {
+  margin-top: var(--sp-4);
+  color: var(--fg-subtle);
+}
+
+/*
+ * "위로 스크롤해 더 읽기" — 커서가 역순(최신→과거)이므로 더 읽을 것은 **위쪽**에 있다.
+ * 버튼을 목록 위에 두는 것이 그 방향과 맞는다.
+ */
+.older {
+  display: flex;
+  justify-content: center;
+  padding-bottom: var(--sp-6);
+}

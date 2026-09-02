@@ -1,9 +1,292 @@
+import { useState } from 'react'
+import { Link } from 'react-router-dom'
+
+import {
+  deleteMySession,
+  getMySessions,
+  getMyStories,
+  type MySessionItem,
+  type MyStoryItem,
+} from '../../api/endpoints/me'
+import { usePagedApi, type PagedApi } from '../../hooks/usePagedApi'
+import { resumePath, ROUTES, storyDetailPath } from '../../routes/routes'
+import shared from './account.module.css'
+import { ErrorNotice } from './ErrorNotice'
+import styles from './MyStoriesScreen.module.css'
+import { formatRelativeTime } from './relativeTime'
+import { REVIEW_STATUS_LABEL, VISIBILITY_LABEL } from './reviewStatus'
+
 /**
- * My Stories
+ * 내 이야기 — 3탭 (와이어프레임 1i · 3g).
  *
- * 자리 표시자다. 라우트는 바닥(이슈 #4)에서 미리 다 뚫었고, 이 파일은 C 슬라이스가 채운다.
- * 화면을 지어내지 않는다 — 와이어프레임 1i · 3g 를 그대로 옮긴다.
+ * 탭 셋이 오퍼레이션 둘을 쓴다. 진행 중 · 완료는 같은 `GET /me/sessions` 의 `status` 차이이고
+ * (`active` · `completed` **둘뿐**이다 — `in_progress` 는 존재하지 않는 값이었다),
+ * 내가 만든 작품은 `GET /me/stories` 다.
+ *
+ * 상단에 사용자 정보를 두지 않는다. `/api/v1/me` 에는 `DELETE` 하나뿐이고 `GET` 이 없어서
+ * 내 정보를 읽을 경로가 없다 (3g 의 "삭제한 항목"). `player_ref` 도 오지 않는다 (F-6).
  */
+const TABS = [
+  { key: 'active', label: '진행 중' },
+  { key: 'completed', label: '완료' },
+  { key: 'authored', label: '내가 만든 작품' },
+] as const
+
+type TabKey = (typeof TABS)[number]['key']
+
 export function MyStoriesScreen() {
-  return <main data-screen="MyStoriesScreen" />
+  const [tab, setTab] = useState<TabKey>('active')
+
+  return (
+    <main className={shared.page} data-screen="MyStoriesScreen">
+      <div className={styles.wide}>
+        <h1 className={shared.pageTitle}>내 이야기</h1>
+
+        <div className={styles.tabs} role="tablist">
+          {TABS.map((entry) => (
+            <button
+              key={entry.key}
+              type="button"
+              role="tab"
+              aria-selected={tab === entry.key}
+              className={`${styles.tab} ${tab === entry.key ? styles.tabSelected : ''}`}
+              onClick={() => setTab(entry.key)}
+            >
+              {entry.label}
+            </button>
+          ))}
+        </div>
+
+        <div role="tabpanel">
+          {tab === 'authored' ? <AuthoredTab /> : <SessionsTab status={tab} />}
+        </div>
+      </div>
+    </main>
+  )
+}
+
+/** 진행 중 · 완료. 같은 오퍼레이션의 `status` 차이라 컴포넌트도 하나다. */
+function SessionsTab({ status }: { status: 'active' | 'completed' }) {
+  const page = usePagedApi<MySessionItem>(
+    (cursor, signal) => getMySessions(status, { cursor, signal }),
+    status,
+  )
+  const [pendingDelete, setPendingDelete] = useState<MySessionItem | null>(null)
+  const now = Date.now()
+
+  return (
+    <PagedList
+      page={page}
+      empty="아직 시작한 이야기가 없어요."
+      emptyAction={
+        <Link className={`${shared.button} ${shared.primary}`} to={ROUTES.library}>
+          작품 둘러보기
+        </Link>
+      }
+    >
+      {page.items.map((session) => (
+        <article key={session.sessionId} className={shared.card}>
+          <Cover src={session.coverImage} />
+          <div className={styles.cardBody}>
+            <h2 className={styles.cardTitle}>{session.title}</h2>
+            <p className={shared.meta}>
+              {`Ch.${session.chapterNo} / ${session.totalChapters}장 · ${formatRelativeTime(session.updatedAt, now)}`}
+            </p>
+            <div className={styles.cardActions}>
+              <Link className={`${shared.button} ${shared.primary}`} to={resumePath(session.sessionId)}>
+                이어하기
+              </Link>
+              <Link className={shared.button} to={storyDetailPath(session.storyId)}>
+                처음부터
+              </Link>
+              <button
+                type="button"
+                className={shared.button}
+                onClick={() => setPendingDelete(session)}
+              >
+                삭제
+              </button>
+            </div>
+          </div>
+        </article>
+      ))}
+      {pendingDelete !== null ? (
+        <DeleteDialog
+          session={pendingDelete}
+          onClose={() => setPendingDelete(null)}
+          onDeleted={() => {
+            setPendingDelete(null)
+            // 서버가 진실이다. 지운 뒤 목록을 다시 받는다 — 화면에서 한 줄만 빼면
+            // 실패한 삭제가 성공처럼 보인다.
+            page.reload()
+          }}
+        />
+      ) : null}
+    </PagedList>
+  )
+}
+
+/**
+ * 내가 만든 작품.
+ *
+ * 카드에 "상태 보기" · "작품 관리" · "이어서 작성" 링크를 달지 않는다 — **작품 만들기 화면이
+ * 아직 없다** (4순위이며 라우트도 뚫려 있지 않다). 없는 화면으로 보내는 버튼을 만드는 것보다
+ * 상태를 정확히 보여 주고 멈추는 편이 낫다.
+ */
+function AuthoredTab() {
+  const page = usePagedApi<MyStoryItem>((cursor, signal) => getMyStories({ cursor, signal }), 'authored')
+  const now = Date.now()
+
+  return (
+    <PagedList page={page} empty="아직 만든 작품이 없어요.">
+      {page.items.map((story) => (
+        <article key={story.storyId} className={shared.card}>
+          <Cover src={story.coverImage} />
+          <div className={styles.cardBody}>
+            <h2 className={styles.cardTitle}>{story.title}</h2>
+            <div className={styles.badges}>
+              <span className={shared.badge}>{REVIEW_STATUS_LABEL[story.reviewStatus]}</span>
+              <span className={shared.badge}>{VISIBILITY_LABEL[story.visibility]}</span>
+            </div>
+            <p className={shared.meta}>
+              {`플레이 ${story.playCount} · ${formatRelativeTime(story.updatedAt, now)}`}
+            </p>
+            {/*
+             * 반려 사유는 **카테고리만** 온다. 서버가 준 것 이상을 추측해 보여 주지 않는다
+             * (F-5, 백엔드 R8.7) — 어떤 표현이 걸렸는지 알려 주면 그것이 우회 실마리가 된다.
+             */}
+            {story.rejectReasons.length > 0 ? (
+              <p className={shared.meta}>{story.rejectReasons.join(' · ')}</p>
+            ) : null}
+          </div>
+        </article>
+      ))}
+    </PagedList>
+  )
+}
+
+/**
+ * 목록 하나의 상태 — Loading / Empty / 목록 / Error (1k 상태 매트릭스).
+ *
+ * 탭 셋이 같은 네 상태를 갖는다. 모양이 비슷해서가 아니라 **계약의 목록 응답이 같은
+ * 규약**이기 때문에 하나로 둔다.
+ */
+function PagedList({
+  page,
+  empty,
+  emptyAction,
+  children,
+}: {
+  page: PagedApi<unknown>
+  empty: string
+  emptyAction?: React.ReactNode
+  children: React.ReactNode
+}) {
+  if (page.status === 'loading') {
+    return <p className={shared.status}>불러오는 중…</p>
+  }
+  if (page.status === 'error' && page.items.length === 0) {
+    return <ErrorNotice error={page.error} onRetry={page.reload} />
+  }
+  if (page.items.length === 0) {
+    return (
+      <div className={shared.empty}>
+        <p className={shared.body}>{empty}</p>
+        {emptyAction === undefined ? null : <div className={shared.actions}>{emptyAction}</div>}
+      </div>
+    )
+  }
+
+  return (
+    <>
+      <div className={styles.list}>{children}</div>
+      {page.hasMore ? (
+        <div className={styles.more}>
+          <button
+            type="button"
+            className={shared.button}
+            onClick={page.loadMore}
+            disabled={page.loadingMore}
+          >
+            {page.loadingMore ? '불러오는 중…' : '더 보기'}
+          </button>
+        </div>
+      ) : null}
+      {/* 다음 쪽만 실패한 경우. 이미 읽은 목록은 그대로 두고 실패 사실만 알린다 */}
+      {page.error !== null && page.items.length > 0 ? (
+        <p className={shared.meta} role="alert">
+          {page.error instanceof Error ? page.error.message : String(page.error)}
+        </p>
+      ) : null}
+    </>
+  )
+}
+
+function Cover({ src }: { src: string | null }) {
+  if (src === null) {
+    return <div className={shared.cover} aria-hidden="true" />
+  }
+  return <img className={shared.cover} src={src} alt="" />
+}
+
+/**
+ * 삭제 확인 (1i — 확인 Modal).
+ *
+ * 진행 기록을 지우는 자리가 여기 하나다 (3g). 두 번 지워도 서버가 `204` 로 답하므로
+ * (백엔드 §13-26) 재시도가 화면을 어긋나게 하지 않는다.
+ */
+function DeleteDialog({
+  session,
+  onClose,
+  onDeleted,
+}: {
+  session: MySessionItem
+  onClose: () => void
+  onDeleted: () => void
+}) {
+  const [deleting, setDeleting] = useState(false)
+  const [failure, setFailure] = useState<unknown>(null)
+
+  async function confirm(): Promise<void> {
+    setDeleting(true)
+    setFailure(null)
+    try {
+      await deleteMySession(session.sessionId)
+      onDeleted()
+    } catch (error) {
+      setFailure(error)
+      setDeleting(false)
+    }
+  }
+
+  return (
+    <div className={styles.scrim} role="dialog" aria-modal="true" aria-label="세션 삭제 확인">
+      <div className={styles.dialog}>
+        <h2 className={styles.dialogTitle}>{`“${session.title}” 의 진행 기록을 지울까요?`}</h2>
+        <p className={shared.body}>지운 기록은 되돌릴 수 없습니다.</p>
+        {/*
+          * 모달 안의 실패는 화면 상태가 아니라 이 조작의 결과다 — 전면 오류 블록을 넣으면
+          * 확인 버튼이 밀려난다. 서버의 `message` 만 그대로 낸다 (F-4).
+          */}
+        {failure !== null ? (
+          <p className={shared.meta} role="alert">
+            {failure instanceof Error ? failure.message : String(failure)}
+          </p>
+        ) : null}
+        <div className={shared.actions}>
+          <button
+            type="button"
+            className={`${shared.button} ${shared.primary}`}
+            onClick={() => void confirm()}
+            disabled={deleting}
+          >
+            {deleting ? '지우는 중…' : '삭제'}
+          </button>
+          <button type="button" className={shared.button} onClick={onClose} disabled={deleting}>
+            취소
+          </button>
+        </div>
+      </div>
+    </div>
+  )
 }
