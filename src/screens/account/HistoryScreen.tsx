@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom'
 import { getHistory, type HistoryItem } from '../../api/endpoints/resume'
 import { usePagedApi } from '../../hooks/usePagedApi'
 import { resumePath } from '../../routes/routes'
+import { AiNoticeFooter } from '../library/parts'
 import shared from './account.module.css'
 import { ErrorNotice } from './ErrorNotice'
 import styles from './HistoryScreen.module.css'
@@ -66,6 +67,13 @@ export function HistoryScreen() {
           이어하기로 돌아가기
         </Link>
       </div>
+
+      {/*
+       * 고지문은 **`HistoryResponse` 가 실어 온 것**이다 (백엔드 #281). Library 가 쓰는
+       * `AiNoticeFooter` 를 그대로 쓴다 — 두 번째 Footer 를 만들지 않는다. `/landing` 을 따로
+       * 부르면 같은 화면에서 다른 시점의 문구가 보인다 (#257 이 지운 우회).
+       */}
+      {page.noticeText === null ? null : <AiNoticeFooter text={page.noticeText} />}
     </main>
   )
 }
