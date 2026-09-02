@@ -13,7 +13,7 @@
     "typecheck": "tsc -b --noEmit",
     "lint": "eslint .",
     "test": "vitest run",
-    "api:types": "openapi-typescript ${OPENAPI_SOURCE:-../neowadaeum-backend/docs/openapi.yaml} -o src/api/schema.d.ts"
+    "api:types": "node scripts/api-types.mjs"
   },
   "dependencies": {
     "react": "^19.1.0",
