@@ -22,6 +22,15 @@ export const ROUTES = {
   admin: '/admin',
   /** 그 앞의 문. **가드 밖에 둔다** — 승격을 만드는 자리가 승격을 요구하면 들어갈 길이 없다. */
   adminAuth: '/admin/auth',
+  /*
+   * 작품 만들기 (3d · 3e · 6a). 경로를 계약과 같은 모양으로 둔다 — `/authoring/drafts` 는
+   * `listDrafts` · `createDraft` 가 사는 자리이고, 그 아래 하나가 마법사다.
+   *
+   * **`draftId` 는 URL 에 온다.** 남의 원고를 열면 `404` 이며 그것이 방어다 (I-8) —
+   * `player_ref` 가 아니므로 F-6 의 대상이 아니다.
+   */
+  authoringDrafts: '/authoring/drafts',
+  authoringDraft: '/authoring/drafts/:draftId',
 } as const
 
 /** 섹션 전체 보기 (3g “전체 보기 ›”). `sectionKey` 는 `genre:romance` 처럼 `:` 를 담으므로 인코딩한다. */
@@ -33,3 +42,4 @@ export const playPath = (sessionId: string): string => `/sessions/${sessionId}`
 export const resumePath = (sessionId: string): string => `/sessions/${sessionId}/resume`
 export const historyPath = (sessionId: string): string => `/sessions/${sessionId}/history`
 export const myStoryPath = (storyId: string): string => `/me/stories/${storyId}`
+export const authoringDraftPath = (draftId: string): string => `/authoring/drafts/${draftId}`
