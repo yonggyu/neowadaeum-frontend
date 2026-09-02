@@ -1,0 +1,181 @@
+/*
+ * 계정 슬라이스 다섯 화면이 함께 쓰는 것.
+ *
+ * 값을 여기서 새로 정하지 않는다 — 전부 `src/styles/tokens.css` 의 변수다. 숫자를 화면이
+ * 직접 적기 시작하면 세 슬라이스의 리듬이 조금씩 달라지고, 그건 나중에 한 번에 못 고친다.
+ *
+ * 브레이크포인트는 미디어 쿼리가 var() 를 읽지 못해 숫자로 적는다 — tokens.css 주석의
+ * 넷과 같은 값이다 (1440 / 1024 / 768).
+ */
+
+.page {
+  min-height: 100dvh;
+  padding: var(--sp-8) var(--sp-6) var(--sp-16);
+}
+
+/* 1k — Laptop 이하에서 본문 padding 을 줄인다 */
+@media (max-width: 767px) {
+  .page {
+    padding: var(--sp-6) var(--sp-4) var(--sp-12);
+  }
+}
+
+/* 읽기 폭. Story 본문이 아닌 목록도 같은 축에 맞춘다 */
+.column {
+  max-width: 840px;
+  margin: 0 auto;
+}
+
+.reading {
+  max-width: var(--read-width);
+  margin: 0 auto;
+}
+
+.pageTitle {
+  margin: 0 0 var(--sp-6);
+  font-size: 1.5rem;
+  line-height: 1.3;
+}
+
+.sectionTitle {
+  margin: 0 0 var(--sp-2);
+  font-size: 1.125rem;
+  line-height: 1.4;
+}
+
+.body {
+  margin: 0;
+  color: var(--fg-muted);
+  line-height: 1.7;
+}
+
+.meta {
+  margin: 0;
+  color: var(--fg-subtle);
+  font-size: 0.875rem;
+  font-variant-numeric: tabular-nums;
+}
+
+/*
+ * 버튼 — 높이를 화면마다 다르게 둔다 (CLAUDE.md 반응형 절).
+ * 로그인 56px · 목록 행동 48px. 임의로 통일하지 않는다.
+ */
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-2);
+  min-height: 48px;
+  padding: 0 var(--sp-4);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--bg);
+  color: var(--fg);
+  font: inherit;
+  text-align: center;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.button:disabled {
+  color: var(--fg-subtle);
+  cursor: default;
+}
+
+.button:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.primary {
+  border-color: var(--fg);
+  background: var(--fg);
+  color: var(--bg);
+}
+
+.primary:disabled {
+  border-color: var(--border);
+  background: var(--bg-sunken);
+  color: var(--fg-subtle);
+}
+
+.tall {
+  min-height: 56px;
+  font-size: 1rem;
+}
+
+.wide {
+  width: 100%;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  margin-top: var(--sp-6);
+}
+
+/* Mobile 은 개수와 무관하게 세로 full-width (1k) */
+@media (max-width: 767px) {
+  .actions {
+    flex-direction: column;
+  }
+
+  .actions > * {
+    width: 100%;
+  }
+}
+
+.card {
+  display: flex;
+  gap: var(--sp-4);
+  padding: var(--sp-4);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  background: var(--bg);
+}
+
+/*
+ * 표지 · 장면 이미지의 자리.
+ *
+ * 높이를 px 로 박지 않는다 — 비율로만 고정한다. `lastSceneVisual` 은 P3 라 항상 `null` 이고
+ * (백엔드 §13-26), `coverImage` 도 없을 수 있다. 그때 그리는 것이 이 폴백이다.
+ */
+.cover {
+  flex: 0 0 auto;
+  width: 72px;
+  aspect-ratio: var(--ratio-cover);
+  border-radius: var(--r-sm);
+  background: var(--bg-sunken);
+  object-fit: cover;
+}
+
+.visualFallback {
+  width: 100%;
+  aspect-ratio: var(--ratio-visual-wide);
+  border-radius: var(--r-lg);
+  background: var(--bg-sunken);
+}
+
+.badge {
+  display: inline-block;
+  padding: var(--sp-1) var(--sp-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  color: var(--fg-muted);
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+
+/* 로딩 · 오류 · 비어 있음 — 1k 상태 매트릭스의 셋 */
+.status {
+  padding: var(--sp-12) 0;
+  color: var(--fg-muted);
+  text-align: center;
+}
+
+.empty {
+  padding: var(--sp-16) 0;
+  color: var(--fg-muted);
+  text-align: center;
+}
