@@ -1,6 +1,5 @@
 import { Route, Routes } from 'react-router-dom'
 
-import { ConsentScreen } from '../screens/account/ConsentScreen'
 import { HistoryScreen } from '../screens/account/HistoryScreen'
 import { LoginScreen } from '../screens/account/LoginScreen'
 import { MyStoriesScreen } from '../screens/account/MyStoriesScreen'
@@ -24,8 +23,9 @@ export function AppRoutes() {
   return (
     <Routes>
       <Route path={ROUTES.landing} element={<LandingScreen />} />
+      {/* 최초 로그인의 추가 정보(생년월일 · 약관)는 별 라우트가 아니다 — 와이어프레임 6b 가
+          "같은 화면 교체, 페이지 이동 없음"으로 정했다. LoginScreen 안에서 단계로 바뀐다. */}
       <Route path={ROUTES.login} element={<LoginScreen />} />
-      <Route path={ROUTES.consent} element={<ConsentScreen />} />
       <Route path={ROUTES.library} element={<LibraryScreen />} />
       <Route path={ROUTES.storyDetail} element={<StoryDetailScreen />} />
       <Route path={ROUTES.play} element={<PlayScreen />} />

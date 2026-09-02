@@ -9,7 +9,6 @@
 export const ROUTES = {
   landing: '/',
   login: '/login',
-  consent: '/signup/consent',
   library: '/library',
   storyDetail: '/stories/:storyId',
   play: '/sessions/:sessionId',
