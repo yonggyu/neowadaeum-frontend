@@ -125,11 +125,17 @@ function Play({ sessionId }: { sessionId: string }) {
 }
 
 /**
- * Header.
+ * Header — **두 줄이다: 작품 제목과 챕터** (2f 가 390 에서 정한 모양이고, 그 위 폭도 같다).
  *
- * 작품 제목을 넣을 자리가 있지만 `TurnResponse` 에 그 필드가 없다 — 계약에 없는 것을
- * 화면이 만들어 내지 않는다. 백엔드 이슈 후보로 보고했다. 진행 표시는 서버가 만든
- * `progressHint` 문자열을 그대로 쓴다: 백분율을 계산하지 않는다 (R7.5).
+ * 제목은 `turn.title` 이다 (백엔드 #259). 세션이 고정한 버전의 제목이므로 (I-4) 작품이 그 뒤에
+ * 개정되어도 이 화면은 읽고 있는 판본의 이름을 말한다 — 라이브러리에서 다시 읽어 오지 않는
+ * 이유가 그것이다.
+ *
+ * 챕터 제목(`chapterTitle`)은 여기 두지 않는다. 세 줄이 되면 2f 의 2줄 규칙이 깨지고,
+ * 그 값은 챕터가 바뀌는 순간 인터스티셜(2c)이 이미 크게 보여 준다.
+ *
+ * 진행 표시는 서버가 만든 `progressHint` 문자열을 그대로 쓴다 — 백분율을 계산하지 않고
+ * (R7.5), 계약에 없는 값(남은 턴 · 진행바)을 여기에 그리지 않는다.
  */
 function PlayHeader({ turn }: { turn: Turn | null }) {
   if (turn === null) {
@@ -137,7 +143,7 @@ function PlayHeader({ turn }: { turn: Turn | null }) {
   }
   return (
     <header className={s.header}>
-      {turn.chapterTitle === null ? null : <p className={s.chapterTitle}>{turn.chapterTitle}</p>}
+      <p className={s.storyTitle}>{turn.title}</p>
       <p className={s.chapterMeta}>
         {turn.progressHint ?? `Chapter ${String(turn.chapterNo).padStart(2, '0')}`}
       </p>

@@ -50,10 +50,18 @@
   background: var(--bg);
 }
 
-.chapterTitle {
+/*
+ * 작품 제목. **한 줄로 유지한다** — 헤더가 두 줄이라는 것이 2f 의 규칙이고, 390 에서 제목이
+ * 접히면 세 줄이 되어 본문이 그만큼 밀린다. 자르는 쪽을 고른 이유는 제목을 다 읽는 것보다
+ * 이야기가 화면에 남는 것이 중요해서다.
+ */
+.storyTitle {
   margin: 0;
+  overflow: hidden;
   font-size: 1rem;
   font-weight: 600;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .chapterMeta {
@@ -130,14 +138,23 @@
   font-weight: 600;
 }
 
-/* AI 고지 — 본문 우하단 상시 (1k). 광고처럼 강조하지 않되 항상 보인다 */
+/*
+ * AI 고지 — 본문 우하단 상시 (1k · 2a · 2d). 광고처럼 강조하지 않되 항상 보인다.
+ *
+ * 문구는 서버가 준 문장이다 (R11.1). 대문자 변환과 자간을 걷은 이유가 그것이다 —
+ * 라벨이 아니라 한국어 한 문장이고, `text-transform` 은 그 문장을 건드릴 뿐이다.
+ * ◦ 는 와이어프레임의 장식이므로 CSS 에 둔다: 서버 문자열에 글자를 더하지 않는다.
+ */
 .aiNotice {
   margin: var(--sp-6) 0 0;
   color: var(--fg-subtle);
-  font-size: 0.6875rem;
-  letter-spacing: 0.08em;
+  font-size: 0.75rem;
+  line-height: 1.6;
   text-align: right;
-  text-transform: uppercase;
+}
+
+.aiNotice::before {
+  content: '◦ ';
 }
 
 /* ── Choice — 항상 본문 끝. sticky 로 띄우지 않는다 (1k · 2a) ──────────────────── */
@@ -448,4 +465,47 @@
 
 .ending .actions {
   justify-content: center;
+}
+
+/* "다른 결말 보기" 와 그 확인이 Primary 다 (2d) — 나머지 둘은 이동이므로 테두리만 둔다 */
+.actionPrimary {
+  border-color: var(--fg);
+  background: var(--fg);
+  color: var(--bg);
+}
+
+.actionPrimary:disabled {
+  border-color: var(--border);
+  background: var(--bg-sunken);
+  color: var(--fg-subtle);
+}
+
+/*
+ * 되돌릴 수 없는 요청 앞의 확인 (계약 §13-9 의 `restart=true`).
+ *
+ * 모달을 띄우지 않는다. 네 폭 어디서도 같은 자리에서 읽히고, 읽던 결말이 화면에 남아 있는
+ * 편이 낫다 — 무엇을 버리는지 묻는 문장은 그 화면 위에서 읽혀야 뜻이 통한다.
+ */
+.confirm {
+  margin-top: var(--sp-6);
+  padding: var(--sp-4);
+  border: 1px solid var(--fg);
+  border-radius: var(--r-md);
+  text-align: left;
+}
+
+.confirmText {
+  margin: 0;
+  font-size: 0.9375rem;
+  line-height: 1.7;
+}
+
+.confirmError {
+  margin: var(--sp-3) 0 0;
+  font-size: 0.9375rem;
+  line-height: 1.6;
+}
+
+.confirm .actions {
+  margin-top: var(--sp-4);
 }
