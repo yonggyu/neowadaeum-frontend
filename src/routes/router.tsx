@@ -1,5 +1,6 @@
 import { Route, Routes } from 'react-router-dom'
 
+import { AccountSettingsScreen } from '../screens/account/AccountSettingsScreen'
 import { HistoryScreen } from '../screens/account/HistoryScreen'
 import { LoginScreen } from '../screens/account/LoginScreen'
 import { MyStoriesScreen } from '../screens/account/MyStoriesScreen'
@@ -18,7 +19,7 @@ import { ROUTES } from './routes'
  * 세 브랜치가 확정적으로 같은 줄에서 충돌한다 — 자리를 먼저 만들어 두면 각 슬라이스는
  * **자기 화면 파일만** 채우면 되고 이 파일은 아무도 건드리지 않는다.
  *
- * 여기 없는 화면(Play Menu · 신고 · 작품 만들기 · 계정 설정 · Admin)은 이번 범위가 아니다.
+ * 여기 없는 화면(Play Menu · 신고 · 작품 만들기 · Admin)은 아직 범위가 아니다.
  *
  * **셸이 붙는 자리와 붙지 않는 자리를 이 트리가 정한다** (#25). 화면이 스스로 판단하게 두면
  * 새 화면마다 같은 질문을 다시 하게 된다 — 여기 한 곳에서 보이는 편이 낫다.
@@ -39,6 +40,11 @@ export function AppRoutes() {
         <Route path={ROUTES.resume} element={<ResumeScreen />} />
         <Route path={ROUTES.history} element={<HistoryScreen />} />
         <Route path={ROUTES.myStories} element={<MyStoriesScreen />} />
+        {/*
+         * 계정 설정 (6d). 셸이 붙는다 — 6d 의 모바일 프레임이 **하단 탭바를 유지**하고 그
+         * 세 번째 칸이 이 화면이다. 자기 자리로 돌아오는 길이 보여야 한다.
+         */}
+        <Route path={ROUTES.accountSettings} element={<AccountSettingsScreen />} />
       </Route>
 
       {/*
