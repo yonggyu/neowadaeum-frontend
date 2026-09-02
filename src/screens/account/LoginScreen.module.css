@@ -130,16 +130,42 @@
   font-weight: 600;
 }
 
+/*
+ * 한 줄에 체크박스와 본문 링크가 함께 앉는다.
+ *
+ * 링크를 `<label>` 밖에 두어야 하므로(안에 있으면 클릭이 체크박스를 토글한다) 줄이 두
+ * 조각이다. 폭이 좁아도 벌어지지 않는다 — 라벨이 남는 자리를 다 먹고 링크는 제 폭만 쓴다.
+ */
 .consent {
   display: flex;
   align-items: center;
-  gap: var(--sp-3);
-  min-height: 40px;
+  gap: var(--sp-2);
   color: var(--fg-muted);
   font-size: 0.9375rem;
 }
 
-.consent input,
+/* 터치 대상 높이는 줄이 아니라 라벨이 갖는다 — 실제로 눌리는 것이 이 영역이다 */
+.consentLabel {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: var(--sp-3);
+  min-width: 0;
+  min-height: 40px;
+}
+
+/* 서버가 준 주소가 있을 때만 그린다. 주소를 프론트가 지어내지 않는다 (S-11) */
+.consentLink {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  min-height: 40px;
+  padding: 0 var(--sp-2);
+  color: inherit;
+  font-size: 0.875rem;
+}
+
+.consentLabel input,
 .consentAll input {
   flex: 0 0 auto;
   width: 20px;

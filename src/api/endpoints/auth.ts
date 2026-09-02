@@ -9,6 +9,8 @@ import type { components } from '../schema'
  */
 export type ConsentItem = components['schemas']['ConsentItem']
 export type ConsentType = ConsentItem['consentType']
+export type ConsentTerm = components['schemas']['ConsentTerm']
+export type ConsentTermsResponse = components['schemas']['ConsentTermsResponse']
 export type OAuthLoginRequest = components['schemas']['OAuthLoginRequest']
 export type TokenResponse = components['schemas']['TokenResponse']
 
@@ -35,4 +37,21 @@ export function loginWithOAuth(
   signal?: AbortSignal,
 ): Promise<TokenResponse> {
   return request<TokenResponse>(`/auth/oauth/${PROVIDER}`, { method: 'POST', body, signal })
+}
+
+/**
+ * 지금 동의를 받아야 할 약관의 종류 · 판본 · 본문 주소 (`getConsentTerms`).
+ *
+ * **인증 없이 열린다** — 가입 전 화면이 부르는 경로이고 회원에 관한 값이 하나도 없다 (S-9).
+ * 그래서 `/auth/*` 아래가 아니라 `/consents` 다.
+ *
+ * 여기서 읽은 `version` 을 `loginWithOAuth` 의 `consents[].version` 에 **그대로 되돌려
+ * 보낸다** (backend #261). 프론트가 판본을 상수로 들면 약관이 개정된 날부터 동의 이력에
+ * 옛 판본이 쌓이고, **그것은 조용히 틀린다.**
+ *
+ * 판본이 서버 설정에 없으면 **기본 판본을 지어내지 않고 실패한다** — 그것이 서버의 설계다.
+ * 실패는 `ApiError` 로 올라오고, 화면은 판본을 얻지 못한 채 동의를 보내지 않는다.
+ */
+export function getConsentTerms(signal?: AbortSignal): Promise<ConsentTermsResponse> {
+  return request<ConsentTermsResponse>('/consents', { signal })
 }
