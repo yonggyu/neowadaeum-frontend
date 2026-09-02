@@ -1,0 +1,76 @@
+/*
+ * 디자인 토큰 — 와이어프레임 1k "Responsive Layout Rule + 공통 상태 규칙" 의 값 그대로.
+ *
+ * 값을 여기서만 정한다. 화면이 4px·12px 같은 숫자를 직접 적기 시작하면 세 슬라이스가
+ * 조금씩 다른 리듬을 갖게 되고, 그건 나중에 한 번에 고칠 수 없다.
+ */
+:root {
+  /* Spacing — 4 / 8 / 12 / 16 / 24 / 32 / 48 / 64 */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-6: 24px;
+  --sp-8: 32px;
+  --sp-12: 48px;
+  --sp-16: 64px;
+
+  /* Radius — 8 / 12 / 16 / 24 */
+  --r-sm: 8px;
+  --r-md: 12px;
+  --r-lg: 16px;
+  --r-xl: 24px;
+
+  /* 본문 읽기 폭. Story 본문은 이 폭으로 중앙 정렬한다 */
+  --read-width: 62ch;
+
+  /* 문단 간격 (2a 확정 규칙) */
+  --paragraph-gap: var(--sp-4);
+
+  /* Visual 은 비율로만 고정한다 — 높이를 px 로 박지 않는다 */
+  --ratio-visual-wide: 16 / 9;
+  --ratio-visual-tall: 4 / 5;
+  --ratio-cover: 2 / 3;
+
+  /* Choice 최소 높이 — Desktop 56 / Mobile 60 (2b) */
+  --choice-min-h: 56px;
+
+  /* 색 — 와이어프레임은 흑백 골격이다. 실제 팔레트가 나오기 전까지 뉴트럴만 둔다 */
+  --fg: #1a1a1a;
+  --fg-muted: rgba(0, 0, 0, 0.55);
+  --fg-subtle: rgba(0, 0, 0, 0.38);
+  --bg: #ffffff;
+  --bg-sunken: #f0eee9;
+  --border: rgba(0, 0, 0, 0.12);
+  --focus: #2a78d6;
+}
+
+@media (max-width: 767px) {
+  :root {
+    --choice-min-h: 60px;
+  }
+}
+
+/*
+ * 브레이크포인트는 CSS 변수로 쓸 수 없다(미디어 쿼리가 var() 를 읽지 못한다).
+ * 값을 여기 적어 두고 각 모듈이 같은 숫자를 쓴다.
+ *
+ *   1440+      Desktop  — Library 4열
+ *   1024~1439  Laptop   — Library 3열, Play 는 Stacked 고정
+ *   768~1023   Tablet   — Library 2열, Detail 1열
+ *   ~767       Mobile   — 전면 세로 재구성, Choice full-width
+ */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: system-ui, -apple-system, "Apple SD Gothic Neo", sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
