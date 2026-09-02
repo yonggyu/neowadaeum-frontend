@@ -1,23 +1,33 @@
 import { API_BASE_URL, API_PREFIX } from './config'
+import { UNKNOWN_ERROR, type ClientErrorCode, type ErrorCode } from './errors'
 
 /**
- * 백엔드가 돌려주는 오류 한 형태 (backend §9.1).
+ * 백엔드가 돌려주는 오류 한 형태 (계약의 `Error` 스키마).
  *
- * 서버는 `code` 와 안전한 `message` 만 내보낸다 — 스택트레이스도 SQL 도 내부 경로도 없다.
- * 화면은 `code` 로 분기하고 `message` 를 그대로 보여 준다.
+ * 코드 필드의 이름은 **`error`** 다 — `code` 가 아니다. 셋이 같은 말을 한다:
+ * `openapi.yaml` 의 `Error.required: [error, message, details]`, 위키 `50-API/error-contract`,
+ * 백엔드 CLAUDE.md. `details` 도 필수이며 **`null` 이 되지 않는다** — 값이 없으면 빈 객체다.
+ *
+ * 화면은 `error` 로 분기하고 `message` 를 그대로 보여 준다 (F-4).
  */
 export interface ApiErrorBody {
-  code: string
+  error: ErrorCode
   message: string
-  details?: Record<string, unknown>
+  details: Record<string, unknown>
 }
 
 export class ApiError extends Error {
   readonly status: number
 
-  readonly code: string
+  /**
+   * 계약의 `error` 필드.
+   *
+   * 속성 이름을 `error` 로 두지 않는 이유는 `Error` 를 상속하기 때문이다 — `err.error` 는
+   * 읽는 사람을 멈추게 한다. `code` 로도 두지 않는다: 그 이름 때문에 실제로 한 번 어긋났다.
+   */
+  readonly errorCode: ClientErrorCode
 
-  readonly details: Record<string, unknown> | undefined
+  readonly details: Record<string, unknown>
 
   /** 서버 로그와 이어 붙일 값. 사용자가 오류를 제보할 때 이것 하나면 된다. */
   readonly requestId: string | undefined
@@ -26,15 +36,15 @@ export class ApiError extends Error {
   // 타입만 지우면 실행되는 코드로 유지하겠다는 결정이며, 그 대가가 이 몇 줄이다.
   constructor(
     status: number,
-    code: string,
+    errorCode: ClientErrorCode,
     message: string,
-    details?: Record<string, unknown>,
+    details: Record<string, unknown>,
     requestId?: string,
   ) {
     super(message)
     this.name = 'ApiError'
     this.status = status
-    this.code = code
+    this.errorCode = errorCode
     this.details = details
     this.requestId = requestId
   }
@@ -59,7 +69,7 @@ export function setAccessToken(token: string | null): void {
 export interface RequestOptions {
   method?: 'GET' | 'POST' | 'PATCH' | 'DELETE'
   body?: unknown
-  /** 중복 과금을 막는 값 (backend R6.2). 턴 생성처럼 재시도가 있는 요청에 붙인다. */
+  /** 중복 과금을 막는 값 (backend R6.2). 턴 생성처럼 재시도가 있는 요청에 붙인다 (F-7). */
   idempotencyKey?: string
   signal?: AbortSignal
 }
@@ -108,14 +118,14 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
  */
 async function errorOf(
   response: Response,
-): Promise<[code: string, message: string, details: Record<string, unknown> | undefined]> {
+): Promise<[errorCode: ClientErrorCode, message: string, details: Record<string, unknown>]> {
   try {
     const body = (await response.json()) as ApiErrorBody
-    if (typeof body?.code === 'string') {
-      return [body.code, body.message, body.details]
+    if (typeof body?.error === 'string') {
+      return [body.error, body.message, body.details ?? {}]
     }
   } catch {
     // 계약 형태가 아니다. 아래로 떨어진다.
   }
-  return ['UNKNOWN', `요청이 실패했어요 (HTTP ${response.status})`, undefined]
+  return [UNKNOWN_ERROR, `요청이 실패했어요 (HTTP ${response.status})`, {}]
 }
