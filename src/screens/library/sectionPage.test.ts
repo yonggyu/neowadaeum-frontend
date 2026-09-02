@@ -22,11 +22,13 @@ const section = (rest: Partial<LibrarySection> = {}): LibrarySection => ({
   sectionTitle: '커뮤니티 작품',
   hasMore: false,
   stories: [],
+  // 계약이 required 로 만들었다 (백엔드 #289) — Footer 를 그리는 화면의 응답은 문구를 싣는다
+  noticeText: 'AI 가 만든 이야기입니다.',
   ...rest,
 })
 
 describe('toCursorPage — 섹션 응답을 커서 쪽으로 (F-2)', () => {
-  it('F2_계약이_준_세_필드만_옮긴다', () => {
+  it('F2_계약이_준_필드만_옮긴다', () => {
     const page = toCursorPage(
       section({ stories: [story('a'), story('b')], hasMore: true, nextCursor: 'c1' }),
     )
@@ -34,6 +36,20 @@ describe('toCursorPage — 섹션 응답을 커서 쪽으로 (F-2)', () => {
     expect(page.items.map((s) => s.storyId)).toEqual(['a', 'b'])
     expect(page.nextCursor).toBe('c1')
     expect(page.hasMore).toBe(true)
+  })
+
+  it('백엔드289_고지문을_자기_응답에서_실어_나른다', () => {
+    // 이 화면이 처음 섰을 때 `LibrarySection` 에는 `noticeText` 가 없었고, 그래서 Footer 를
+    // 그리지 않았다. 계약이 채운 지금 **여기서 끊기면** 화면은 다시 문구를 잃고, 그때 가장
+    // 쉬운 복구가 `/landing` 재호출 — PR #36 이 걷어낸 그 우회다. 그 길을 막는 테스트다.
+    const page = toCursorPage(section({ noticeText: 'AI 가 만든 이야기입니다.' }))
+
+    expect(page.noticeText).toBe('AI 가 만든 이야기입니다.')
+  })
+
+  it('R11_1_문구의_기본값을_프론트가_만들지_않는다', () => {
+    // 서버가 빈 문자열을 주면 빈 문자열이다. 여기서 폴백을 끼우면 프론트가 고지를 지어낸 것이 된다.
+    expect(toCursorPage(section({ noticeText: '' })).noticeText).toBe('')
   })
 
   it('커서가_없으면_더_보기를_열지_않는다', () => {
