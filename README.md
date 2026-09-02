@@ -38,11 +38,15 @@ npm run dev               # http://localhost:5173
 API 타입을 손으로 적지 않는다. 백엔드의 `docs/openapi.yaml` 에서 만든다.
 
 ```bash
-npm run api:types         # → src/api/schema.d.ts (커밋하지 않는다 — 산출물이다)
+OPENAPI_SOURCE=/절대경로/neowadaeum-backend/docs/openapi.yaml npm run api:types
+# → src/api/schema.d.ts (커밋하지 않는다 — 산출물이다)
 ```
 
-기본 경로는 `../neowadaeum-backend/docs/openapi.yaml` 이다. 두 레포를 나란히 클론했다면 그대로
-쓰면 되고, 아니면 `.env` 의 `OPENAPI_SOURCE` 를 고친다.
+**`OPENAPI_SOURCE` 는 필수이며 기본값이 없다.** 값이 없으면 스크립트가 실패한다
+(`scripts/api-types.mjs`). 기본값을 두면 상대경로가 실행 위치에 따라 다른 곳을 가리키고,
+그 자리에 **다른 계약 레포가 있으면 실패하지 않고 조용히 틀린 타입**이 생긴다 — 어느 계약을
+읽는지가 조용히 정해지는 자리를 남기지 않는다. `npm` 은 `.env` 를 읽지 않으므로 셸에
+내보내거나 명령 앞에 붙인다. 매번 적기 싫으면 `export` 해 둔다.
 
 **CI 도 같은 일을 한다** — 백엔드(공개 레포)를 `_contract/` 로 체크아웃해 타입을 만든 뒤 검사한다.
 ref 를 고정하지 않으므로 **계약이 바뀌면 여기서 빨간불이 난다.** 오래된 계약 위에서 조용히

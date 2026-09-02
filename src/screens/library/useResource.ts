@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 
 import { ApiError } from '../../api/client'
+import { UNKNOWN_ERROR, UNREACHABLE_MESSAGE } from '../../api/errors'
 
 /**
  * 한 번 읽어 오는 화면 데이터의 세 상태.
@@ -67,5 +68,5 @@ export function useResource<T>(load: (signal: AbortSignal) => Promise<T>): Resou
  */
 export function toApiError(cause: unknown): ApiError {
   if (cause instanceof ApiError) return cause
-  return new ApiError(0, 'UNKNOWN', '서버에 연결하지 못했어요.', {})
+  return new ApiError(0, UNKNOWN_ERROR, UNREACHABLE_MESSAGE, {})
 }

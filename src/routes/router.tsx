@@ -1,5 +1,6 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 
+import type { AuthState } from '../auth/session'
 import { AccountSettingsScreen } from '../screens/account/AccountSettingsScreen'
 import { AdminAuthScreen } from '../screens/admin/AdminAuthScreen'
 import { AdminGuard } from '../screens/admin/AdminGuard'
@@ -14,6 +15,7 @@ import { LibrarySectionScreen } from '../screens/library/LibrarySectionScreen'
 import { StoryDetailScreen } from '../screens/library/StoryDetailScreen'
 import { PlayScreen } from '../screens/play/PlayScreen'
 import { AppShell } from '../shell/AppShell'
+import { RequireAuth } from './RequireAuth'
 import { ROUTES } from './routes'
 
 /**
@@ -27,8 +29,14 @@ import { ROUTES } from './routes'
  *
  * **셸이 붙는 자리와 붙지 않는 자리를 이 트리가 정한다** (#25). 화면이 스스로 판단하게 두면
  * 새 화면마다 같은 질문을 다시 하게 된다 — 여기 한 곳에서 보이는 편이 낫다.
+ *
+ * **로그인이 필요한 자리도 같은 방식으로 이 트리가 정한다** (#41). 인증 없이 열리는 화면은
+ * 계약이 정했다 — 전역 `security` 가 `bearerAuth` 이고 `security: []` 로 그것을 벗는 오퍼레이션은
+ * 넷뿐이다: `getLanding` · `loginWithOAuth` · `refreshToken` · `getConsentTerms`. 화면으로 옮기면
+ * **랜딩과 로그인 둘**이고, 나머지는 전부 `RequireAuth` 안에 든다. 라이브러리도 예외가 아니다 —
+ * `getLibrary` · `getStoryDetail` 은 `security: []` 를 달고 있지 않다.
  */
-export function AppRoutes() {
+export function AppRoutes({ session }: { session: AuthState }) {
   return (
     <Routes>
       {/*
@@ -38,19 +46,24 @@ export function AppRoutes() {
        * 그 이동을 상단 내비와 하단 탭바가 맡는다.
        */}
       <Route element={<AppShell />}>
+        {/* 랜딩만 인증 밖이다 — `getLanding` 의 `security: []` 가 그렇게 정했다 */}
         <Route path={ROUTES.landing} element={<LandingScreen />} />
-        <Route path={ROUTES.library} element={<LibraryScreen />} />
-        <Route path={ROUTES.librarySection} element={<LibrarySectionScreen />} />
-        <Route path={ROUTES.storyDetail} element={<StoryDetailScreen />} />
-        <Route path={ROUTES.resume} element={<ResumeScreen />} />
-        <Route path={ROUTES.history} element={<HistoryScreen />} />
-        <Route path={ROUTES.myStories} element={<MyStoriesScreen />} />
-        <Route path={ROUTES.myStory} element={<MyStoryReviewScreen />} />
-        {/*
-         * 계정 설정 (6d). 셸이 붙는다 — 6d 의 모바일 프레임이 **하단 탭바를 유지**하고 그
-         * 세 번째 칸이 이 화면이다. 자기 자리로 돌아오는 길이 보여야 한다.
-         */}
-        <Route path={ROUTES.accountSettings} element={<AccountSettingsScreen />} />
+
+        {/* 아래는 전부 토큰이 있어야 부를 수 있는 화면이다. 새 화면은 여기 안에 넣는다 */}
+        <Route element={<RequireAuth session={session} />}>
+          <Route path={ROUTES.library} element={<LibraryScreen />} />
+          <Route path={ROUTES.librarySection} element={<LibrarySectionScreen />} />
+          <Route path={ROUTES.storyDetail} element={<StoryDetailScreen />} />
+          <Route path={ROUTES.resume} element={<ResumeScreen />} />
+          <Route path={ROUTES.history} element={<HistoryScreen />} />
+          <Route path={ROUTES.myStories} element={<MyStoriesScreen />} />
+          <Route path={ROUTES.myStory} element={<MyStoryReviewScreen />} />
+          {/*
+           * 계정 설정 (6d). 셸이 붙는다 — 6d 의 모바일 프레임이 **하단 탭바를 유지**하고 그
+           * 세 번째 칸이 이 화면이다. 자기 자리로 돌아오는 길이 보여야 한다.
+           */}
+          <Route path={ROUTES.accountSettings} element={<AccountSettingsScreen />} />
+        </Route>
       </Route>
 
       {/*
@@ -74,7 +87,9 @@ export function AppRoutes() {
        * 2f 는 "Choice 는 화면을 넘겨도 sticky 처리하지 않는다"고 못박았고 Choice 는 본문 끝에
        * 오므로(최소 높이 60px), 고정 탭바는 읽는 사람이 마지막 선택지를 누르는 자리를 덮는다.
        */}
-      <Route path={ROUTES.play} element={<PlayScreen />} />
+      <Route element={<RequireAuth session={session} />}>
+        <Route path={ROUTES.play} element={<PlayScreen />} />
+      </Route>
 
       {/*
        * Admin — 셸을 붙이지 않는다. 사용자 화면이 아니고, 상단 내비와 하단 탭바가 가리키는

@@ -15,4 +15,13 @@ export default tseslint.config(
       globals: globals.browser,
     },
   },
+  // 빌드 스크립트는 브라우저가 아니라 Node 에서 돈다 — `process` 를 브라우저 전역으로 보면
+  // 여기가 통째로 no-undef 가 된다.
+  {
+    files: ['scripts/**/*.mjs'],
+    languageOptions: {
+      ecmaVersion: 2022,
+      globals: globals.node,
+    },
+  },
 )
