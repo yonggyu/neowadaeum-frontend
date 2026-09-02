@@ -1,6 +1,6 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { ApiError } from './client'
+import { ApiError, request, setAccessToken } from './client'
 
 /**
  * 스캐폴드가 실제로 돈다는 것을 세우는 최소 테스트.
@@ -24,5 +24,46 @@ describe('ApiError', () => {
     })
 
     expect(error.details).toEqual({ retryAfterSeconds: 30 })
+  })
+})
+
+/**
+ * 본문이 없는 응답.
+ *
+ * `202` 를 상태 코드로 판단하지 않는다는 것이 핵심이다 — 계약 안에서 이미 두 가지로 쓰인다.
+ */
+describe('request — 빈 본문', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    setAccessToken(null)
+  })
+
+  function respondWith(response: Response) {
+    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve(response)))
+  }
+
+  it('202 에 본문이 없으면 파싱하지 않는다 — createReport 가 그렇다 (§13-12)', async () => {
+    respondWith(new Response(null, { status: 202 }))
+
+    await expect(request('/reports', { method: 'POST', body: {} })).resolves.toBeUndefined()
+  })
+
+  it('202 에 본문이 있으면 읽는다 — submitDraft 는 ReviewStatusResponse 를 담는다', async () => {
+    respondWith(
+      new Response(JSON.stringify({ status: 'pending' }), {
+        status: 202,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    )
+
+    await expect(
+      request('/authoring/drafts/1/submit', { method: 'POST', body: {} }),
+    ).resolves.toEqual({ status: 'pending' })
+  })
+
+  it('204 는 본문이 없다 — deleteSession 이 그렇다', async () => {
+    respondWith(new Response(null, { status: 204 }))
+
+    await expect(request('/sessions/1', { method: 'DELETE' })).resolves.toBeUndefined()
   })
 })
