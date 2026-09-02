@@ -1,0 +1,303 @@
+/*
+ * 탐색 세 화면(Landing · Library · Detail)이 **함께 쓰는** 규칙.
+ *
+ * 여기 있는 것은 어느 한 화면의 것이 아니다 — 카드 · 커버 · 그리드 · 상태 · 버튼 · 고지처럼
+ * 셋이 같은 모양이어야 하는 어휘다. 한 화면만 쓰는 규칙은 여기 두지 않는다. 그렇게 하면
+ * 이 파일이 곧 "탐색의 모든 CSS" 가 되고, 그때부터는 무엇이 공통인지 아무도 모른다.
+ *
+ * 숫자를 여기서 새로 정하지 않는다 — 간격 · 반지름 · 비율은 전부 tokens.css 의 변수다.
+ * 브레이크포인트만 값으로 적는다(미디어 쿼리가 var() 를 읽지 못한다). 390 / 768 / 1024 / 1440
+ * 네 폭이 F-9 의 대상이고, 기본 규칙이 390 이며 위로 얹는다.
+ */
+
+.page {
+  margin: 0 auto;
+  padding: var(--sp-6) var(--sp-4) var(--sp-16);
+  max-width: 1440px;
+}
+
+.headline {
+  margin: 0 0 var(--sp-6);
+  font-size: 1.5rem;
+  line-height: 1.35;
+}
+
+/* ── 장르 칩 — Mobile 은 가로 스크롤 (1g) ───────────────────── */
+.chips {
+  display: flex;
+  gap: var(--sp-2);
+  margin-bottom: var(--sp-8);
+  padding-bottom: var(--sp-1);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.chip {
+  flex: 0 0 auto;
+  padding: var(--sp-2) var(--sp-4);
+  border: 1px solid var(--border);
+  border-radius: var(--r-xl);
+  background: var(--bg);
+  color: var(--fg-muted);
+  font: inherit;
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+
+.chipOn {
+  border-color: var(--fg);
+  color: var(--fg);
+  font-weight: 600;
+}
+
+/* ── 섹션 ───────────────────────────────────────────────────── */
+.section {
+  margin-bottom: var(--sp-12);
+}
+
+.sectionHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-4);
+  margin-bottom: var(--sp-4);
+}
+
+.sectionTitle {
+  margin: 0;
+  font-size: 1.125rem;
+}
+
+/* ── 그리드 — 390·768: 2열 / 1024: 3열 / 1440: 4열 (1k) ─────── */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--sp-4);
+}
+
+/* ── Card — Cover 2:3 고정, Title·Desc 2줄 clamp (1f) ───────── */
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  color: inherit;
+  text-decoration: none;
+}
+
+.cover {
+  position: relative;
+  aspect-ratio: var(--ratio-cover);
+  border-radius: var(--r-md);
+  background: var(--bg-sunken);
+  overflow: hidden;
+}
+
+.coverImage {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* NEW 배지는 커버 좌상단 (4d) */
+.badge {
+  position: absolute;
+  top: var(--sp-2);
+  left: var(--sp-2);
+  padding: var(--sp-1) var(--sp-2);
+  border-radius: var(--r-sm);
+  background: var(--fg);
+  color: var(--bg);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.clamp2 {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+}
+
+.cardTitle {
+  margin: 0;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.cardMeta {
+  margin: 0;
+  color: var(--fg-muted);
+  font-size: 0.8125rem;
+}
+
+.cardDesc {
+  margin: 0;
+  color: var(--fg-subtle);
+  font-size: 0.8125rem;
+  line-height: 1.45;
+}
+
+/* ── 이어하기 — 가로 카드, 진행바를 그리지 않는다 (4d · R13.2) ── */
+.continueList {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--sp-4);
+}
+
+.continueCard {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr);
+  gap: var(--sp-4);
+  align-items: center;
+  padding: var(--sp-3);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  color: inherit;
+  text-decoration: none;
+}
+
+.continueBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  min-width: 0;
+}
+
+/* ── 상태 ───────────────────────────────────────────────────── */
+.skeleton {
+  background: var(--bg-sunken);
+  border-radius: var(--r-md);
+}
+
+.skeletonLine {
+  height: 0.75rem;
+  background: var(--bg-sunken);
+  border-radius: var(--r-sm);
+}
+
+.notice {
+  margin: 0;
+  padding: var(--sp-6) 0;
+  color: var(--fg-muted);
+  font-size: 0.875rem;
+}
+
+.errorBlock {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-4);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--bg-sunken);
+}
+
+.errorMessage {
+  margin: 0;
+  flex: 1 1 16rem;
+  font-size: 0.875rem;
+}
+
+/* 스켈레톤 줄의 길이 — 실제 문장이 고르지 않다는 사실만 흉내 낸다 */
+.wShort { width: 40%; }
+.wMedium { width: 60%; }
+.wLong { width: 80%; }
+
+/* ── 버튼 — 폭이 넓다고 벌리지 않는다 ───────────────────────── */
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--choice-min-h);
+  padding: 0 var(--sp-6);
+  border: 1px solid var(--fg);
+  border-radius: var(--r-md);
+  background: var(--bg);
+  color: var(--fg);
+  font: inherit;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.buttonPrimary {
+  background: var(--fg);
+  color: var(--bg);
+}
+
+.buttonSmall {
+  min-height: 40px;
+  padding: 0 var(--sp-4);
+  font-weight: 500;
+  font-size: 0.875rem;
+}
+
+.button:disabled {
+  cursor: progress;
+  opacity: 0.6;
+}
+
+.button:focus-visible,
+.chip:focus-visible,
+.card:focus-visible,
+.continueCard:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/* 섹션의 "더 보기" — 커서 페이지네이션의 다음 쪽 */
+.more {
+  margin-top: var(--sp-4);
+}
+
+/* ── Footer AI 고지 — 광고처럼 강조하지 않되 항상 확인 가능 (1k) ── */
+.footer {
+  margin-top: var(--sp-16);
+  padding-top: var(--sp-6);
+  border-top: 1px solid var(--border);
+  color: var(--fg-subtle);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+}
+
+/* ── 768 Tablet — 그리드는 그대로 2열, 여백만 넓힌다 ─────────── */
+@media (min-width: 768px) {
+  .page {
+    padding: var(--sp-8) var(--sp-6) var(--sp-16);
+  }
+
+  .headline {
+    font-size: 1.75rem;
+  }
+
+  .continueList {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* ── 1024 Laptop — 3열 ──────────────────────────────────────── */
+@media (min-width: 1024px) {
+  .page {
+    padding: var(--sp-8) var(--sp-8) var(--sp-16);
+  }
+
+  .grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+/* ── 1440 Desktop — 4열 ─────────────────────────────────────── */
+@media (min-width: 1440px) {
+  .grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .continueList {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
