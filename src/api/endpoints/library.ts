@@ -62,23 +62,3 @@ export const getStoryDetail = (
 ): Promise<StoryDetailResponse> =>
   request<StoryDetailResponse>(`/stories/${encodeURIComponent(storyId)}`, { signal })
 
-/**
- * 세션 생성 (`startSession`). Detail 의 CTA 가 실제로 가는 곳이다.
- *
- * **여기 두는 것은 임시다.** 세션 수명은 플레이 슬라이스의 것이고, 그쪽이 `sessions` 엔드포인트를
- * 세우면 이 함수는 그리로 옮긴다 — 탐색이 세션을 소유하지 않는다. 그럼에도 지금 두는 이유는,
- * 이것이 없으면 Detail 의 1차 CTA 가 아무 데도 가지 않는 버튼이 되기 때문이다. 눌리지 않는
- * 화면은 **돌아가는 것처럼 보인다.**
- *
- * `Idempotency-Key` 를 붙이지 않는다 (F-7 의 대상이 아니다) — 계약이 이 오퍼레이션에 그 헤더를
- * 두지 않았고, 중복은 "작품당 active 세션 1개"가 `409 SESSION_ALREADY_ACTIVE` 로 막는다.
- * 헤더를 계약에 없는 곳에 임의로 붙이면 서버가 무시하는지 거절하는지 알 수 없다.
- */
-export const startSession = (
-  storyId: string,
-  restart: boolean,
-): Promise<StartSessionResponse> =>
-  request<StartSessionResponse>(
-    `/stories/${encodeURIComponent(storyId)}/sessions${restart ? '?restart=true' : ''}`,
-    { method: 'POST' },
-  )
