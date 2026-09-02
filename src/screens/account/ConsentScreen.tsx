@@ -19,7 +19,7 @@ import {
 import styles from './LoginScreen.module.css'
 
 /**
- * 최초 로그인의 추가 정보 — 생년월일 · 약관 동의 4종 (와이어프레임 5a · 6b).
+ * 최초 로그인의 추가 정보 — 생년월일 · 약관 동의 3종 (와이어프레임 5a · 6b).
  *
  * **라우트가 아니다.** `LoginScreen` 의 오른쪽 컬럼 안에서 교체된다 — 페이지를 나누면
  * 새로고침에 `idToken` 이 사라진다 (F-3). 그래서 `idToken` 은 prop 으로만 흐르고 어떤
@@ -27,6 +27,11 @@ import styles from './LoginScreen.module.css'
  *
  * **닉네임 칸이 없다.** `OAuthLoginRequest` 는 `idToken` · `birthDate` · `consents` 셋뿐이고,
  * 닉네임은 표시용(`authorDisplayName`)으로만 존재해 사용자가 설정하는 경로가 계약에 없다.
+ *
+ * **"만 15세 이상입니다" 체크박스도 없다.** 와이어프레임 3b · 5a 가 그것을 그리지만 정정본
+ * §13-24 가 `age` 를 사용자가 체크하는 항목이 아니라고 정했다 — 서버가 생년월일로 판정한
+ * 사실을 스스로 기록한다 (R10.2). 여기 두면 증빙이 되지 않으면서 동의 이력만 두 줄이 된다.
+ * **연령 게이트의 입력면은 아래 생년월일 세 칸이다.**
  */
 export function ConsentScreen({
   idToken,
