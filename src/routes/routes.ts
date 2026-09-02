@@ -15,6 +15,7 @@ export const ROUTES = {
   resume: '/sessions/:sessionId/resume',
   history: '/sessions/:sessionId/history',
   myStories: '/me/stories',
+  accountSettings: '/me/settings',
 } as const
 
 export const storyDetailPath = (storyId: string): string => `/stories/${storyId}`

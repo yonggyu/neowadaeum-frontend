@@ -24,6 +24,10 @@ describe('NAV_ITEMS — 셸이 가리키는 곳', () => {
     }
   })
 
+  it('6d 의 탭 셋이 다 있다 — Library · My Stories · 계정', () => {
+    expect(NAV_ITEMS.map((item) => item.label)).toEqual(['Library', 'My Stories', '계정'])
+  })
+
   it('같은 곳을 두 번 가리키지 않는다', () => {
     const destinations = NAV_ITEMS.map((item) => item.to)
     expect(new Set(destinations).size).toBe(destinations.length)

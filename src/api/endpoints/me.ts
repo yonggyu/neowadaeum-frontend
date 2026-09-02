@@ -52,6 +52,20 @@ export function getMe(signal?: AbortSignal): Promise<MeResponse> {
   return request<MeResponse>('/me', { signal })
 }
 
+/**
+ * 탈퇴 (`withdraw`). `204` · 본문 없음.
+ *
+ * **되돌릴 수 없다.** 다만 이 호출이 하는 일은 회원 상태를 `withdrawn` 으로 옮기는 데까지이고
+ * (R12.5), 실제 파기(플레이 기록 삭제 · `player_ref` 매핑 파기)와 공개 UGC 강등은 파기 배치가
+ * 뒤에 수행한다 (B-61, §13-9). 그래서 성공했다고 **"삭제됐다"고 말하지 않는다** — 확인 화면의
+ * 문구가 그 경계를 지킨다 (`src/screens/account/accountSettings.ts`).
+ *
+ * 이미 탈퇴한 계정에도 `204` 로 답하므로 재시도가 화면을 어긋나게 하지 않는다.
+ */
+export function withdraw(signal?: AbortSignal): Promise<void> {
+  return request<void>('/me', { method: 'DELETE', signal })
+}
+
 /** 내 이야기 (`getMySessions`). `status` 를 생략하면 둘 다 온다 — 화면은 탭마다 하나만 받는다. */
 export function getMySessions(
   status: MySessionStatus,

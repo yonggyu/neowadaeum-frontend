@@ -1,0 +1,179 @@
+/*
+ * 계정 설정 (와이어프레임 5b · 6d).
+ *
+ * 값을 여기서 새로 정하지 않는다 — 간격 · 반지름 · 색은 전부 `tokens.css` 의 변수다.
+ * 브레이크포인트만 숫자로 적는다(미디어 쿼리가 var() 를 읽지 못한다). F-9 의 네 폭 중
+ * 390 이 기본이고 768 에서 한 번만 달라진다 — 그 위로는 더 벌릴 것이 없다.
+ */
+
+/*
+ * **어느 폭에서도 420px 단일 컬럼이다** (6d). 1024 · 1440 에서 2열로 나누지 않고 사이드
+ * 내비도 두지 않는다 — 항목이 넷뿐이라 폭에 맞춰 늘리면 빈 화면이 된다. 390 에서는
+ * `max-width` 가 걸리지 않으므로 그대로 화면 폭을 쓴다.
+ */
+.column {
+  max-width: 420px;
+  margin: 0 auto;
+}
+
+.sectionTitle {
+  margin: var(--sp-6) 0 var(--sp-2);
+  color: var(--fg-muted);
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.rows {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/*
+ * 한 줄 — **높이 48px 이상** (6d). 링크(`a`)와 버튼(`button`)과 링크 없는 줄(`span`)이 같은
+ * 모양이어야 해서 버튼의 기본 스타일을 여기서 되돌린다.
+ */
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  width: 100%;
+  min-height: 48px;
+  padding: var(--sp-3) 0;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-size: 1.0625rem;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.row:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/* 본문 주소가 없는 약관 — 누를 수 없으므로 `›` 도 커서도 주지 않는다 */
+.rowInert {
+  color: var(--fg-muted);
+  cursor: default;
+}
+
+/*
+ * 회원 탈퇴. 구역의 마지막 줄이라 5b 처럼 밑줄이 없지만, 테두리를 지우는 대신 투명하게
+ * 두어 다른 줄과 높이가 어긋나지 않게 한다.
+ */
+.danger {
+  border-bottom-color: transparent;
+  color: var(--danger);
+}
+
+.chevron {
+  color: var(--fg-subtle);
+}
+
+/* ── 탈퇴 확인 — Mobile 전체화면 (6d) ───────────────────────────────────────────
+ *
+ * 되돌릴 수 없는 동작이라 시트로 띄우지 않는다. 390 에서는 전체화면이므로 스크림이 아니라
+ * **배경**이고, 하단 탭바(z-index 10)보다 위에 있어야 그 위를 덮는다.
+ */
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+}
+
+.dialog {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: var(--sp-3);
+  padding: var(--sp-6) var(--sp-4) calc(var(--sp-6) + env(safe-area-inset-bottom, 0px));
+  overflow-y: auto;
+}
+
+.dialogTitle {
+  margin: 0;
+  font-size: 1.3125rem;
+  line-height: 1.4;
+}
+
+/* 세 줄. 목록 표시자를 지우고 5b 의 가운뎃점을 직접 붙인다 */
+.notice {
+  margin: 0;
+  padding: var(--sp-3);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  color: var(--fg);
+  line-height: 1.55;
+  list-style: none;
+}
+
+.notice > li::before {
+  content: "· ";
+}
+
+/*
+ * 버튼 둘. DOM 순서는 돌아가기 → 탈퇴합니다 이고, Mobile 은 5b 처럼 탈퇴합니다가 위에
+ * 오도록 여기서 뒤집는다 — 되돌릴 수 없는 쪽이 키보드 첫 초점이 되지 않게 하려고 DOM 을
+ * 그대로 두었다. 개수와 무관하게 세로 full-width 다 (1k).
+ */
+.dialogActions {
+  display: flex;
+  flex-direction: column-reverse;
+  gap: var(--sp-2);
+  margin-top: auto;
+  padding-top: var(--sp-6);
+}
+
+.dialogActions > * {
+  width: 100%;
+}
+
+.destructive {
+  border-color: var(--danger);
+  background: var(--danger);
+  color: var(--bg);
+}
+
+.destructive:disabled {
+  border-color: var(--border);
+  background: var(--bg-sunken);
+  color: var(--fg-subtle);
+}
+
+/* ── 768 이상 — 전체화면을 420px 모달로 (6d) ─────────────────────────────────── */
+@media (min-width: 768px) {
+  .overlay {
+    align-items: center;
+    justify-content: center;
+    padding: var(--sp-4);
+    background: rgb(0 0 0 / 45%);
+  }
+
+  .dialog {
+    flex: 0 1 auto;
+    width: 100%;
+    max-width: 420px;
+    padding: var(--sp-6);
+    border-radius: var(--r-lg);
+    background: var(--bg);
+  }
+
+  /* 6d 의 Desktop 행 — 돌아가기 좌 · 탈퇴합니다 우. DOM 순서가 곧 보이는 순서다 */
+  .dialogActions {
+    flex-direction: row;
+  }
+
+  .dialogActions > * {
+    flex: 1 1 0;
+    width: auto;
+  }
+}

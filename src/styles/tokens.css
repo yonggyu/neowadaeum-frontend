@@ -55,6 +55,8 @@
   --bg-sunken: #f0eee9;
   --border: rgba(0, 0, 0, 0.12);
   --focus: #2a78d6;
+  /* 되돌릴 수 없는 동작 하나(회원 탈퇴 — 5b · 6d)에만 쓴다. 경고를 색으로 흩뿌리지 않는다 */
+  --danger: #d64545;
 }
 
 @media (max-width: 767px) {
