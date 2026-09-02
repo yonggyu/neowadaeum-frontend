@@ -49,8 +49,14 @@ export function usePagedApi<T>(
   const latestFetch = useRef(fetchPage)
   latestFetch.current = fetchPage
 
+  // 지금 보고 있는 목록이 무엇인가. 탭을 바꾸면 올라간다 — **늦게 도착한 "더 보기"가 다른
+  // 탭의 목록에 붙는 것**을 막는 것이 이 값의 유일한 일이다. 첫 쪽은 AbortController 로
+  // 끊을 수 있지만, 다음 쪽은 이미 목록이 그려진 뒤라 끊는 것으로는 부족하다.
+  const run = useRef(0)
+
   useEffect(() => {
     const controller = new AbortController()
+    run.current += 1
     setItems([])
     setStatus('loading')
     setError(null)
@@ -77,19 +83,25 @@ export function usePagedApi<T>(
 
   const loadMore = useCallback(() => {
     if (!hasMore || loadingMore) return
+    const requested = run.current
     setLoadingMore(true)
+    setError(null)
     latestFetch
       .current(cursor, new AbortController().signal)
       .then((page) => {
+        if (run.current !== requested) return
         setItems((previous) => [...previous, ...page.items])
         setCursor(page.nextCursor)
         setHasMore(page.hasMore)
       })
       .catch((cause: unknown) => {
         // 다음 쪽이 실패해도 이미 읽은 것을 지우지 않는다. 오류만 알리고 다시 누를 수 있게 둔다.
+        if (run.current !== requested) return
         setError(cause)
       })
-      .finally(() => setLoadingMore(false))
+      .finally(() => {
+        if (run.current === requested) setLoadingMore(false)
+      })
   }, [cursor, hasMore, loadingMore])
 
   const reload = useCallback(() => setGeneration((value) => value + 1), [])
