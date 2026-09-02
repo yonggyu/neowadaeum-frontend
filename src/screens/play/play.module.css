@@ -1,0 +1,451 @@
+/*
+ * Story Play — 와이어프레임 1b · 1e · 2a~2d · 2f · 3a · 4a.
+ *
+ * 숫자를 직접 적지 않고 `tokens.css` 의 변수로 짓는다. 2f 가 준 좌우 padding
+ * (18 · 40 · 56 · 90) 중 둘은 4/8/… 스케일 위에 없어서 **스케일 쪽으로 맞췄다** —
+ * 화면마다 스케일 밖 숫자를 하나씩 들이면 리듬이 조금씩 어긋나고, 그건 나중에 한 번에
+ * 고칠 수 없다. 40 · 56 은 그대로이고 18 → 16, 90 → 88 이다.
+ */
+.screen {
+  --pad: var(--sp-4);
+  --visual-cap: none;
+
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+}
+
+@media (min-width: 768px) {
+  .screen {
+    --pad: calc(var(--sp-8) + var(--sp-2));
+    --visual-cap: 220px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .screen {
+    --pad: calc(var(--sp-12) + var(--sp-2));
+    --visual-cap: 280px;
+  }
+}
+
+@media (min-width: 1440px) {
+  .screen {
+    --pad: calc(var(--sp-16) + var(--sp-6));
+    --visual-cap: 320px;
+  }
+}
+
+/* ── Header — 어느 폭에서도 sticky. 390 에서 2줄이 된다 (1e · 2f) ───────────────── */
+
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  padding: var(--sp-3) var(--pad);
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+}
+
+.chapterTitle {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.chapterMeta {
+  margin: 0;
+  color: var(--fg-muted);
+  font-size: 0.8125rem;
+}
+
+/* ── Visual — sceneImage 는 아직 발행되지 않는다(P3). 항상 그라디언트 폴백이다 ──── */
+
+.visual {
+  aspect-ratio: var(--ratio-visual-wide);
+  max-height: var(--visual-cap);
+  background: linear-gradient(155deg, var(--bg-sunken), var(--fg-subtle));
+  transition: opacity 240ms ease;
+}
+
+/* 생성 중·오류에는 dim 한다 (1e · 2c). 지우지 않는다 — 장면은 그대로 이어진다 */
+.visual[data-dimmed='true'] {
+  opacity: 0.45;
+}
+
+/* ── Story — fixed height 금지. min-height 만 둔다 (1k) ─────────────────────────── */
+
+.column {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 42vh;
+  padding: var(--sp-8) var(--pad) var(--sp-12);
+}
+
+/*
+ * 짧은 본문(1~2문장)은 세로 중앙에 온다 (2a). 조건을 JS 로 재지 않는다 —
+ * flex column 안의 `margin-block: auto` 는 짧으면 가운데로 모이고 길면 저절로 0 이 된다.
+ * 길이를 측정해 분기하면 렌더 뒤에 한 번 더 움직이게 되고, 읽는 중에 본문이 흔들린다.
+ *
+ * 중앙 정렬을 본문이 아니라 **본문과 Choice 를 함께 감싼 것**에 건다. 본문에만 걸면 아래쪽
+ * auto 여백이 둘 사이를 벌려 놓는데, 2a 는 *"Choice 는 바로 아래 붙는다"* 고 정했다.
+ */
+.center {
+  width: 100%;
+  margin-block: auto;
+}
+
+.story {
+  width: 100%;
+  max-width: var(--read-width);
+  margin-inline: auto;
+}
+
+.paragraphs {
+  display: flex;
+  flex-direction: column;
+  gap: var(--paragraph-gap);
+}
+
+.narration,
+.dialogue {
+  margin: 0;
+  line-height: 1.75;
+}
+
+.dialogue {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+}
+
+/* 긴 이름은 2줄까지 그대로 흐른다. 말풍선을 두지 않는다 (1k) */
+.speaker {
+  color: var(--fg-muted);
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+/* AI 고지 — 본문 우하단 상시 (1k). 광고처럼 강조하지 않되 항상 보인다 */
+.aiNotice {
+  margin: var(--sp-6) 0 0;
+  color: var(--fg-subtle);
+  font-size: 0.6875rem;
+  letter-spacing: 0.08em;
+  text-align: right;
+  text-transform: uppercase;
+}
+
+/* ── Choice — 항상 본문 끝. sticky 로 띄우지 않는다 (1k · 2a) ──────────────────── */
+
+.choices {
+  display: grid;
+  gap: var(--sp-3);
+  width: 100%;
+  max-width: var(--read-width);
+  margin: var(--sp-8) auto 0;
+}
+
+.choice {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  align-items: stretch;
+  min-height: var(--choice-min-h);
+  padding: var(--sp-4);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--bg);
+  color: var(--fg);
+  font: inherit;
+  line-height: 1.6;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 160ms ease, background 160ms ease;
+}
+
+.choice:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/* Pressed 는 배경 톤 변화만. 축소 애니메이션을 두지 않는다 (2f) */
+.choice:active {
+  background: var(--bg-sunken);
+}
+
+.number {
+  color: var(--fg-subtle);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.06em;
+}
+
+.choiceText {
+  flex: 1;
+}
+
+/* 화살표는 hover 로 드러난다 — 터치에는 hover 가 없으므로 그리지 않는다 */
+.arrow {
+  display: none;
+  color: var(--fg-muted);
+}
+
+/*
+ * 1개뿐인 선택지는 번호가 없다. 화살표가 유일한 진행 신호이므로 hover 를 기다리지 않고,
+ * 390 에서도 텍스트와 같은 줄에 남는다 — 아래로 접히면 화살표가 두 번째 선택지처럼 보인다.
+ */
+.choices[data-layout='single'] .arrow {
+  display: block;
+}
+
+.choices[data-layout='single'] .choice {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+}
+
+@media (min-width: 768px) {
+  /* Mobile 만 번호가 위로 간다 (2f). 그 위로는 번호와 텍스트가 한 줄에서 시작한다 */
+  .choice {
+    flex-direction: row;
+    gap: var(--sp-3);
+    align-items: flex-start;
+  }
+
+  .number {
+    /* 텍스트가 3줄이어도 번호는 첫 줄에 붙어 있는다 (2b) */
+    padding-top: 0.2em;
+  }
+}
+
+@media (hover: hover) {
+  .choice:hover {
+    border-color: var(--fg-muted);
+  }
+
+  .choice:hover .arrow {
+    display: block;
+  }
+}
+
+/* 2×2 는 Desktop 규칙이다. 768 은 개수와 무관하게 세로다 (2b · 2f) */
+@media (min-width: 1024px) {
+  .choices[data-layout='grid'] {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+/* 선택지가 화면 밖에 있을 때의 미세 힌트. 고정 버튼이 아니다 (2a) */
+.hint {
+  position: fixed;
+  right: var(--pad);
+  bottom: var(--sp-6);
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--r-xl);
+  background: var(--bg-sunken);
+  color: var(--fg-muted);
+  font-size: 0.75rem;
+  pointer-events: none;
+}
+
+/* ── Generating · Error · SafetyBlocked · TurnConflict ────────────────────────── */
+
+.notice {
+  width: 100%;
+  max-width: var(--read-width);
+  margin: var(--sp-8) auto 0;
+  padding-top: var(--sp-8);
+  border-top: 1px solid var(--border);
+}
+
+/* 고른 선택은 잔상으로 남는다 — 무엇을 눌렀는지 25초 동안 확인할 수 있어야 한다 (1e) */
+.selected {
+  margin: 0 0 var(--sp-4);
+  color: var(--fg-muted);
+  font-size: 0.9375rem;
+}
+
+.noticeMessage {
+  margin: 0;
+  font-size: 1.0625rem;
+  line-height: 1.6;
+}
+
+.saved {
+  margin: var(--sp-2) 0 0;
+  color: var(--fg-muted);
+  font-size: 0.875rem;
+}
+
+/* 스피너를 쓰지 않는다 (1e) — dot 셋이 순차로 옅어진다 */
+.dots {
+  display: inline-flex;
+  gap: var(--sp-1);
+  margin-top: var(--sp-4);
+}
+
+.dots i {
+  width: var(--sp-1);
+  height: var(--sp-1);
+  border-radius: 50%;
+  background: var(--fg-subtle);
+  animation: fade 1.4s ease-in-out infinite;
+}
+
+.dots i:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.dots i:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes fade {
+  0%,
+  100% {
+    opacity: 0.25;
+  }
+
+  50% {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dots i {
+    animation: none;
+  }
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-3);
+  margin-top: var(--sp-6);
+}
+
+/* 버튼과 링크가 섞인다 — Ending 의 두 행동은 이동이다. 생김새는 하나로 둔다 */
+.action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--choice-min-h);
+  padding: 0 var(--sp-6);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--bg);
+  color: var(--fg);
+  font: inherit;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.action:disabled {
+  color: var(--fg-subtle);
+  cursor: default;
+}
+
+.action:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+@media (max-width: 767px) {
+  .actions {
+    flex-direction: column;
+  }
+
+  .action {
+    width: 100%;
+  }
+}
+
+/* ── Chapter 인터스티셜 — 턴 사이에 끼어드는 별도 상태 (2c) ──────────────────── */
+
+.interstitial {
+  position: fixed;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  align-items: center;
+  justify-content: center;
+  padding: var(--pad);
+  border: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font: inherit;
+  cursor: pointer;
+}
+
+.interstitialNo {
+  color: var(--fg-muted);
+  font-size: 0.8125rem;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+}
+
+.interstitialTitle {
+  font-size: 1.5rem;
+  font-weight: 600;
+  text-align: center;
+}
+
+/* ── Ending (2d) ─────────────────────────────────────────────────────────────── */
+
+.ending {
+  width: 100%;
+  max-width: var(--read-width);
+  margin: var(--sp-8) auto 0;
+  padding-top: var(--sp-8);
+  border-top: 1px solid var(--border);
+  text-align: center;
+}
+
+.endingBadge {
+  margin: 0;
+  color: var(--fg-muted);
+  font-size: 0.75rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.endingTitle {
+  margin: var(--sp-3) 0 0;
+  font-size: 1.375rem;
+}
+
+.epilogue {
+  margin: var(--sp-4) 0 0;
+  line-height: 1.75;
+  text-align: left;
+}
+
+.stats {
+  display: flex;
+  gap: var(--sp-3);
+  justify-content: center;
+  margin: var(--sp-4) 0 0;
+  padding: 0;
+  color: var(--fg-muted);
+  font-size: 0.875rem;
+  list-style: none;
+}
+
+/* 390 은 "Ch.5 · 42 Turn" 까지다 — 선택 횟수는 접는다 (2d) */
+@media (max-width: 767px) {
+  .stats li:nth-child(3) {
+    display: none;
+  }
+}
+
+.ending .actions {
+  justify-content: center;
+}
