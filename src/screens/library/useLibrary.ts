@@ -25,8 +25,17 @@ export interface SectionState {
 const EMPTY: SectionState = { section: null, error: null, pending: false }
 
 export interface LibraryView {
-  /** 첫 응답. 실패하면 화면 전체가 실패다 — 장르 칩도 이어하기도 여기서 온다 */
-  resource: Resource<{ genres: Genre[]; continueSessions: ContinueSession[] }>
+  /**
+   * 첫 응답. 실패하면 화면 전체가 실패다 — 장르 칩도 이어하기도 고지문도 여기서 온다.
+   *
+   * `noticeText` 가 여기 있는 것이 핵심이다 (백엔드 #257) — Footer 가 `/landing` 을 따로 부르지
+   * 않는다. 그래야 화면이 보여 주는 고지가 **이 응답과 같은 시점의 값**이다.
+   */
+  resource: Resource<{
+    genres: Genre[]
+    continueSessions: ContinueSession[]
+    noticeText: string
+  }>
   reload: () => void
   /** 지금 보여 줄 섹션들. 장르를 고르면 그 섹션 하나뿐이다 */
   visible: { key: string; state: SectionState }[]
@@ -60,7 +69,11 @@ export function useLibrary(): LibraryView {
         sections.map((s) => [s.sectionKey, { section: s, error: null, pending: false }]),
       ),
     )
-    return { genres: body.genres, continueSessions: body.continueSessions }
+    return {
+      genres: body.genres,
+      continueSessions: body.continueSessions,
+      noticeText: body.noticeText,
+    }
   }, [])
 
   const { resource, reload } = useResource(load)

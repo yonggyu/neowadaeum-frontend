@@ -6,13 +6,11 @@ import { getStoryDetail, type CharacterCard, type MySessionBrief } from '../../a
 // 세션 생성은 플레이 슬라이스의 것이다 (#22) — 탐색은 시작만 시킬 뿐 세션을 소유하지 않는다.
 import { startSession } from '../../api/endpoints/play'
 import { playPath, resumePath } from '../../routes/routes'
+import { storyByline } from './author'
 import css from './discovery.module.css'
 import own from './story.module.css'
 import { AiNoticeFooter, ErrorBlock } from './parts'
 import { toApiError, useResource } from './useResource'
-
-/** UGC 작성자 표기의 뒷말. 앞에 오는 것은 `authorDisplayName` 뿐이다 (F-6 · 4d). */
-const USER_AUTHORED = '사용자 작품'
 
 /**
  * Story Detail — 와이어프레임 1h · 4d.
@@ -38,11 +36,9 @@ export function StoryDetailScreen() {
     )
   }
 
-  const { story, characters, mySession } = resource.data
-  const byline = [
-    story.authorType === 'user' ? story.authorDisplayName : null,
-    story.authorType === 'user' ? USER_AUTHORED : null,
-  ].filter((part): part is string => part !== null && part !== '')
+  const { story, characters, mySession, noticeText } = resource.data
+  // `@yeonwoo · 사용자 작품` (4d). 닉네임이 없으면 종류만 남는다 — 이름을 지어내지 않는다.
+  const byline = storyByline(story)
 
   return (
     <main className={css.page} data-screen="StoryDetailScreen">
@@ -55,7 +51,7 @@ export function StoryDetailScreen() {
       {/* ageRating 은 서버가 준 상수 문구를 그대로 쓴다 — 작품별 값이 아니다 (R10.1, I-19) */}
       <p className={own.tags}>{[...story.genres, story.ageRating].join(' · ')}</p>
       <h1 className={own.title}>{story.title}</h1>
-      {byline.length > 0 && <p className={own.byline}>{byline.join(' · ')}</p>}
+      {byline !== '' && <p className={own.byline}>{byline}</p>}
       <p className={own.body}>{story.description}</p>
 
       <p className={own.counts}>
@@ -84,7 +80,8 @@ export function StoryDetailScreen() {
         </section>
       )}
 
-      <AiNoticeFooter />
+      {/* 고지문은 이 화면의 응답에서 온다 (백엔드 #257) — `/landing` 을 다시 부르지 않는다 */}
+      <AiNoticeFooter text={noticeText} />
     </main>
   )
 }
