@@ -12,12 +12,15 @@ export interface CursorPage<T> {
   nextCursor: string | null
   hasMore: boolean
   /**
-   * AI 사전 고지 문구. **세 응답 모두 필수 필드다** (백엔드 #281) — 그래서 여기 있다.
+   * AI 사전 고지 문구. 화면이 `/landing` 을 따로 불러 채우지 않는다 — 그렇게 하면 고지문이
+   * 자기 목록과 다른 시점의 값이 되고, **같은 화면에서 다른 문구가 보인다** (#257 · #281).
    *
-   * 화면이 `/landing` 을 따로 불러 채우지 않는다. 그렇게 하면 고지문이 자기 목록과 다른
-   * 시점의 값이 되고, **같은 화면에서 다른 문구가 보인다** (#257 이 Library 에서 지운 우회).
+   * **optional 인 것이 계약 그대로다.** `MySessionsResponse` · `MyStoriesResponse` ·
+   * `HistoryResponse` 는 이 필드를 필수로 싣지만 `LibrarySection` 은 싣지 않는다 — 섹션
+   * 응답은 Library 화면 안에서 한 조각을 갈아 끼우는 것이라 고지문을 다시 받을 이유가 없다.
+   * 필수로 두면 그 화면이 없는 값을 지어내야 한다.
    */
-  noticeText: string
+  noticeText?: string
 }
 
 export type PagedStatus = 'loading' | 'ready' | 'error'
@@ -83,7 +86,7 @@ export function usePagedApi<T>(
         setItems(page.items)
         setCursor(page.nextCursor)
         setHasMore(page.hasMore)
-        setNoticeText(page.noticeText)
+        setNoticeText(page.noticeText ?? null)
         setStatus('ready')
       })
       .catch((cause: unknown) => {
