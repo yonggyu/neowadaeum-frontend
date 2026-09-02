@@ -2,12 +2,14 @@ import { request } from '../client'
 import type { components } from '../schema'
 
 /**
- * My Stories — 내 세션과 내가 만든 작품.
+ * 내 계정 — `GET /me` 와, 내 세션 · 내가 만든 작품.
  *
- * **`GET /me` 는 없다.** `/api/v1/me` 에는 `DELETE`(탈퇴) 하나뿐이므로 "내 정보"를 읽을 경로가
- * 없다 — 화면 상단에 이메일·닉네임을 그릴 수 없는 이유가 이것이다 (와이어프레임 3g 의
- * "삭제한 항목"). `player_ref` 도 어디에도 오지 않는다 (F-6).
+ * **`GET /me` 가 생겼다** (backend #262). 이전에는 `/api/v1/me` 에 `DELETE`(탈퇴) 하나뿐이라
+ * "지금 로그인돼 있는가" 를 물을 자리가 없었다. 다만 `MeResponse` 가 주는 것은 여전히
+ * `displayName` · `role` · `status` 셋뿐이다 — `playerRef` · 이메일 · 소셜 식별자 · 생년월일은
+ * 오지 않는다 (§13-7, I-3). 화면이 그것을 그릴 수 없는 것이 아니라 **받지 않는다** (F-6).
  */
+export type MeResponse = components['schemas']['MeResponse']
 export type MySessionItem = components['schemas']['MySessionItem']
 export type MySessionsResponse = components['schemas']['MySessionsResponse']
 export type MyStoryItem = components['schemas']['MyStoryItem']
@@ -37,6 +39,17 @@ function query(params: Record<string, string | null | undefined>): string {
   }
   const encoded = search.toString()
   return encoded === '' ? '' : `?${encoded}`
+}
+
+/**
+ * 내 계정 (`getMe`).
+ *
+ * **로그인 여부는 상태 코드로 온다** — 유효하면 `200`, 아니면 `401` 이다. 본문에
+ * `isLoggedIn` 이 없으므로 호출부는 `ApiError.status` 로 갈린다. 부팅 복원이 이것을 부른다
+ * (`src/auth/session.ts`).
+ */
+export function getMe(signal?: AbortSignal): Promise<MeResponse> {
+  return request<MeResponse>('/me', { signal })
 }
 
 /** 내 이야기 (`getMySessions`). `status` 를 생략하면 둘 다 온다 — 화면은 탭마다 하나만 받는다. */

@@ -11,6 +11,9 @@ const story = (storyId: string): StoryCard => ({
   shortDescription: '',
   isNew: false,
   authorType: 'official',
+  // 계약이 `StoryCard.authorDisplayName` 을 필수로 만든 뒤 이 픽스처가 컴파일되지 않았다
+  // (#24 밖의 발견 — 계약 재생성으로 드러난다). 공식 작품은 작성자가 없으므로 `null` 이다.
+  authorDisplayName: null,
 })
 
 const section = (
