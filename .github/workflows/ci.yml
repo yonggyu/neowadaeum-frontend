@@ -28,6 +28,10 @@ env:
   # CI 가 만드는 번들은 배포물이 아니므로 로컬 주소로 충분하다. 운영 오리진은
   # 이 레포 어디에도 적지 않는다.
   VITE_API_BASE_URL: "http://localhost:8080"
+  # 계약은 이 레포에 없다. CI 가 백엔드를 워크스페이스 안으로 받아 여기서 타입을 만든다.
+  # actions/checkout 은 워크스페이스 밖(`../`)에 체크아웃하지 못하므로 로컬의 형제 경로를
+  # 그대로 쓸 수 없다 — 그래서 package.json 의 OPENAPI_SOURCE 로 가리킨다.
+  OPENAPI_SOURCE: "_contract/docs/openapi.yaml"
   # 이동 가능한 태그를 쓰지 않는다는 관례를 바이너리에도 적용한다.
   # 체크섬은 릴리스의 gitleaks_<버전>_checksums.txt 에 게시된 값이다.
   GITLEAKS_VERSION: "8.30.1"
@@ -44,6 +48,16 @@ jobs:
         with:
           persist-credentials: false
 
+      # 공개 레포다 — 내장 GITHUB_TOKEN 으로 충분하고 별도 자격 증명을 쓰지 않는다.
+      # ref 를 고정하지 않는다: 계약이 바뀌면 여기서 빨간불이 나야 한다. 프론트가 오래된
+      # 계약 위에서 조용히 초록인 것보다, 어긋난 순간 멈추는 편이 싸다.
+      - name: 계약 체크아웃
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: yonggyu/neowadaeum-backend
+          path: _contract
+          persist-credentials: false
+
       - name: Node 준비
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
@@ -55,6 +69,10 @@ jobs:
       # 고치고 lockfile 을 안 올리면 여기서 잡힌다. npm install 은 그것을 조용히 맞춰 버린다.
       - name: 의존성 설치
         run: npm ci --no-audit --no-fund
+
+      # F-2 — API 타입을 손으로 적지 않는다. 산출물이라 커밋하지 않으므로 여기서 만든다.
+      - name: 계약 → 타입
+        run: npm run api:types
 
       - name: 타입 검사
         run: npm run typecheck
@@ -75,6 +93,16 @@ jobs:
         with:
           persist-credentials: false
 
+      # 공개 레포다 — 내장 GITHUB_TOKEN 으로 충분하고 별도 자격 증명을 쓰지 않는다.
+      # ref 를 고정하지 않는다: 계약이 바뀌면 여기서 빨간불이 나야 한다. 프론트가 오래된
+      # 계약 위에서 조용히 초록인 것보다, 어긋난 순간 멈추는 편이 싸다.
+      - name: 계약 체크아웃
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: yonggyu/neowadaeum-backend
+          path: _contract
+          persist-credentials: false
+
       - name: Node 준비
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
@@ -84,6 +112,10 @@ jobs:
 
       - name: 의존성 설치
         run: npm ci --no-audit --no-fund
+
+      # F-2 — API 타입을 손으로 적지 않는다. 산출물이라 커밋하지 않으므로 여기서 만든다.
+      - name: 계약 → 타입
+        run: npm run api:types
 
       - name: 테스트
         run: npm test
