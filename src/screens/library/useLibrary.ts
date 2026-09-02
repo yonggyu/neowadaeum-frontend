@@ -18,7 +18,11 @@ export interface SectionState {
   pending: boolean
 }
 
-const EMPTY: SectionState = { section: null, error: null, pending: true }
+/**
+ * 아직 아무 일도 일어나지 않은 섹션. `pending` 이 **거짓**인 것이 중요하다 — 이 값이 참이면
+ * "가져오는 중"과 "아직 안 가져옴"이 구분되지 않고, 재시도가 두 번 나간다.
+ */
+const EMPTY: SectionState = { section: null, error: null, pending: false }
 
 export interface LibraryView {
   /** 첫 응답. 실패하면 화면 전체가 실패다 — 장르 칩도 이어하기도 여기서 온다 */
@@ -93,8 +97,13 @@ export function useLibrary(): LibraryView {
 
   const genreKey = genreId === null ? null : genreSectionKey(genreId)
   const genreState = genreKey === null ? undefined : states[genreKey]
+  // 세 조건이 다 필요하다. `pending` 을 빼면 재시도가 오류를 지우는 순간 이 효과가 다시 돌아
+  // **같은 요청이 두 번 나간다** — 화면에는 보이지 않고 서버 로그에만 남는 종류의 버그다.
   const needsGenreFetch =
-    genreState !== undefined && genreState.section === null && genreState.error === null
+    genreState !== undefined &&
+    genreState.section === null &&
+    genreState.error === null &&
+    !genreState.pending
 
   useEffect(() => {
     if (genreKey !== null && needsGenreFetch) fetchPage(genreKey, null)
