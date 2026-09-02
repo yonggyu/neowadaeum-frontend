@@ -6,6 +6,8 @@ import { getStoryDetail, type CharacterCard, type MySessionBrief } from '../../a
 // 세션 생성은 플레이 슬라이스의 것이다 (#22) — 탐색은 시작만 시킬 뿐 세션을 소유하지 않는다.
 import { startSession } from '../../api/endpoints/play'
 import { playPath, resumePath } from '../../routes/routes'
+import { ReportDialog } from '../report/ReportDialog'
+import { storyTarget } from '../report/report'
 import { storyByline } from './author'
 import css from './discovery.module.css'
 import own from './story.module.css'
@@ -80,9 +82,38 @@ export function StoryDetailScreen() {
         </section>
       )}
 
+      {/* 신고는 Play 와 이 화면 양쪽에서 열린다 (3c). 여기서 고를 수 있는 대상은 작품 하나다 */}
+      <div className={own.detailSection}>
+        <ReportButton storyId={story.storyId} title={story.title} />
+      </div>
+
       {/* 고지문은 이 화면의 응답에서 온다 (백엔드 #257) — `/landing` 을 다시 부르지 않는다 */}
       <AiNoticeFooter text={noticeText} />
     </main>
+  )
+}
+
+/** 신고 진입점 하나. 시트가 자기 상태(대상 · 사유 · 상세)를 들고 있으므로 여기 남는 것은 여닫기뿐이다. */
+function ReportButton({ storyId, title }: { storyId: string; title: string }) {
+  const [open, setOpen] = useState(false)
+
+  return (
+    <>
+      <button
+        type="button"
+        className={`${css.button} ${css.buttonSmall}`}
+        onClick={() => setOpen(true)}
+      >
+        이 작품 신고하기
+      </button>
+      {open && (
+        <ReportDialog
+          targets={[storyTarget(storyId, title)]}
+          returnLabel="작품으로 돌아가기"
+          onClose={() => setOpen(false)}
+        />
+      )}
+    </>
   )
 }
 
