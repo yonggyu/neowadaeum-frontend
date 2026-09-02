@@ -35,6 +35,18 @@
   /* Choice 최소 높이 — Desktop 56 / Mobile 60 (2b) */
   --choice-min-h: 56px;
 
+  /*
+   * 공통 셸 (3g · 6d).
+   *
+   * 탭바 높이를 **한 곳에서만** 정한다. 탭바 자신과, 탭바에 가려지지 않아야 하는 것들
+   * (본문 아래 여백 · Story Detail 의 모바일 sticky CTA)이 모두 `--tabbar-total-h` 를 읽는다.
+   * 값을 두 곳에 적으면 반드시 어긋나고, 어긋난 쪽은 본문 끝이 가려지는 형태로 나타난다 (F-9).
+   */
+  --nav-h: 56px;
+  --tabbar-row-h: 48px; /* 6d — 행 높이 48px 이상 */
+  --tabbar-h: calc(var(--tabbar-row-h) + var(--sp-2) * 2);
+  --tabbar-total-h: calc(var(--tabbar-h) + env(safe-area-inset-bottom, 0px));
+
   /* 색 — 와이어프레임은 흑백 골격이다. 실제 팔레트가 나오기 전까지 뉴트럴만 둔다 */
   --fg: #1a1a1a;
   --fg-muted: rgba(0, 0, 0, 0.55);
@@ -48,6 +60,17 @@
 @media (max-width: 767px) {
   :root {
     --choice-min-h: 60px;
+  }
+}
+
+/*
+ * 768 부터 하단 탭바가 없다 — 링크가 상단 내비로 올라간다 (6d). 탭바가 차지하던 자리도
+ * 함께 사라져야 하므로 토큰을 0 으로 되돌린다. 이렇게 두면 이 값을 읽는 쪽(본문 여백 ·
+ * sticky CTA)이 각자 미디어 쿼리를 갖지 않아도 된다.
+ */
+@media (min-width: 768px) {
+  :root {
+    --tabbar-total-h: 0px;
   }
 }
 
