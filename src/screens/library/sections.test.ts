@@ -11,6 +11,9 @@ const story = (storyId: string): StoryCard => ({
   shortDescription: '',
   isNew: false,
   authorType: 'official',
+  // 계약이 `authorDisplayName` 을 required 로 만들었다 (백엔드 #258). 공식 작품에는
+  // 작성자가 없으므로 `null` 이다 — 값을 지어내지 않는다 (F-6).
+  authorDisplayName: null,
 })
 
 const section = (

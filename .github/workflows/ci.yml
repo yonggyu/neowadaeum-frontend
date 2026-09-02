@@ -49,12 +49,20 @@ jobs:
           persist-credentials: false
 
       # 공개 레포다 — 내장 GITHUB_TOKEN 으로 충분하고 별도 자격 증명을 쓰지 않는다.
-      # ref 를 고정하지 않는다: 계약이 바뀌면 여기서 빨간불이 나야 한다. 프론트가 오래된
-      # 계약 위에서 조용히 초록인 것보다, 어긋난 순간 멈추는 편이 싸다.
+      #
+      # `ref: backend` 를 **명시한다.** 여기를 비우면 `actions/checkout` 이 기본 브랜치(`main`)를
+      # 주는데, 백엔드의 `main` 은 계약이 실제로 사는 `backend` 보다 한참 뒤에 있다 (#32).
+      # 비워 두는 것이 "최신을 따라간다" 는 뜻이 아니었다 — **낡은 계약에 고정된다**는 뜻이었고,
+      # 프론트 CI 가 초록이었던 것도 어긋난 것을 못 봤기 때문이다.
+      #
+      # 여전히 커밋으로 고정하지는 않는다: 계약이 바뀌면 여기서 빨간불이 나야 한다.
+      # 프론트가 오래된 계약 위에서 조용히 초록인 것보다, 어긋난 순간 멈추는 편이 싸다.
+      # 백엔드가 `backend → dev → main` 을 승격하면 이 값을 되돌릴지 다시 판단한다.
       - name: 계약 체크아웃
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: yonggyu/neowadaeum-backend
+          ref: backend
           path: _contract
           persist-credentials: false
 
@@ -94,12 +102,20 @@ jobs:
           persist-credentials: false
 
       # 공개 레포다 — 내장 GITHUB_TOKEN 으로 충분하고 별도 자격 증명을 쓰지 않는다.
-      # ref 를 고정하지 않는다: 계약이 바뀌면 여기서 빨간불이 나야 한다. 프론트가 오래된
-      # 계약 위에서 조용히 초록인 것보다, 어긋난 순간 멈추는 편이 싸다.
+      #
+      # `ref: backend` 를 **명시한다.** 여기를 비우면 `actions/checkout` 이 기본 브랜치(`main`)를
+      # 주는데, 백엔드의 `main` 은 계약이 실제로 사는 `backend` 보다 한참 뒤에 있다 (#32).
+      # 비워 두는 것이 "최신을 따라간다" 는 뜻이 아니었다 — **낡은 계약에 고정된다**는 뜻이었고,
+      # 프론트 CI 가 초록이었던 것도 어긋난 것을 못 봤기 때문이다.
+      #
+      # 여전히 커밋으로 고정하지는 않는다: 계약이 바뀌면 여기서 빨간불이 나야 한다.
+      # 프론트가 오래된 계약 위에서 조용히 초록인 것보다, 어긋난 순간 멈추는 편이 싸다.
+      # 백엔드가 `backend → dev → main` 을 승격하면 이 값을 되돌릴지 다시 판단한다.
       - name: 계약 체크아웃
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: yonggyu/neowadaeum-backend
+          ref: backend
           path: _contract
           persist-credentials: false
 
