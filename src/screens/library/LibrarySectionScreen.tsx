@@ -5,7 +5,7 @@ import { getLibrarySection, type StoryCard } from '../../api/endpoints/library'
 import { usePagedApi } from '../../hooks/usePagedApi'
 import { ROUTES } from '../../routes/routes'
 import css from './discovery.module.css'
-import { ErrorBlock, StoryTile, TileSkeleton } from './parts'
+import { AiNoticeFooter, ErrorBlock, StoryTile, TileSkeleton } from './parts'
 import { isMissingSection, toCursorPage } from './sectionPage'
 import { toApiError } from './useResource'
 
@@ -27,10 +27,11 @@ const SKELETON_COUNT = 4
  * **정렬·필터 컨트롤을 두지 않는다.** 계약에 정렬 파라미터가 없다 — 누를 수 있는데 아무 일도
  * 일어나지 않는 UI 가 된다.
  *
- * **AI 고지 Footer 가 없다.** `LibrarySection` 이 `noticeText` 를 싣지 않기 때문이다. 문구의
- * 기본값을 프론트에 두지 않고(R11.1), 이 화면만을 위해 `/landing` 을 따로 부르지도 않는다 —
- * 그 우회는 PR #36 이 이미 걷어냈고, 고지가 자기 응답과 다른 시점의 값이 되는 것이 요청 하나를
- * 아끼는 것보다 나빴다. 계약이 이 응답에 문구를 실어 주면 그때 붙인다.
+ * **AI 고지 Footer 는 자기 응답에서 온다.** 이 화면이 처음 섰을 때는 `LibrarySection` 에
+ * `noticeText` 가 없어 Footer 를 그리지 않았다 — 프론트에 기본 문구를 두는 것(R11.1)도,
+ * 이 화면만을 위해 `/landing` 을 따로 부르는 것(PR #36 이 걷어낸 우회)도 하지 않기로 했기
+ * 때문이다. 계약이 그 공백을 채웠으므로(백엔드 #289) 이제 붙인다. **두 번째 Footer 를 만들지
+ * 않는다** — Library 가 쓰는 `AiNoticeFooter` 그대로다.
  */
 export function LibrarySectionScreen() {
   const { sectionKey } = useParams<{ sectionKey: string }>()
@@ -114,6 +115,9 @@ export function LibrarySectionScreen() {
           {page.loadingMore ? '불러오는 중…' : '더 보기'}
         </button>
       )}
+
+      {/* 문구가 아직 오지 않았으면 그리지 않는다. 자리를 비워 두는 편이 지어낸 문구보다 낫다 */}
+      {page.noticeText === null ? null : <AiNoticeFooter text={page.noticeText} />}
     </main>
   )
 }

@@ -25,6 +25,8 @@ const section = (
   sectionTitle: sectionKey,
   hasMore: false,
   stories,
+  // 계약이 required 로 만들었다 (백엔드 #289) — Footer 를 그리는 화면의 응답은 문구를 싣는다
+  noticeText: 'AI 가 만든 이야기입니다.',
   ...rest,
 })
 
