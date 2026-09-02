@@ -1,0 +1,173 @@
+/*
+ * 히어로가 이끄는 세로 한 컬럼 화면 — Landing(1i)과 Story Detail(1h) 둘이 쓴다.
+ *
+ * Library 는 이 규칙을 쓰지 않는다. 그리드로 훑는 화면과, 작품 하나를 위에서 아래로 읽히는
+ * 화면은 리듬이 다르다 — 같은 파일에 두면 한쪽을 고칠 때마다 다른 쪽을 확인해야 한다.
+ * 공통 어휘(카드 · 커버 · 버튼 · 상태 · 고지)는 discovery.module.css 에 있고 여기서 겹치지 않는다.
+ */
+
+/* Visual 은 비율로만 고정한다 — Mobile 4:5, 768 부터 16:9 (1k) */
+.hero {
+  aspect-ratio: var(--ratio-visual-tall);
+  border-radius: var(--r-lg);
+  background: var(--bg-sunken);
+  overflow: hidden;
+}
+
+/* ── Story Detail (1h · 4d) ─────────────────────────────────── */
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  margin: var(--sp-6) 0 var(--sp-2);
+  color: var(--fg-muted);
+  font-size: 0.8125rem;
+}
+
+.title {
+  margin: 0 0 var(--sp-2);
+  font-size: 1.75rem;
+  line-height: 1.25;
+}
+
+.byline {
+  margin: 0 0 var(--sp-4);
+  color: var(--fg-muted);
+  font-size: 0.875rem;
+}
+
+.body {
+  max-width: var(--read-width);
+  margin: 0;
+  line-height: 1.7;
+}
+
+.counts {
+  display: flex;
+  gap: var(--sp-6);
+  margin: var(--sp-6) 0;
+  color: var(--fg-muted);
+  font-size: 0.875rem;
+}
+
+.detailSection {
+  margin-top: var(--sp-12);
+}
+
+.detailSection > * + * {
+  margin-top: var(--paragraph-gap);
+}
+
+/* Character — Mobile 가로 스크롤 (1h) */
+.characterRow {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 45%;
+  gap: var(--sp-4);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.portrait {
+  aspect-ratio: var(--ratio-visual-tall);
+  border-radius: var(--r-md);
+  background: var(--bg-sunken);
+  overflow: hidden;
+  margin-bottom: var(--sp-2);
+}
+
+/* Mobile 은 CTA 를 하단 고정 bar 로 (1h) */
+.ctaRow {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  gap: var(--sp-3);
+  margin-top: var(--sp-8);
+  padding: var(--sp-3) 0;
+  background: var(--bg);
+}
+
+.ctaRow > * {
+  flex: 1 1 0;
+}
+
+/* ── Landing (1i) ───────────────────────────────────────────── */
+.landing {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-12);
+  min-height: 60vh;
+  justify-content: center;
+}
+
+.lede {
+  margin: 0;
+  max-width: var(--read-width);
+  color: var(--fg-muted);
+  line-height: 1.6;
+}
+
+.steps {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--sp-6);
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.step {
+  padding-top: var(--sp-4);
+  border-top: 1px solid var(--border);
+}
+
+.stepName {
+  margin: 0 0 var(--sp-2);
+  font-size: 1rem;
+}
+
+/* ── 768 Tablet — Detail 1열 유지, Character 2열 (1k) ────────── */
+@media (min-width: 768px) {
+  .hero {
+    aspect-ratio: var(--ratio-visual-wide);
+  }
+
+  .title {
+    font-size: 2rem;
+  }
+
+  .characterRow {
+    grid-auto-flow: row;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-auto-columns: auto;
+    overflow-x: visible;
+  }
+
+  .steps {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  /* Desktop 폭에서는 CTA 를 하단에 붙여 두지 않는다 — 본문과 같이 흐른다 */
+  .ctaRow {
+    position: static;
+    justify-content: flex-start;
+  }
+
+  .ctaRow > * {
+    flex: 0 0 auto;
+  }
+}
+
+/* ── 1024 Laptop ────────────────────────────────────────────── */
+@media (min-width: 1024px) {
+  .characterRow {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+/* ── 1440 Desktop ───────────────────────────────────────────── */
+@media (min-width: 1440px) {
+  .characterRow {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
