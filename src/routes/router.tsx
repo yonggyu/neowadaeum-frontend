@@ -1,6 +1,8 @@
-import { Route, Routes } from 'react-router-dom'
+import { Navigate, Route, Routes } from 'react-router-dom'
 
 import { AccountSettingsScreen } from '../screens/account/AccountSettingsScreen'
+import { AdminAuthScreen } from '../screens/admin/AdminAuthScreen'
+import { AdminGuard } from '../screens/admin/AdminGuard'
 import { HistoryScreen } from '../screens/account/HistoryScreen'
 import { LoginScreen } from '../screens/account/LoginScreen'
 import { MyStoriesScreen } from '../screens/account/MyStoriesScreen'
@@ -73,6 +75,20 @@ export function AppRoutes() {
        * 오므로(최소 높이 60px), 고정 탭바는 읽는 사람이 마지막 선택지를 누르는 자리를 덮는다.
        */}
       <Route path={ROUTES.play} element={<PlayScreen />} />
+
+      {/*
+       * Admin — 셸을 붙이지 않는다. 사용자 화면이 아니고, 상단 내비와 하단 탭바가 가리키는
+       * 곳이 전부 라이브러리 쪽이다. F-9 의 유일한 예외이며 `1j` · `3h` 가 그 예외를 정했다.
+       *
+       * 문(`/admin/auth`)은 가드 **밖**이다 — 승격을 만드는 자리가 승격을 요구하면 들어갈
+       * 길이 없다. 그 안쪽은 `AdminGuard` 가 지키고, 3h(검수·신고 큐) · 1j(Debug 콘솔) 이
+       * 다음 배치에 그 아래로 들어온다. 지금은 갈 곳이 없으므로 승격 여부와 무관하게 문으로
+       * 돌아온다 — 승격을 들고 있으면 문이 그 사실을 알려 준다.
+       */}
+      <Route path={ROUTES.admin} element={<AdminGuard />}>
+        <Route index element={<Navigate to={ROUTES.adminAuth} replace />} />
+      </Route>
+      <Route path={ROUTES.adminAuth} element={<AdminAuthScreen />} />
 
       <Route path="*" element={<NotFound />} />
     </Routes>
