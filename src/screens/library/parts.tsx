@@ -1,14 +1,10 @@
 import { Link } from 'react-router-dom'
-import { useCallback } from 'react'
 
 import type { ApiError } from '../../api/client'
-import { getLanding, type ContinueSession, type StoryCard } from '../../api/endpoints/library'
+import type { ContinueSession, StoryCard } from '../../api/endpoints/library'
 import { ROUTES, resumePath, storyDetailPath } from '../../routes/routes'
+import { storyCardMeta } from './author'
 import css from './discovery.module.css'
-import { useResource } from './useResource'
-
-/** UGC 카드의 작성자 자리. 카드에는 닉네임이 오지 않으므로 종류만 밝힌다 (F-6 · 4d). */
-const USER_AUTHORED = '사용자 작품'
 
 /** 커버 자리. 이미지가 `null` 이어도 **비율은 유지한다** — 그리드가 흔들리지 않는다. */
 function Cover({ src, alt, isNew }: { src: string | null; alt: string; isNew?: boolean }) {
@@ -24,19 +20,19 @@ function Cover({ src, alt, isNew }: { src: string | null; alt: string; isNew?: b
  * 작품 카드.
  *
  * 공식과 사용자 작품을 **같은 그리드에 섞지 않는다** (R13.1). 그 분리는 섹션이 하고, 카드는
- * `authorType` 이 `user` 일 때만 작성자를 표기한다 (4d).
+ * 계약이 준 닉네임이 있을 때만 작성자를 표기한다 — `@yeonwoo · 판타지` (3g · 4d).
+ *
+ * 메타는 **한 줄로 자른다.** 닉네임은 길이를 우리가 정하지 못하는 사용자 값이고, 390 의 2열
+ * 카드에서 이 줄이 두세 줄로 늘면 같은 행의 카드 높이가 서로 어긋난다.
  */
 export function StoryTile({ story }: { story: StoryCard }) {
-  const meta = [
-    story.authorType === 'user' ? USER_AUTHORED : null,
-    story.genres.length > 0 ? story.genres.join(' · ') : null,
-  ].filter((part): part is string => part !== null)
+  const meta = storyCardMeta(story)
 
   return (
     <Link className={css.card} to={storyDetailPath(story.storyId)}>
       <Cover src={story.coverImage} alt="" isNew={story.isNew} />
       <h3 className={`${css.cardTitle} ${css.clamp2}`}>{story.title}</h3>
-      {meta.length > 0 && <p className={css.cardMeta}>{meta.join(' · ')}</p>}
+      {meta !== '' && <p className={`${css.cardMeta} ${css.clamp1}`}>{meta}</p>}
       <p className={`${css.cardDesc} ${css.clamp2}`}>{story.shortDescription}</p>
     </Link>
   )
@@ -105,12 +101,14 @@ export function ErrorBlock({ error, onRetry }: { error: ApiError; onRetry?: () =
 /**
  * AI 사전 고지 (1k · §11).
  *
- * 문구를 코드에 두지 않는다 (R11.1) — `service_config` 가 정하고 `GET /landing` 이 전달한다.
- * Library · Detail 응답에는 이 필드가 없어서 **인증 없이 열리는 `/landing` 을 따로 부른다.**
- * 두 응답이 문구를 함께 실어 주는 것이 옳고, 그것은 계약 이슈로 남긴다.
+ * 문구를 코드에 두지 않는다 (R11.1) — `service_config` 가 정하고, **그 화면이 이미 받은 응답**이
+ * 함께 싣는다 (백엔드 #257). 기본값도 폴백도 두지 않는다: 설정이 비면 서버가 500 이고, 그것이
+ * 백엔드 13-27 이 고른 결과다.
+ *
+ * 전에는 이 컴포넌트가 자기 화면과 별개로 `/landing` 을 한 번 더 불렀다. 요청 하나가 낭비되는
+ * 것보다 나빴던 것은 **고지문이 자기 응답과 다른 시점의 값**이라는 점이다. 이제 문구는 화면이
+ * 넘겨주고, 이 컴포넌트는 그리기만 한다.
  */
-export function AiNoticeFooter() {
-  const { resource } = useResource(useCallback((signal: AbortSignal) => getLanding(signal), []))
-  if (resource.status !== 'ready') return null
-  return <footer className={css.footer}>{resource.data.noticeText}</footer>
+export function AiNoticeFooter({ text }: { text: string }) {
+  return <footer className={css.footer}>{text}</footer>
 }

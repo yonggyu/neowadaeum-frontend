@@ -10,6 +10,7 @@ import { request } from '../client'
 type Schemas = components['schemas']
 
 export type Genre = Schemas['Genre']
+export type AuthorType = Schemas['AuthorType']
 export type StoryCard = Schemas['StoryCard']
 export type LibrarySection = Schemas['LibrarySection']
 export type ContinueSession = Schemas['ContinueSession']

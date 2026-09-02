@@ -34,6 +34,8 @@
   margin: 0 0 var(--sp-4);
   color: var(--fg-muted);
   font-size: 0.875rem;
+  /* 닉네임은 사용자 값이다 — 공백 없는 긴 이름이 390 에서 가로 스크롤을 만들지 않게 한다 */
+  overflow-wrap: anywhere;
 }
 
 .body {

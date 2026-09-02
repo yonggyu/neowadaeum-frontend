@@ -59,7 +59,8 @@ export function LibraryScreen() {
         </>
       )}
 
-      <AiNoticeFooter />
+      {/* 고지문은 이 화면의 응답에서 온다 (백엔드 #257) — `/landing` 을 다시 부르지 않는다 */}
+      {resource.status === 'ready' && <AiNoticeFooter text={resource.data.noticeText} />}
     </main>
   )
 }

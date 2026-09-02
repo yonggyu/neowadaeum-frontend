@@ -121,6 +121,23 @@
   overflow: hidden;
 }
 
+/*
+ * 작성자 · 장르 한 줄 (3g `@yeonwoo · 판타지`).
+ *
+ * 닉네임은 길이를 우리가 정하지 못하는 **사용자 값**이다. 390 의 2열 카드에서 이 줄이 두세
+ * 줄로 늘면 같은 행의 카드가 서로 다른 높이가 되고, 그 어긋남은 넓은 폭일수록 눈에 띈다.
+ * 자르는 쪽을 고른다 — 카드에서 작성자는 식별이지 본문이 아니다.
+ */
+.clamp1 {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 1;
+  line-clamp: 1;
+  overflow: hidden;
+  /* 공백 없는 긴 닉네임도 줄을 넘기지 않는다 — 필요할 때만 끊는다 */
+  overflow-wrap: anywhere;
+}
+
 .cardTitle {
   margin: 0;
   font-size: 0.9375rem;

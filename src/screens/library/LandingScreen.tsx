@@ -5,7 +5,7 @@ import { getLanding } from '../../api/endpoints/library'
 import { ROUTES } from '../../routes/routes'
 import css from './discovery.module.css'
 import own from './story.module.css'
-import { ErrorBlock } from './parts'
+import { AiNoticeFooter, ErrorBlock } from './parts'
 import { useResource } from './useResource'
 
 /** 경험 설명 3단 (1i). 서비스가 무엇인지에 대한 설명이며 서버 데이터가 아니다. */
@@ -78,9 +78,7 @@ export function LandingScreen() {
       </ul>
 
       {/* AI 고지. 문구는 서버가 준다 (R11.1) — 설정이 비면 `/landing` 이 500 이고, 그것이 의도다 */}
-      {resource.status === 'ready' && (
-        <footer className={css.footer}>{resource.data.noticeText}</footer>
-      )}
+      {resource.status === 'ready' && <AiNoticeFooter text={resource.data.noticeText} />}
     </main>
   )
 }
