@@ -1,5 +1,10 @@
 import { API_BASE_URL, API_PREFIX } from './config'
-import { UNKNOWN_ERROR, type ClientErrorCode, type ErrorCode } from './errors'
+import {
+  UNKNOWN_ERROR,
+  UNREACHABLE_MESSAGE,
+  type ClientErrorCode,
+  type ErrorCode,
+} from './errors'
 
 /**
  * 백엔드가 돌려주는 오류 한 형태 (계약의 `Error` 스키마).
@@ -107,12 +112,17 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
     headers['Idempotency-Key'] = options.idempotencyKey
   }
 
-  const response = await fetch(`${API_BASE_URL}${API_PREFIX}${path}`, {
-    method: options.method ?? 'GET',
-    headers,
-    body: options.body === undefined ? undefined : JSON.stringify(options.body),
-    signal: options.signal,
-  })
+  let response: Response
+  try {
+    response = await fetch(`${API_BASE_URL}${API_PREFIX}${path}`, {
+      method: options.method ?? 'GET',
+      headers,
+      body: options.body === undefined ? undefined : JSON.stringify(options.body),
+      signal: options.signal,
+    })
+  } catch (cause) {
+    throw asUnreachable(cause)
+  }
 
   const requestId = response.headers.get(REQUEST_ID_HEADER) ?? undefined
 
@@ -147,6 +157,26 @@ function hasJsonBody(response: Response): boolean {
     return false
   }
   return response.headers.get('Content-Type')?.includes('application/json') === true
+}
+
+/**
+ * 응답이 **오지 않은** 실패를 계약 밖 오류로 옮긴다.
+ *
+ * `errorOf` 의 폴백은 응답이 온 경우에만 붙는다. 서버가 뜨지 않았거나 · DNS 가 틀렸거나 ·
+ * CORS 가 막았거나 · 오프라인이면 `fetch` 가 그 앞에서 던지고, 지금까지는 브라우저의
+ * `TypeError: Failed to fetch` 가 그대로 화면에 떴다.
+ *
+ * 코드는 **계약의 것을 빌리지 않는다.** `UNKNOWN` 이 이미 같은 취지로 있다 — 계약 밖이라는
+ * 사실을 그대로 들고 간다. 상태는 `0` 이다: HTTP 응답이 없었으므로 적을 상태 코드가 없고,
+ * 0 을 실제 상태로 오해할 자리도 없다.
+ */
+function asUnreachable(cause: unknown): unknown {
+  // 취소는 오류가 아니다. 화면을 떠나며 **우리가 끊은 것**이므로 그대로 다시 던진다 —
+  // 여기서 오류로 바꾸면 이동할 때마다 오류 화면이 뜬다.
+  if (cause instanceof Error && cause.name === 'AbortError') {
+    return cause
+  }
+  return new ApiError(0, UNKNOWN_ERROR, UNREACHABLE_MESSAGE, {})
 }
 
 /**
