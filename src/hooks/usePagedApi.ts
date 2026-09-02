@@ -11,6 +11,16 @@ export interface CursorPage<T> {
   items: T[]
   nextCursor: string | null
   hasMore: boolean
+  /**
+   * AI 사전 고지 문구. 화면이 `/landing` 을 따로 불러 채우지 않는다 — 그렇게 하면 고지문이
+   * 자기 목록과 다른 시점의 값이 되고, **같은 화면에서 다른 문구가 보인다** (#257 · #281).
+   *
+   * **optional 인 것이 계약 그대로다.** `MySessionsResponse` · `MyStoriesResponse` ·
+   * `HistoryResponse` 는 이 필드를 필수로 싣지만 `LibrarySection` 은 싣지 않는다 — 섹션
+   * 응답은 Library 화면 안에서 한 조각을 갈아 끼우는 것이라 고지문을 다시 받을 이유가 없다.
+   * 필수로 두면 그 화면이 없는 값을 지어내야 한다.
+   */
+  noticeText?: string
 }
 
 export type PagedStatus = 'loading' | 'ready' | 'error'
@@ -22,6 +32,8 @@ export interface PagedApi<T> {
   readonly error: unknown
   readonly hasMore: boolean
   readonly loadingMore: boolean
+  /** 첫 쪽이 실어 온 고지문. 아직 받지 못했으면 `null` 이다 — 프론트가 기본 문구를 짓지 않는다. */
+  readonly noticeText: string | null
   loadMore: () => void
   /** 목록을 처음부터 다시 받는다. 세션을 지운 뒤처럼 서버가 진실인 순간에 쓴다. */
   reload: () => void
@@ -43,6 +55,9 @@ export function usePagedApi<T>(
   const [hasMore, setHasMore] = useState(false)
   const [loadingMore, setLoadingMore] = useState(false)
   const [generation, setGeneration] = useState(0)
+  // 첫 쪽의 것만 들고 있는다. 다음 쪽이 같은 문구를 다시 실어 오더라도 갈아 끼우지 않는다 —
+  // 읽는 도중에 화면 아래 문구가 바뀌는 것은 고지가 아니라 사고처럼 보인다.
+  const [noticeText, setNoticeText] = useState<string | null>(null)
 
   // 매 렌더 새 함수가 오더라도 effect 를 다시 돌리지 않는다 — 호출자가 useCallback 을
   // 기억해야 하는 훅은 잘못 쓰이기 쉽다. 최신 함수를 ref 에 담고 `key` 로만 다시 받는다.
@@ -62,6 +77,7 @@ export function usePagedApi<T>(
     setError(null)
     setCursor(null)
     setHasMore(false)
+    setNoticeText(null)
 
     latestFetch
       .current(null, controller.signal)
@@ -70,6 +86,7 @@ export function usePagedApi<T>(
         setItems(page.items)
         setCursor(page.nextCursor)
         setHasMore(page.hasMore)
+        setNoticeText(page.noticeText ?? null)
         setStatus('ready')
       })
       .catch((cause: unknown) => {
@@ -106,5 +123,5 @@ export function usePagedApi<T>(
 
   const reload = useCallback(() => setGeneration((value) => value + 1), [])
 
-  return { items, status, error, hasMore, loadingMore, loadMore, reload }
+  return { items, status, error, hasMore, loadingMore, noticeText, loadMore, reload }
 }

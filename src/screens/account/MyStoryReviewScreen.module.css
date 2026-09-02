@@ -1,0 +1,229 @@
+/*
+ * 내 작품 — 공개 범위 · 검수 상태 (와이어프레임 3f · 6c).
+ *
+ * 값을 여기서 새로 정하지 않는다 — 전부 `src/styles/tokens.css` 의 변수다. 예외는 6c 가 직접
+ * 정한 좌측 열 폭(260px) 하나다. 브레이크포인트는 미디어 쿼리가 var() 를 읽지 못해 숫자로
+ * 적는다 — tokens.css 주석의 넷과 같은 값이다.
+ */
+
+/*
+ * ── Mobile 우선 (~767) ─────────────────────────────────────
+ *
+ * 6c: "390 — 목록 → 전체화면 상세, 뒤로 버튼". 이 폭에서 목록은 **자리를 비운다** — 좁은
+ * 화면에 둘을 같이 두면 둘 다 읽히지 않고, 목록은 `/me/stories` 탭이 이미 갖고 있다.
+ */
+.layout,
+.notice {
+  max-width: 1120px;
+  margin: 0 auto;
+}
+
+.column {
+  display: none;
+}
+
+.detail {
+  min-width: 0;
+}
+
+.back {
+  display: inline-flex;
+  align-items: center;
+  min-height: 48px;
+  margin-bottom: var(--sp-2);
+  color: var(--fg-muted);
+  text-decoration: none;
+}
+
+.back:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/*
+ * ── 768 Tablet — 1열, 목록 위 · 상세 아래 (6c) ─────────────
+ *
+ * 여기서 2열로 벌리면 260px 을 뺀 나머지에 라디오 셋과 사유 목록이 들어가야 해서 상세가
+ * 먼저 좁아진다. 6c 가 1열로 정한 이유다.
+ */
+@media (min-width: 768px) {
+  .column {
+    display: block;
+    margin-bottom: var(--sp-8);
+  }
+
+  .back {
+    /* 목록이 바로 위에 있다 — 돌아갈 곳이 화면에 보이므로 뒤로가 필요 없다 */
+    display: none;
+  }
+}
+
+/*
+ * ── 1024 Laptop · 1440 Desktop — 2열 (260 / 나머지) ────────
+ *
+ * 6c 가 값을 정했다. 비율(1fr 3fr)로 두지 않는다 — 1440 에서 목록이 360px 이 되면 제목 한
+ * 줄에 비해 지나치게 넓어진다.
+ */
+@media (min-width: 1024px) {
+  .layout {
+    display: grid;
+    align-items: start;
+    gap: var(--sp-8);
+    grid-template-columns: 260px minmax(0, 1fr);
+  }
+
+  .column {
+    position: sticky;
+    top: var(--sp-6);
+    margin-bottom: 0;
+  }
+}
+
+.columnTitle {
+  margin: 0 0 var(--sp-3);
+  font-size: 1rem;
+  line-height: 1.4;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  margin: 0 0 var(--sp-3);
+  padding: 0;
+  gap: var(--sp-2);
+  list-style: none;
+}
+
+.row {
+  display: flex;
+  min-height: 48px;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-3);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  color: var(--fg);
+  text-decoration: none;
+}
+
+.row:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/* 지금 보고 있는 작품. 색이 아니라 테두리로 표시한다 — 팔레트가 아직 뉴트럴뿐이다 */
+.row[aria-current='true'] {
+  border-color: var(--fg);
+}
+
+.rowTitle {
+  overflow: hidden;
+  flex: 1 1 auto;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.title {
+  margin: 0 0 var(--sp-3);
+  overflow-wrap: anywhere;
+  font-size: 1.375rem;
+  line-height: 1.3;
+}
+
+.badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  margin-bottom: var(--sp-2);
+}
+
+/*
+ * 상태 패널과 공개 범위. 열 전체로 늘리지 않는다 — 1440 의 나머지 폭은 800px 을 넘고,
+ * 그 폭으로 안내 문장을 흘리면 한 줄이 너무 길어진다.
+ */
+.panel {
+  max-width: var(--read-width);
+  margin-top: var(--sp-6);
+  padding: var(--sp-4);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+}
+
+.panelTitle {
+  margin: 0 0 var(--sp-2);
+  font-size: 1.0625rem;
+  line-height: 1.4;
+}
+
+.panelSubtitle {
+  margin: var(--sp-4) 0 var(--sp-2);
+  font-size: 0.9375rem;
+}
+
+.reasons {
+  margin: 0;
+  padding-left: var(--sp-6);
+  color: var(--fg-muted);
+  line-height: 1.7;
+}
+
+.warning {
+  margin: var(--sp-4) 0 0;
+  padding: var(--sp-3);
+  border-radius: var(--r-md);
+  background: var(--bg-sunken);
+  color: var(--fg-muted);
+  font-size: 0.875rem;
+  line-height: 1.6;
+}
+
+.fieldset {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.fieldset > legend {
+  padding: 0;
+}
+
+/* 선택지 한 줄. 48px 은 6d 의 설정 행 높이다 — Choice(60px)는 이야기 진행이지 설정이 아니다 */
+.option {
+  display: flex;
+  min-height: 48px;
+  align-items: flex-start;
+  gap: var(--sp-3);
+  padding: var(--sp-2) 0;
+  cursor: pointer;
+}
+
+.fieldset:disabled .option,
+.option:has(input:disabled) {
+  color: var(--fg-subtle);
+  cursor: default;
+}
+
+.option > input {
+  width: 20px;
+  height: 20px;
+  flex: 0 0 auto;
+  margin: var(--sp-1) 0 0;
+  accent-color: var(--fg);
+}
+
+.option > input:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.optionText {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: var(--sp-1);
+}
+
+.optionLabel {
+  line-height: 1.4;
+}

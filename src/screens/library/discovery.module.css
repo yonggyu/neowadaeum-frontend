@@ -68,6 +68,28 @@
   font-size: 1.125rem;
 }
 
+/*
+ * 섹션 헤더 오른쪽의 “전체 보기 ›” (3g).
+ *
+ * 버튼이 아니라 텍스트 링크다 — 3g 가 그렇게 그렸고, `.sectionHead` 가 baseline 정렬이라
+ * 40px 버튼을 넣으면 제목이 그 높이에 끌려 내려간다. 대신 상하 padding 으로 터치 대상을
+ * 글자 높이보다 넓게 잡고, 음수 margin 으로 헤더 높이는 그대로 둔다 (F-9 — 390 에서
+ * 손가락으로 눌리는 자리다).
+ */
+.sectionMore {
+  flex: 0 0 auto;
+  padding: var(--sp-3) 0 var(--sp-3) var(--sp-3);
+  margin: calc(var(--sp-3) * -1) 0;
+  color: var(--fg-muted);
+  font-size: 0.875rem;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.sectionMore:hover {
+  color: var(--fg);
+}
+
 /* ── 그리드 — 390·768: 2열 / 1024: 3열 / 1440: 4열 (1k) ─────── */
 .grid {
   display: grid;
@@ -260,6 +282,7 @@
 }
 
 .button:focus-visible,
+.sectionMore:focus-visible,
 .chip:focus-visible,
 .card:focus-visible,
 .continueCard:focus-visible {
