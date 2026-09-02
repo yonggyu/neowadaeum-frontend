@@ -43,11 +43,43 @@
   top: 0;
   z-index: 1;
   display: flex;
-  flex-direction: column;
-  gap: var(--sp-1);
+  gap: var(--sp-3);
+  align-items: center;
   padding: var(--sp-3) var(--pad);
   border-bottom: 1px solid var(--border);
   background: var(--bg);
+}
+
+/* 제목과 챕터는 여전히 2줄이다 (2f) — 메뉴 버튼이 그 옆에 서면서 한 겹이 생겼을 뿐이다 */
+.headerText {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--sp-1);
+  /* 이것이 없으면 긴 제목이 flex 최소 폭을 밀어 올려 말줄임이 걸리지 않는다 */
+  min-width: 0;
+}
+
+.menuButton {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  margin-right: calc(var(--sp-3) * -1);
+  border: 0;
+  background: none;
+  color: var(--fg-muted);
+  font: inherit;
+  font-size: 1.25rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.menuButton:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
 }
 
 /*
@@ -508,4 +540,56 @@
 
 .confirm .actions {
   margin-top: var(--sp-4);
+}
+
+/* ── Play Menu 의 줄 (3c) — 시트의 껍데기는 `styles/sheet.module.css` 에 있다 ────── */
+
+/*
+ * 링크(a) · 버튼(button) · 값만 있는 줄(p)이 같은 모양이어야 한다. 높이는 6d 의 설정 행과
+ * 같은 48px 이다 — 1k 가 "화면마다 다르다"고 한 그 값 중 하나이며 여기서 새로 정하지 않는다.
+ */
+.menuRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  width: 100%;
+  min-height: 48px;
+  margin: 0;
+  padding: var(--sp-3) 0;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-size: 1.0625rem;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.menuRow:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/* 저장 상태는 이동이 아니다 — 누를 수 있는 것처럼 보이지 않게 한다 */
+p.menuRow {
+  cursor: default;
+}
+
+.menuValue {
+  color: var(--fg-muted);
+  font-size: 0.875rem;
+}
+
+.menuDanger {
+  color: var(--danger);
+}
+
+.menuNotice {
+  margin: var(--sp-3) 0 0;
+  color: var(--fg-subtle);
+  font-size: 0.75rem;
+  line-height: 1.6;
 }

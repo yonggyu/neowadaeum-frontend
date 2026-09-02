@@ -4,9 +4,12 @@ import { useNavigate, useParams } from 'react-router-dom'
 import type { Turn } from '../../api/endpoints/play'
 import { usePlaySession } from '../../hooks/usePlaySession'
 import { ROUTES } from '../../routes/routes'
+import { ReportDialog } from '../report/ReportDialog'
+import { storyTarget, turnTarget } from '../report/report'
 import { ChapterInterstitial } from './ChapterInterstitial'
 import { ChoiceList } from './ChoiceList'
 import { EndingPanel } from './EndingPanel'
+import { PlayMenu } from './PlayMenu'
 import { Generating, PlayProblem } from './PlayNotice'
 import { StoryText } from './StoryText'
 import s from './play.module.css'
@@ -31,6 +34,11 @@ function Play({ sessionId }: { sessionId: string }) {
   const navigate = useNavigate()
   const storyRef = useRef<HTMLElement>(null)
   const choicesRef = useRef<HTMLDivElement>(null)
+  /*
+   * 시트는 **한 번에 하나만** 떠 있다 (3c). 둘을 각각 boolean 으로 두면 메뉴 위에 신고가
+   * 겹쳐 뜨는 상태가 만들어지고, 그 상태를 막는 조건이 곧 세 번째 규칙이 된다.
+   */
+  const [sheet, setSheet] = useState<'none' | 'menu' | 'report'>('none')
 
   const turn = play.turn
   const turnNo = turn?.turnNo
@@ -62,7 +70,7 @@ function Play({ sessionId }: { sessionId: string }) {
 
   return (
     <main className={s.screen} data-screen="PlayScreen">
-      <PlayHeader turn={turn} />
+      <PlayHeader turn={turn} onMenu={() => setSheet('menu')} />
       {/*
        * `sceneImage` 는 아직 발행되지 않는다(P3). 화면은 **언제나 그라디언트 폴백**이며,
        * 오지 않을 값을 기다리는 빈 상자를 두지 않는다. 높이는 비율로만 잡는다 (1k).
@@ -120,6 +128,32 @@ function Play({ sessionId }: { sessionId: string }) {
       {play.status === 'chapter' && turn !== null ? (
         <ChapterInterstitial turn={turn} onDone={play.skipChapter} />
       ) : null}
+
+      {sheet === 'menu' && turn !== null ? (
+        <PlayMenu
+          turn={turn}
+          sessionId={sessionId}
+          onReport={() => setSheet('report')}
+          onLeave={handlers.leave}
+          onClose={() => setSheet('none')}
+        />
+      ) : null}
+
+      {/*
+       * 대상 둘을 **여기서** 만든다. 장면은 지금 화면에 떠 있는 턴이고 작품은 그 턴이 알려
+       * 준 작품이다 (#259) — 신고 시트가 세션을 다시 읽지 않는다. 기본 선택이 장면인 것은
+       * 3c 의 순서 그대로다: 이 자리에서 눈에 걸린 것은 대개 방금 읽은 장면이다.
+       */}
+      {sheet === 'report' && turn !== null ? (
+        <ReportDialog
+          targets={[
+            turnTarget(sessionId, turn.turnNo, turn.chapterNo),
+            storyTarget(turn.storyId, turn.title),
+          ]}
+          returnLabel="이야기로 돌아가기"
+          onClose={() => setSheet('none')}
+        />
+      ) : null}
     </main>
   )
 }
@@ -137,16 +171,28 @@ function Play({ sessionId }: { sessionId: string }) {
  * 진행 표시는 서버가 만든 `progressHint` 문자열을 그대로 쓴다 — 백분율을 계산하지 않고
  * (R7.5), 계약에 없는 값(남은 턴 · 진행바)을 여기에 그리지 않는다.
  */
-function PlayHeader({ turn }: { turn: Turn | null }) {
+function PlayHeader({ turn, onMenu }: { turn: Turn | null; onMenu: () => void }) {
   if (turn === null) {
     return <header className={s.header} />
   }
   return (
     <header className={s.header}>
-      <p className={s.storyTitle}>{turn.title}</p>
-      <p className={s.chapterMeta}>
-        {turn.progressHint ?? `Chapter ${String(turn.chapterNo).padStart(2, '0')}`}
-      </p>
+      <div className={s.headerText}>
+        <p className={s.storyTitle}>{turn.title}</p>
+        <p className={s.chapterMeta}>
+          {turn.progressHint ?? `Chapter ${String(turn.chapterNo).padStart(2, '0')}`}
+        </p>
+      </div>
+      {/* 3c 의 `···`. 턴이 없으면 그리지 않는다 — 메뉴의 다섯 줄이 전부 이 턴에서 나온다 */}
+      <button
+        type="button"
+        className={s.menuButton}
+        onClick={onMenu}
+        aria-haspopup="dialog"
+        aria-label="메뉴"
+      >
+        ···
+      </button>
     </header>
   )
 }
