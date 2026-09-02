@@ -1,0 +1,173 @@
+/*
+ * 로그인 — Desktop Split / Mobile 전체화면 (와이어프레임 6b).
+ *
+ * 추가 정보 단계는 **같은 오른쪽 컬럼 안에서 교체된다.** 별 라우트가 아니므로 껍데기는
+ * 그대로 두고 패널의 내용만 바뀐다 — 페이지를 나누면 새로고침에 `idToken` 이 사라진다 (F-3).
+ */
+
+.shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+}
+
+.visual {
+  flex: 0 0 auto;
+  aspect-ratio: var(--ratio-visual-wide);
+  background: var(--bg-sunken);
+}
+
+.panel {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  padding: var(--sp-8) var(--sp-6) calc(var(--sp-8) + env(safe-area-inset-bottom));
+}
+
+/*
+ * 카드는 **어느 폭에서도 420px 단일 컬럼**이다 (6b).
+ * 입력이 셋뿐인 화면을 폭에 맞춰 늘리면 빈 화면이 된다 — CLAUDE.md 반응형 절.
+ */
+.card {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  width: 100%;
+  max-width: 420px;
+  margin: 0 auto;
+}
+
+.headline {
+  margin: 0 0 var(--sp-2);
+  font-size: 1.375rem;
+  line-height: 1.4;
+}
+
+.sub {
+  margin: 0;
+  color: var(--fg-muted);
+  line-height: 1.6;
+}
+
+/*
+ * Mobile 의 버튼은 화면 하단 안전영역 위에 앉는다 (6b).
+ * 넓은 폭에서는 본문 바로 아래가 자연스럽다 — 그래서 `margin-top: auto` 를 모바일에만 건다.
+ */
+.footer {
+  margin-top: var(--sp-8);
+}
+
+@media (max-width: 767px) {
+  .footer {
+    margin-top: auto;
+    padding-top: var(--sp-8);
+  }
+}
+
+/* 버튼 아래에 붙는 것 — 실패 문구도, 보조 링크도 같은 간격이다 */
+.stacked {
+  margin-top: var(--sp-3);
+}
+
+/* fieldset 의 기본 테두리·여백을 지운다. legend 를 라벨로 쓰기 위해 fieldset 을 택했다 */
+.fieldset {
+  border: 0;
+  margin: 0;
+  padding: 0;
+}
+
+/* 추가 정보 단계는 폭에 따라 배치를 바꾸지 않는다 — 본문이 위에서부터 흐른다 */
+.form {
+  margin-top: var(--sp-8);
+}
+
+.field {
+  margin-bottom: var(--sp-6);
+}
+
+.label {
+  display: block;
+  margin-bottom: var(--sp-2);
+  font-size: 0.875rem;
+}
+
+.birthDate {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr 1fr;
+  gap: var(--sp-2);
+}
+
+.input {
+  min-height: 48px;
+  padding: 0 var(--sp-3);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--bg);
+  color: var(--fg);
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.input:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+
+.consents {
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: var(--sp-4);
+}
+
+.consentAll {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding-bottom: var(--sp-3);
+  border-bottom: 1px solid var(--border);
+  margin-bottom: var(--sp-3);
+  font-weight: 600;
+}
+
+.consent {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  min-height: 40px;
+  color: var(--fg-muted);
+  font-size: 0.9375rem;
+}
+
+.consent input,
+.consentAll input {
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  accent-color: var(--fg);
+}
+
+/*
+ * 1024 **이하**는 비주얼을 상단으로 접고 Mobile 과 같은 구조다 (6b).
+ * 그러므로 Split 은 1025 부터다 — 이 숫자는 그 문장에서 나온 것이지 반올림이 아니다.
+ */
+@media (min-width: 1025px) {
+  .shell {
+    flex-direction: row;
+  }
+
+  .visual {
+    flex: 1 1 0;
+    aspect-ratio: auto;
+  }
+
+  .panel {
+    flex: 0 0 clamp(480px, 38vw, 620px);
+    justify-content: center;
+    padding: var(--sp-16) var(--sp-8);
+  }
+
+  .card {
+    flex: 0 0 auto;
+  }
+}
