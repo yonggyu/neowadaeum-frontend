@@ -1,0 +1,139 @@
+/*
+ * 공통 셸 — 상단 내비 + 모바일 하단 탭바 (와이어프레임 3g · 6d).
+ *
+ * 숫자를 여기서 새로 정하지 않는다 — 높이 · 간격 · 반지름은 전부 `tokens.css` 의 변수다.
+ * 브레이크포인트만 값으로 적는다(미디어 쿼리가 var() 를 읽지 못한다). 390 / 768 / 1024 /
+ * 1440 네 폭이 F-9 의 대상이고 기본 규칙이 390 이며 위로 얹는다.
+ *
+ * 좌우 padding 은 탐색 화면의 `.page`(discovery.module.css)와 **같은 값**이다 — 브랜드와
+ * 본문 첫 글자가 같은 세로선에 서야 한다.
+ */
+
+.shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+}
+
+/* ── 상단 내비 — 어느 폭에서도 sticky (2f 의 Play 헤더와 같은 규칙) ───────────── */
+
+.top {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+}
+
+.topInner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-4);
+  min-height: var(--nav-h);
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 0 var(--sp-4);
+}
+
+.brand {
+  color: inherit;
+  font-size: 1rem;
+  font-weight: 700;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+/* ~767 은 하단 탭바가 대신한다 (6d) — 같은 링크를 두 자리에 보이지 않는다 */
+.topNav {
+  display: none;
+}
+
+.navLink {
+  display: inline-flex;
+  align-items: center;
+  min-height: 40px;
+  padding: 0 var(--sp-3);
+  border-radius: var(--r-sm);
+  color: var(--fg-muted);
+  font-size: 0.9375rem;
+  text-decoration: none;
+}
+
+/* 현재 위치. `aria-current="page"` 는 NavLink 가 붙인다 */
+.on {
+  color: var(--fg);
+  font-weight: 600;
+}
+
+.brand:focus-visible,
+.navLink:focus-visible,
+.tab:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/* ── 본문 ───────────────────────────────────────────────────────────────────── */
+
+.content {
+  flex: 1 1 auto;
+  /*
+   * F-9 의 핵심 — 하단 탭바가 본문 끝을 가리지 않는다. 값은 `--tabbar-total-h` 하나에서
+   * 오고, 768 부터 그 토큰이 0 이 되므로 여기 미디어 쿼리를 따로 두지 않는다.
+   */
+  padding-bottom: var(--tabbar-total-h);
+}
+
+/* ── 하단 탭바 — Mobile 전용. 행 높이 48px 이상 (6d) ─────────────────────────── */
+
+.tabbar {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 10;
+  display: flex;
+  /*
+   * 높이를 본문 여백과 **같은 토큰**으로 잡는다. `box-sizing: border-box` 가 전역이라
+   * 위 테두리와 안전영역까지 이 높이 안에 들어온다 — 실제 높이와 여백이 어긋나지 않는다.
+   */
+  height: var(--tabbar-total-h);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  border-top: 1px solid var(--border);
+  background: var(--bg);
+}
+
+.tab {
+  display: flex;
+  flex: 1 1 0;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--tabbar-row-h);
+  color: var(--fg-muted);
+  font-size: 0.875rem;
+  text-decoration: none;
+}
+
+/* ── 768 Tablet — 탭바를 걷고 링크를 상단으로 올린다 (6d) ────────────────────── */
+@media (min-width: 768px) {
+  .topInner {
+    padding: 0 var(--sp-6);
+  }
+
+  .topNav {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-2);
+  }
+
+  .tabbar {
+    display: none;
+  }
+}
+
+/* ── 1024 Laptop ────────────────────────────────────────────────────────────── */
+@media (min-width: 1024px) {
+  .topInner {
+    padding: 0 var(--sp-8);
+  }
+}

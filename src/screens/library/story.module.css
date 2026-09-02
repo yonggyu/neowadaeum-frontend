@@ -76,10 +76,15 @@
   margin-bottom: var(--sp-2);
 }
 
-/* Mobile 은 CTA 를 하단 고정 bar 로 (1h) */
+/*
+ * Mobile 은 CTA 를 하단 고정 bar 로 (1h).
+ *
+ * 셸의 하단 탭바 **위에** 선다 — 탭바 높이를 토큰에서 읽는다 (F-9). 768 부터 그 토큰이 0 이
+ * 되고 아래 미디어 쿼리가 sticky 자체를 걷는다.
+ */
 .ctaRow {
   position: sticky;
-  bottom: 0;
+  bottom: var(--tabbar-total-h);
   display: flex;
   gap: var(--sp-3);
   margin-top: var(--sp-8);
