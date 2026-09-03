@@ -12,8 +12,6 @@
  * **감성 없는 Dev Tool 톤.** 관리자 구역에서만 등폭을 쓰고, 본문 서체(`Gaegu`)를 끌어오지
  * 않는다 — 저장된 것을 그대로 보는 자리이지 읽는 자리가 아니다.
  *
- * **`1j` 좌측 아래의 조작 셋은 이 PR 에 없다** — 자유 입력 상자와 되돌릴 수 없는 두 버튼의
- * 스타일이 여기 없는 이유가 그것이다. `src/**` 800줄을 넘겨 읽기/조작으로 자른 자리다.
  */
 
 .page {
@@ -65,7 +63,10 @@
 
 .tab:focus-visible,
 .callRow:focus-visible,
-.reveal:focus-visible {
+.reveal:focus-visible,
+.textarea:focus-visible,
+.button:focus-visible,
+.turnInput:focus-visible {
   outline: 2px solid var(--focus);
   outline-offset: 2px;
 }
@@ -197,6 +198,89 @@
   background: var(--bg-sunken);
   color: var(--fg);
   box-shadow: inset 3px 0 0 var(--fg);
+}
+
+/* 자유 행동 입력 — 관리자 전용. `1j` 가 두꺼운 테두리로 그렸다 */
+.textarea {
+  width: 100%;
+  min-height: 56px;
+  padding: var(--sp-3);
+  border: 1.5px solid var(--fg);
+  border-radius: var(--r-sm);
+  background: var(--bg);
+  color: var(--fg);
+  font: inherit;
+  font-size: 0.8125rem;
+  resize: vertical;
+}
+
+/* 테스트 세션이 아니면 열리지 않는다 — 그 사실이 상자 모양에도 보여야 한다 */
+.textarea:disabled {
+  border-color: var(--border);
+  background: var(--bg-sunken);
+  color: var(--fg-subtle);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  align-items: center;
+}
+
+/* 되돌릴 목적지. 여덟 칸이면 충분하고, 넓히면 무엇을 넣는 칸인지 흐려진다 */
+.turnInput {
+  width: 8ch;
+  min-height: 48px;
+  padding: 0 var(--sp-3);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--bg);
+  color: var(--fg);
+  font: inherit;
+  font-size: 0.8125rem;
+  text-align: center;
+}
+
+/* 관리자 조작이므로 목록 행동과 같은 48px 이다 (2FA 확인의 56px 은 한 번짜리 큰 동작이다) */
+.button {
+  display: inline-flex;
+  min-height: 48px;
+  padding: 0 var(--sp-4);
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--bg);
+  color: var(--fg);
+  font: inherit;
+  font-size: 0.8125rem;
+  cursor: pointer;
+}
+
+/* 못 누르는 버튼은 어느 종류든 같은 모양이어야 한다 */
+.button:disabled,
+.primary:disabled,
+.destructive:disabled {
+  border-color: var(--border);
+  background: var(--bg-sunken);
+  color: var(--fg-subtle);
+  cursor: default;
+}
+
+.primary {
+  border-color: var(--fg);
+  background: var(--fg);
+  color: var(--bg);
+}
+
+/*
+ * `--danger` 는 되돌릴 수 없는 동작에만 쓴다고 tokens.css 가 적었다. 이 화면에서 그런 것은
+ * 되돌리기와 재생성 둘이다 — 자유입력은 덧붙일 뿐이라 이 색을 쓰지 않는다.
+ */
+.destructive {
+  border-color: var(--danger);
+  color: var(--danger);
 }
 
 /*

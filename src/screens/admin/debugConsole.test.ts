@@ -2,14 +2,19 @@ import { describe, expect, it } from 'vitest'
 
 import type { AdminSessionDebug } from '../../api/endpoints/admin'
 import {
+  buildFreeInput,
   callLabel,
+  canSubmitFreeAction,
   COST_NOTE,
   currentTurn,
   DEBUG_PANELS,
   DEFAULT_PANEL,
   formatLatency,
   formatTokens,
+  FREE_ACTION_MAX_LENGTH,
+  needsConfirmation,
   PROMPT_STARTS_OPEN,
+  rollbackTarget,
   turnsNewestFirst,
   type AiCall,
   type DebugTurn,
@@ -80,6 +85,63 @@ describe('S11_프롬프트_원문은_접힌_채로_열린다', () => {
 
   it('1j 가 이름 붙인 다섯이 그대로 탭이다', () => {
     expect([...DEBUG_PANELS]).toEqual(['state', 'summary', 'turns', 'prompt', 'response'])
+  })
+})
+
+describe('R14_4_되돌릴_수_없는_동작_앞에_확인이_있다', () => {
+  it('되돌리기와 재생성에는 확인이 있다', () => {
+    expect(needsConfirmation('rollback')).toBe(true)
+    expect(needsConfirmation('regenerate')).toBe(true)
+  })
+
+  it('자유입력에는 확인이 없다 — 덧붙일 뿐이라 되돌리기로 되돌아간다', () => {
+    expect(needsConfirmation('submit')).toBe(false)
+  })
+})
+
+describe('되돌리기_목적지는_읽을_수_있을_때만_정해진다', () => {
+  it('계약이 허용하는 0 을 받는다 — 첫 턴까지 접는다는 뜻이다', () => {
+    expect(rollbackTarget('0', 5)).toBe(0)
+  })
+
+  it('현재 턴보다 큰 값은 되돌릴 곳이 아니다', () => {
+    expect(rollbackTarget('6', 5)).toBeNull()
+  })
+
+  it('빈 칸을 0 으로 읽지 않는다 — 그렇게 읽으면 오타가 세션을 첫 턴까지 접는다', () => {
+    expect(rollbackTarget('', 5)).toBeNull()
+    expect(rollbackTarget('  ', 5)).toBeNull()
+    expect(rollbackTarget('-1', 5)).toBeNull()
+    expect(rollbackTarget('2.5', 5)).toBeNull()
+  })
+})
+
+describe('R14_3_자유입력은_테스트_세션에서만_열린다', () => {
+  it('테스트 세션이 아니면 보내지 않는다', () => {
+    expect(canSubmitFreeAction({ action: '창밖을 본다', testSession: false, pending: false })).toBe(
+      false,
+    )
+  })
+
+  it('빈 문장과 계약의 길이를 넘는 문장은 보내지 않는다', () => {
+    expect(canSubmitFreeAction({ action: '   ', testSession: true, pending: false })).toBe(false)
+    expect(
+      canSubmitFreeAction({
+        action: '가'.repeat(FREE_ACTION_MAX_LENGTH + 1),
+        testSession: true,
+        pending: false,
+      }),
+    ).toBe(false)
+  })
+
+  it('보내는 중에는 다시 보내지 않는다', () => {
+    expect(canSubmitFreeAction({ action: '창밖을 본다', testSession: true, pending: true })).toBe(
+      false,
+    )
+  })
+
+  it('보낼 것은 계약이 받는 `action` 하나이고 앞뒤 공백을 지운다', () => {
+    expect(buildFreeInput('  창밖을 본다  ')).toEqual({ action: '창밖을 본다' })
   })
 })
 
