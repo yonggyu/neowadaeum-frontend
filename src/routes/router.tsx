@@ -10,6 +10,7 @@ import { MyStoriesScreen } from '../screens/account/MyStoriesScreen'
 import { MyStoryReviewScreen } from '../screens/account/MyStoryReviewScreen'
 import { ResumeScreen } from '../screens/account/ResumeScreen'
 import { DraftsScreen } from '../screens/authoring/DraftsScreen'
+import { DraftWizardScreen } from '../screens/authoring/DraftWizardScreen'
 import { LandingScreen } from '../screens/library/LandingScreen'
 import { LibraryScreen } from '../screens/library/LibraryScreen'
 import { LibrarySectionScreen } from '../screens/library/LibrarySectionScreen'
@@ -25,8 +26,6 @@ import { ROUTES } from './routes'
  * 슬라이스 셋(플레이 · 탐색 · 계정)이 병렬로 붙는다. 각자 라우트를 여기 추가하게 하면
  * 세 브랜치가 확정적으로 같은 줄에서 충돌한다 — 자리를 먼저 만들어 두면 각 슬라이스는
  * **자기 화면 파일만** 채우면 되고 이 파일은 아무도 건드리지 않는다.
- *
- * 여기 없는 화면(작품 만들기 마법사)은 아직 범위가 아니다.
  *
  * **셸이 붙는 자리와 붙지 않는 자리를 이 트리가 정한다** (#25). 화면이 스스로 판단하게 두면
  * 새 화면마다 같은 질문을 다시 하게 된다 — 여기 한 곳에서 보이는 편이 낫다.
@@ -95,6 +94,16 @@ export function AppRoutes({ session }: { session: AuthState }) {
        */}
       <Route element={<RequireAuth session={session} />}>
         <Route path={ROUTES.play} element={<PlayScreen />} />
+
+      {/*
+       * 작품 만들기 마법사 — 셸을 붙이지 않는다. Play 와 같은 이유이며 6a 가 값까지 적었다.
+       *
+       * 이 화면은 자기 헤더를 갖는다(나가기 · STEP · 임시 저장 표시)고 6a 가 정했고, 그것이
+       * 어느 폭에서도 상단 고정이다 — 셸의 브랜드 바를 얹으면 sticky 가 둘이 된다. 아래도
+       * 마찬가지다: 390 은 **하단 고정 바(이전/다음)** 가 있고, 셸의 탭바가 정확히 그 자리를
+       * 덮는다. 둘 다 그리면 화면 밑에 바가 둘 쌓인다.
+       */}
+      <Route path={ROUTES.authoringDraft} element={<DraftWizardScreen />} />
       </Route>
 
       {/*
