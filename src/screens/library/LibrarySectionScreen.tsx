@@ -1,13 +1,13 @@
 import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 
+import { toApiError } from '../../api/client'
 import { getLibrarySection, type StoryCard } from '../../api/endpoints/library'
 import { usePagedApi } from '../../hooks/usePagedApi'
 import { ROUTES } from '../../routes/routes'
 import css from './discovery.module.css'
 import { AiNoticeFooter, ErrorBlock, StoryTile, TileSkeleton } from './parts'
 import { isMissingSection, toCursorPage } from './sectionPage'
-import { toApiError } from './useResource'
 
 /** 스켈레톤 개수. 가장 좁은 폭(2열)에서도 그리드가 차 보이는 최소 수다. */
 const SKELETON_COUNT = 4

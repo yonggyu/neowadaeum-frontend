@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 
-import type { ApiError } from '../../api/client'
+import { toApiError, type ApiError } from '../../api/client'
 import {
   getLibrary,
   getLibrarySection,
@@ -9,7 +9,7 @@ import {
   type LibrarySection,
 } from '../../api/endpoints/library'
 import { appendPage, canLoadMore, genreSectionKey, orderSections } from './sections'
-import { toApiError, useResource, type Resource } from './useResource'
+import { useResource, type Resource } from './useResource'
 
 /** 섹션 하나가 첫 응답 뒤에 겪는 일 — 다음 쪽 · 실패 · 재시도. 화면 전체가 아니라 섹션 단위다. */
 export interface SectionState {
