@@ -18,6 +18,10 @@ export const ROUTES = {
   myStories: '/me/stories',
   myStory: '/me/stories/:storyId',
   accountSettings: '/me/settings',
+  /** 관리자 구역. 승격 없이는 열리지 않는다 (`AdminGuard`). */
+  admin: '/admin',
+  /** 그 앞의 문. **가드 밖에 둔다** — 승격을 만드는 자리가 승격을 요구하면 들어갈 길이 없다. */
+  adminAuth: '/admin/auth',
 } as const
 
 /** 섹션 전체 보기 (3g “전체 보기 ›”). `sectionKey` 는 `genre:romance` 처럼 `:` 를 담으므로 인코딩한다. */

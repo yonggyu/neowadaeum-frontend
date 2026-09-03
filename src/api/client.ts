@@ -91,6 +91,17 @@ export interface RequestOptions {
   body?: unknown
   /** 중복 과금을 막는 값 (backend R6.2). 턴 생성처럼 재시도가 있는 요청에 붙인다 (F-7). */
   idempotencyKey?: string
+  /**
+   * 관리자 경로의 단계 승격 (계약 `parameters/AdminStepUp`, backend S-4).
+   *
+   * `headers` 를 통째로 열지 않고 이름 붙은 옵션을 하나 더 두는 이유는 `idempotencyKey` 와
+   * 같다 — 임의 헤더 맵을 받으면 호출부가 `Authorization` 을 덮어쓸 수 있고, 그때 *누구인가*
+   * 와 *방금 두 번째 요소를 통과했는가* 가 같은 자리를 다투게 된다. 계약이 그 둘을 나눠
+   * 놓은 이유가 그것이다.
+   *
+   * 값을 만드는 곳도 붙이는 곳도 `endpoints/admin.ts` 하나다.
+   */
+  adminStepUp?: string
   signal?: AbortSignal
 }
 
@@ -110,6 +121,9 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
   }
   if (options.idempotencyKey !== undefined) {
     headers['Idempotency-Key'] = options.idempotencyKey
+  }
+  if (options.adminStepUp !== undefined) {
+    headers['X-Admin-Step-Up'] = options.adminStepUp
   }
 
   let response: Response
