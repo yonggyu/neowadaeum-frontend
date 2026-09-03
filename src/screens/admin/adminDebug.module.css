@@ -1,0 +1,297 @@
+/*
+ * Debug 콘솔 (`1j`) — 좌 미리보기 / 우 사실 다섯.
+ *
+ * 값을 여기서 새로 정하지 않는다 — 간격 · 반지름 · 색은 전부 `src/styles/tokens.css` 의
+ * 변수다. 브레이크포인트만 숫자로 적는다 (미디어 쿼리가 var() 를 읽지 못한다).
+ *
+ * **Admin 은 F-9 의 예외지만 이 화면은 폭을 하나만 맞추지 않는다.** `1j` 가 직접 규정했다 —
+ * *"1024px 이하에서는 우측 패널을 탭(State / Summary / Turns / Prompt / Response)으로
+ * 접는다."* 예외가 아니라 요구사항이며, 그 다섯은 **대등한 사실**이라 탭이 맞는다.
+ * 검수 큐(`3h`)가 탭을 쓰지 않은 이유는 그쪽이 목록과 상세라 대등하지 않기 때문이다 (#68).
+ *
+ * **감성 없는 Dev Tool 톤.** 관리자 구역에서만 등폭을 쓰고, 본문 서체(`Gaegu`)를 끌어오지
+ * 않는다 — 저장된 것을 그대로 보는 자리이지 읽는 자리가 아니다.
+ *
+ * **`1j` 좌측 아래의 조작 셋은 이 PR 에 없다** — 자유 입력 상자와 되돌릴 수 없는 두 버튼의
+ * 스타일이 여기 없는 이유가 그것이다. `src/**` 800줄을 넘겨 읽기/조작으로 자른 자리다.
+ */
+
+.page {
+  min-height: 100dvh;
+  padding: var(--sp-6);
+  background: var(--bg-sunken);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+@media (max-width: 767px) {
+  .page {
+    padding: var(--sp-4);
+  }
+}
+
+/* 상단 한 줄 — 무엇을 보고 있는가. `1j` 의 `wfbar` 다 */
+.bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-3) var(--sp-4);
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: var(--sp-4);
+  border-bottom: 1px solid var(--border);
+}
+
+.title {
+  composes: title from './admin.module.css';
+  margin: 0;
+}
+
+/*
+ * 세션 · 작품 · provider.
+ *
+ * **`player_ref` 가 여기 없다** (F-6). 계약도 응답에 담지 않는다 (I-3) — 관리자가 알아야
+ * 하는 것은 세션에서 일어난 일이지 그것이 누구인지가 아니다. 세션 id 는 계약이 경로에
+ * 두었으므로 화면에도 URL 에도 있다.
+ */
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-1) var(--sp-4);
+  margin: 0;
+  color: var(--fg-muted);
+  font-size: 0.75rem;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+
+.tab:focus-visible,
+.callRow:focus-visible,
+.reveal:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/*
+ * 두 열. `1j` 는 우측을 400px 로 두고 좌측이 남은 폭을 갖는다.
+ *
+ * 높이를 px 로 박지 않는다 — `min-height` 만 쓴다. 원문 길이가 패널마다 다르고, 고정하면
+ * 긴 프롬프트가 잘리거나 짧은 요약 아래가 빈다.
+ */
+.split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 400px;
+  gap: var(--sp-4);
+  align-items: start;
+  margin-top: var(--sp-4);
+}
+
+.column {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  min-width: 0;
+}
+
+/* 한 상자 — 라벨과 내용 */
+.label {
+  margin: 0;
+  color: var(--fg-subtle);
+  font-size: 0.6875rem;
+  letter-spacing: 0.08em;
+}
+
+.box {
+  margin: 0;
+  padding: var(--sp-3);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--bg);
+  color: var(--fg);
+  font-size: 0.75rem;
+  line-height: 1.7;
+}
+
+/*
+ * 저장된 원문 그대로.
+ *
+ * 계약이 `gameState` · `paragraphs` · `choices` 를 **JSON 원문**으로 준다. 예쁘게 다시
+ * 찍지 않는다 — *"다시 가공하면 무엇이 저장돼 있었는지가 흐려진다"* 가 계약의 말이다.
+ * 가로로 넘치게 두지도 않는다: 줄바꿈해서 전부 보이게 한다 (F-9).
+ */
+.raw {
+  composes: box;
+  max-height: 40dvh;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.muted {
+  color: var(--fg-muted);
+}
+
+/* 최근 턴 한 줄. 목록이지 누르는 것이 아니다 — 계약에 턴 하나를 여는 경로가 없다 */
+.turnRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-1) var(--sp-3);
+  padding: var(--sp-2) 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.turnRow:last-child {
+  border-bottom: 0;
+}
+
+.flag {
+  color: var(--fg-subtle);
+}
+
+/*
+ * 원문 상자를 여는 버튼.
+ *
+ * **접힌 것이 기본이다** (`1j`). 프롬프트에는 세이프티 지시가 들어 있어, 콘솔을 여는 것만으로
+ * 화면에 뜨면 어깨너머로 읽힌다 — 그것이 곧 우회 경로가 된다 (S-11). 그래서 펼치기는 언제나
+ * 사람이 누른 결과다. 복사 버튼은 두지 않는다.
+ */
+.reveal {
+  align-self: flex-start;
+  min-height: 48px;
+  padding: 0 var(--sp-3);
+  border: 1px dashed var(--border);
+  border-radius: var(--r-sm);
+  background: var(--bg);
+  color: var(--fg-muted);
+  font: inherit;
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+/* AI 호출 하나 고르기 — 계약은 배열을 주고 `1j` 는 하나를 그렸다 */
+.calls {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--bg);
+  overflow: hidden;
+}
+
+.callRow {
+  min-height: 48px;
+  padding: var(--sp-2) var(--sp-3);
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--fg-muted);
+  font: inherit;
+  font-size: 0.75rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.callRow:last-child {
+  border-bottom: 0;
+}
+
+.callRow[aria-current='true'] {
+  background: var(--bg-sunken);
+  color: var(--fg);
+  box-shadow: inset 3px 0 0 var(--fg);
+}
+
+/*
+ * 실패. `--danger` 로 두지 않는다 — 요청 하나가 실패한 것은 되돌릴 수 없는 사건이 아니다.
+ * 문구는 서버의 `message` 그대로이며 `403` 을 나누지 않는다 (F-4, 백엔드 S-6).
+ */
+.failure {
+  margin: 0;
+  color: var(--fg-muted);
+  font-size: 0.8125rem;
+  line-height: 1.6;
+}
+
+/*
+ * 없는 것을 없다고 적는 상자.
+ *
+ * **빈 상자로 넘기지 않는다** — 비어 있는 화면은 돌아가는 것처럼 보인다. 점선으로 두르는
+ * 것은 검수 큐의 `missing` 과 같은 표시이고, 실패 메시지와 구분된다.
+ */
+.missing {
+  padding: var(--sp-3);
+  border: 1px dashed var(--border);
+  border-radius: var(--r-sm);
+  background: var(--bg-sunken);
+  color: var(--fg-muted);
+  font-size: 0.75rem;
+  line-height: 1.7;
+}
+
+.missing p {
+  margin: 0 0 var(--sp-2);
+}
+
+.missing p:last-child {
+  margin-bottom: 0;
+}
+
+/*
+ * 우측 한 칸. 1024 이상에서는 다섯이 세로로 나란히 서고, 그 아래에서는 하나만 남는다.
+ *
+ * **기본 규칙을 미디어 쿼리보다 먼저 적는다.** 미디어 쿼리는 특이도를 더하지 않으므로
+ * 뒤에 적으면 이 한 줄이 아래의 `display: none` 을 덮어 탭이 아무것도 접지 못한다.
+ */
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  min-width: 0;
+}
+
+/* ── 1024 이하 — 우측 다섯을 탭으로 접는다 (`1j`) ─────────────────────── */
+
+/* 1024 이상에서는 다섯이 나란히 서 있으므로 탭이 없다. 있으면 아무것도 고르지 않는 버튼이다 */
+.tabs {
+  display: none;
+}
+
+@media (max-width: 1023px) {
+  .split {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--sp-2);
+  }
+
+  /* 목록 행동이라 48px 이다 — 검수 큐의 탭과 같은 무게다 */
+  .tab {
+    min-height: 48px;
+    padding: 0 var(--sp-4);
+    border: 1px solid var(--border);
+    border-radius: var(--r-sm);
+    background: var(--bg);
+    color: var(--fg-muted);
+    font: inherit;
+    font-size: 0.8125rem;
+    cursor: pointer;
+  }
+
+  .tab[aria-current='page'] {
+    border-color: var(--fg);
+    background: var(--fg);
+    color: var(--bg);
+  }
+
+  /* 고른 하나만 남는다. 나머지는 접힌 것이지 사라진 것이 아니다 */
+  .panel {
+    display: none;
+  }
+
+  .panel[data-current='true'] {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-2);
+  }
+}

@@ -3,6 +3,7 @@ import { Navigate, Route, Routes } from 'react-router-dom'
 import type { AuthState } from '../auth/session'
 import { AccountSettingsScreen } from '../screens/account/AccountSettingsScreen'
 import { AdminAuthScreen } from '../screens/admin/AdminAuthScreen'
+import { AdminDebugScreen } from '../screens/admin/AdminDebugScreen'
 import { AdminGuard } from '../screens/admin/AdminGuard'
 import { AdminReviewQueueScreen } from '../screens/admin/AdminReviewQueueScreen'
 import { HistoryScreen } from '../screens/account/HistoryScreen'
@@ -112,8 +113,8 @@ export function AppRoutes({ session }: { session: AuthState }) {
        * 곳이 전부 라이브러리 쪽이다. F-9 의 유일한 예외이며 `1j` · `3h` 가 그 예외를 정했다.
        *
        * 문(`/admin/auth`)은 가드 **밖**이다 — 승격을 만드는 자리가 승격을 요구하면 들어갈
-       * 길이 없다. 그 안쪽은 `AdminGuard` 가 지킨다. 그 아래 첫 목적지가 검수 큐(3h)이고,
-       * 1j(Debug 콘솔)이 다음 배치에 옆으로 들어온다.
+       * 길이 없다. 그 안쪽은 `AdminGuard` 가 지킨다. 그 아래에 검수 큐(3h)와
+       * Debug 콘솔(1j)이 나란히 선다.
        *
        * **신고 큐가 별도 라우트가 아니다.** 계약은 신고로 정지된 작품을 같은 큐에
        * `suspended` 로 올린다 (정정본 §13-41) — 화면이 탭으로 가른다.
@@ -121,6 +122,11 @@ export function AppRoutes({ session }: { session: AuthState }) {
       <Route path={ROUTES.admin} element={<AdminGuard />}>
         <Route index element={<Navigate to={ROUTES.adminReviews} replace />} />
         <Route path={ROUTES.adminReviews} element={<AdminReviewQueueScreen />} />
+        {/*
+         * Debug 콘솔 (1j). **목록 라우트가 없다** — 계약에 관리자용 세션 목록 경로가 없어
+         * 고를 목록을 그릴 수 없고, 없는 오퍼레이션을 상상해 채우지 않는다.
+         */}
+        <Route path={ROUTES.adminSessionDebug} element={<AdminDebugScreen />} />
       </Route>
       <Route path={ROUTES.adminAuth} element={<AdminAuthScreen />} />
 
