@@ -9,8 +9,10 @@ import css from './wizard.module.css'
 import { clampStep, isBlocked, savedAtLabel, STEP_COUNT, STEP_LABELS } from './draft'
 import { chaptersMissingSeed, readOutline, writeOutline, type OutlineValues } from './outline'
 import { StepOutline } from './StepOutline'
+import { PreviewPanel, StepPublish } from './StepPreview'
 import { GENRES, readValues, writeValues, type StepValues } from './stepFields'
 import { usePrecheck, type PrecheckHandle } from './usePrecheck'
+import { usePreviewSession, type PreviewHandle } from './usePreviewSession'
 import { StepBasics, StepCharacters, StepWorld } from './WizardSteps'
 
 /**
@@ -79,6 +81,12 @@ function Wizard({ draft: loaded }: { draft: Draft }) {
    * `warned` 는 화면이 그리지 않는 상태이므로(3d) 그 findings 도 그리지 않는다.
    */
   const precheck = usePrecheck(draft.draftId, isBlocked(loaded.safetyState) ? loaded.findings : [])
+  /*
+   * 미리보기 세션은 **마법사가 든다.** Step 5 의 좌우 두 자리가 같은 세션을 봐야 하고,
+   * 각자 만들면 미리보기가 두 번 발행된다 (정정본 §13-37). 시작하기 전에는 아무것도 부르지
+   * 않으므로 다른 단계에서 이 훅이 하는 일은 없다.
+   */
+  const preview = usePreviewSession(draft.draftId)
 
   const step = clampStep(draft.step)
   /*
@@ -152,14 +160,7 @@ function Wizard({ draft: loaded }: { draft: Draft }) {
               precheck={precheck}
             />
           ) : null}
-          {step === 5 ? (
-            <div className={css.placeholder}>
-              <h1 className={css.placeholderTitle}>미리보기는 아직 붙지 않았습니다</h1>
-              <p className={css.body}>
-                미리보기 세션(3e)과 공개 설정 · 제출은 다음 작업에서 이 자리에 들어옵니다.
-              </p>
-            </div>
-          ) : null}
+          {step === 5 ? <StepPublish draftId={draft.draftId} preview={preview} /> : null}
 
           {/*
            * 검수 자체가 실패한 경우. **결과를 지우지 않는다** — 검사가 실패했다는 것은
@@ -184,24 +185,30 @@ function Wizard({ draft: loaded }: { draft: Draft }) {
              * 6a — *"blocked 가 하나라도 있으면 다음 버튼 Disabled + 서버도 거부."* 화면의
              * 비활성은 안내이고 방어는 서버가 한다 (R8.3).
              *
-             * 마지막 단계의 다음은 **제출**이며 아직 붙지 않았다 — `submitDraft` 는 데이터
-             * 계층에 있지만 공개 설정 화면이 없다. 그래서 여기서 멈추고 그 사실을 적는다.
+             * **마지막 단계에는 "다음" 이 없다.** 그 자리의 행동은 제출이고, 제출은 무엇으로
+             * 공개할지를 함께 정해야 한다 — 그래서 버튼이 공개 범위 옆(`StepPublish`)에 있다.
              */}
-            <button
-              type="button"
-              className={`${css.button} ${css.primary}`}
-              onClick={() => void moveTo(step + 1)}
-              disabled={step === STEP_COUNT || blocked || save.kind === 'saving'}
-            >
-              {step === STEP_COUNT ? '제출 · 공개 설정' : `다음 · ${STEP_LABELS[step]}`}
-            </button>
+            {step === STEP_COUNT ? null : (
+              <button
+                type="button"
+                className={`${css.button} ${css.primary}`}
+                onClick={() => void moveTo(step + 1)}
+                disabled={blocked || save.kind === 'saving'}
+              >
+                {`다음 · ${STEP_LABELS[step]}`}
+              </button>
+            )}
           </div>
-          {step === STEP_COUNT ? (
-            <p className={css.meta}>제출과 공개 설정 화면은 아직 없습니다.</p>
-          ) : null}
         </section>
 
-        <SidePanel step={step} values={values} outline={outline} precheck={precheck} />
+        <SidePanel
+          step={step}
+          values={values}
+          outline={outline}
+          precheck={precheck}
+          preview={preview}
+          onEdit={() => void moveTo(4)}
+        />
       </div>
     </main>
   )
@@ -221,11 +228,15 @@ function SidePanel({
   values,
   outline,
   precheck,
+  preview,
+  onEdit,
 }: {
   step: number
   values: StepValues
   outline: OutlineValues
   precheck: PrecheckHandle
+  preview: PreviewHandle
+  onEdit: () => void
 }) {
   if (step === 3) {
     return (
@@ -284,11 +295,17 @@ function SidePanel({
     )
   }
 
+  /*
+   * Step 5 의 패널만 **모든 폭에서 보인다** (`sideAlways`). 6a 는 768 이하에서 우측 패널을
+   * 걷으라고 했지만 그 문장의 이유는 *"검수는 필드 아래 인라인, 미리보기는 Step 5로 이동"* —
+   * 즉 좁은 폭에서 갈 곳이 있는 내용에 한한다. 미리보기 세션은 갈 곳이 없다: 여기서 걷으면
+   * 390 과 768 에는 체험할 자리가 아예 없어진다. 대신 1열에서는 공개 설정보다 **위**에 온다.
+   */
   if (step === 5) {
     return (
-      <aside className={css.side} aria-label="이 단계의 요약">
+      <aside className={`${css.side} ${css.sideAlways}`} aria-label="미리보기">
         <h2 className={css.sideTitle}>{STEP_LABELS[step - 1]}</h2>
-        <p className={css.meta}>미리보기 세션은 아직 없습니다.</p>
+        <PreviewPanel preview={preview} onEdit={onEdit} />
       </aside>
     )
   }

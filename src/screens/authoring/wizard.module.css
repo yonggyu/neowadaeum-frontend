@@ -670,6 +670,61 @@
   line-height: 1.6;
 }
 
+/*
+ * ── Step 5 — 미리보기와 공개 설정 (3e · 6a) ───────────────────────────────────
+ */
+
+/* 라디오 옆에 라벨과 부연이 두 줄로 선다 (3f 의 세 줄 그대로) */
+
+.radioText {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+}
+
+.previewIntro,
+.previewEnd {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  align-items: flex-start;
+  padding: var(--sp-4);
+  border: 1px dashed var(--border);
+  border-radius: var(--r-md);
+}
+
+.previewEnd {
+  margin-top: var(--sp-6);
+}
+
+.previewHead {
+  display: flex;
+  gap: var(--sp-2);
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+/*
+ * 미리보기 무대. **`PlayStage` 는 자기 컨테이너를 만들지 않으므로** 여백과 Visual 높이 상한을
+ * 여기서 준다 — 라우트(`play.module.css` 의 `.screen`)가 쓰는 값은 전체 화면의 것이라
+ * 1440 에서 좌우 88px 이고, 380px 패널에 그대로 들어오면 본문이 설 자리가 없다.
+ *
+ * 높이는 `min-height` 만 둔다 (CLAUDE.md — Story 영역에 fixed height 금지).
+ */
+
+.previewStage {
+  --pad: var(--sp-4);
+  --visual-cap: 140px;
+
+  display: flex;
+  flex-direction: column;
+  min-height: 320px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--bg);
+}
+
 /* ── 768 Tablet — 1열 유지. 하단 고정 바를 걷고 본문 흐름으로 되돌린다 (6a) ──── */
 
 @media (min-width: 768px) {
@@ -714,6 +769,15 @@
  * 그 합이 카드 폭이다 — gap 을 더하면 1440 에서 900 을 넘어가 "카드 최대 900px" 이 깨진다.
  * 사이의 여백은 좌측 컬럼의 padding 이 만든다 (6a 의 점선 구분선 자리).
  */
+
+/* Step 5 의 패널만 좁은 폭에서도 선다 — 미리보기는 걷어 낼 자리가 없다 (DraftWizardScreen) */
+
+@media (max-width: 1023px) {
+  .sideAlways {
+    display: flex;
+    order: -1;
+  }
+}
 
 @media (min-width: 1024px) {
   .wizardBody {
