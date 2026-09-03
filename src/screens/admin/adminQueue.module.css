@@ -1,0 +1,346 @@
+/*
+ * 검수 큐 (`3h`) — 좌 목록 / 우 상세.
+ *
+ * 값을 여기서 새로 정하지 않는다 — 간격 · 반지름 · 색은 전부 `src/styles/tokens.css` 의
+ * 변수다. 브레이크포인트만 숫자로 적는다 (미디어 쿼리가 var() 를 읽지 못한다).
+ *
+ * **Admin 은 F-9 의 유일한 예외이고, 그것은 Desktop 전용으로 만들어도 된다는 뜻이다.**
+ * 한 폭만 맞춰도 된다는 뜻이 아니다. `1j` 가 *"1024px 이하에서는 우측 패널을 탭으로 접는다"*
+ * 고 직접 규정했고, 이 화면에도 같은 문제가 있다 — `3h` 의 카드는 1220px 이고 좌측 목록만
+ * 300px 이다. 1024 에서 두 열을 나란히 두면 상세가 읽히지 않는다.
+ *
+ * **다만 접는 방식은 `1j` 와 다르다.** `1j` 의 우측은 서로 대등한 사실 다섯(State ·
+ * Summary · Turns · Prompt · Response)이라 탭이 맞는다. 이 화면은 **목록과 상세**이고,
+ * 그 둘은 대등하지 않다 — 목록에서 고르면 상세가 열리는 관계다. 탭으로 나누면 고를 때마다
+ * 탭을 손으로 바꿔야 하고 J·K 가 그 순간 쓸모를 잃는다. 그래서 1024 미만에서는 한 열로
+ * 쌓고, 목록에 자기 스크롤을 줘서 상세가 늘 화면 안에 들어오게 한다.
+ */
+
+.page {
+  min-height: 100dvh;
+  padding: var(--sp-6);
+  background: var(--bg-sunken);
+}
+
+/* `1j` — 감성 없는 Dev Tool 톤. 관리자 구역에서만 등폭을 쓴다 */
+.bar {
+  display: flex;
+  gap: var(--sp-4);
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: var(--sp-4);
+  border-bottom: 1px solid var(--border);
+}
+
+/* 콘솔 제목은 2FA 문과 같은 것이다 — 관리자 크롬을 두 번 정의하지 않는다 */
+.title {
+  composes: title from './admin.module.css';
+}
+
+.tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  margin-top: var(--sp-4);
+}
+
+/* 목록 행동이므로 48px 이다 — 한 번짜리 큰 동작(2FA 확인 56px)과 무게가 다르다 */
+.tab {
+  min-height: 48px;
+  padding: 0 var(--sp-4);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--bg);
+  color: var(--fg-muted);
+  font: inherit;
+  cursor: pointer;
+}
+
+.tab[aria-current='page'] {
+  border-color: var(--fg);
+  background: var(--fg);
+  color: var(--bg);
+}
+
+.tab:focus-visible,
+.row:focus-visible,
+.button:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.hint {
+  margin: var(--sp-3) 0 0;
+  color: var(--fg-muted);
+  font-size: 0.875rem;
+  line-height: 1.7;
+}
+
+/*
+ * 실패.
+ *
+ * 색을 `--danger` 로 두지 않는다 — 그 색은 되돌릴 수 없는 동작에만 쓴다고 tokens.css 가
+ * 적었고, 요청 하나가 실패한 것은 그런 사건이 아니다.
+ */
+.failure {
+  margin: var(--sp-4) 0 0;
+  color: var(--fg-muted);
+  font-size: 0.875rem;
+  line-height: 1.6;
+}
+
+/*
+ * 두 열. `3h` 의 좌측이 300px 이고 나머지가 상세다.
+ *
+ * 높이를 px 로 박지 않는다 — `min-height` 만 쓴다. 큐가 비면 열이 접히고, 길면 늘어난다.
+ */
+.split {
+  display: grid;
+  grid-template-columns: 300px minmax(0, 1fr);
+  gap: var(--sp-4);
+  margin-top: var(--sp-4);
+  align-items: start;
+}
+
+@media (max-width: 1023px) {
+  .split {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  /* 한 열로 쌓이면 목록이 화면을 다 먹는다. 자기 스크롤을 줘서 상세가 늘 보이게 한다 */
+  .list {
+    max-height: 40dvh;
+    overflow-y: auto;
+  }
+}
+
+@media (max-width: 767px) {
+  .page {
+    padding: var(--sp-4);
+  }
+}
+
+.list,
+.detail {
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--bg);
+}
+
+.list {
+  min-height: 120px;
+  overflow: hidden;
+}
+
+.listHead {
+  margin: 0;
+  padding: var(--sp-3) var(--sp-4);
+  border-bottom: 1px solid var(--border);
+  color: var(--fg-subtle);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.75rem;
+  letter-spacing: 0.06em;
+}
+
+/*
+ * 한 행 — 제목과 얼마나 기다렸는지 둘뿐이다.
+ *
+ * `3h` 의 "@yeonwoo" 와 "auto: 2 flags" 가 여기 없다. 계약의 `ReviewQueueItem` 이 작성자도
+ * 자동 검수 결과도 담지 않으며, 그 둘은 각각 이유가 있어서 빠져 있다 (F-6 · F-5).
+ */
+.row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  width: 100%;
+  min-height: 48px;
+  padding: var(--sp-3) var(--sp-4);
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--fg);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.row[aria-current='true'] {
+  background: var(--bg-sunken);
+  box-shadow: inset 3px 0 0 var(--fg);
+}
+
+.rowTitle {
+  font-size: 0.9375rem;
+  overflow-wrap: anywhere;
+}
+
+.rowMeta {
+  color: var(--fg-muted);
+  font-size: 0.8125rem;
+}
+
+.detail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  min-height: 320px;
+  padding: var(--sp-4);
+}
+
+.detailHead {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2) var(--sp-4);
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.detailTitle {
+  margin: 0;
+  font-size: 1.125rem;
+  overflow-wrap: anywhere;
+}
+
+/* `storyId` 는 작품 식별자다 — `player_ref` 가 아니므로 F-6 의 대상이 아니다 */
+.storyId {
+  color: var(--fg-subtle);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.75rem;
+  overflow-wrap: anywhere;
+}
+
+/*
+ * 없는 것을 없다고 적는 상자.
+ *
+ * 눈에 띄어야 한다 — 검수자가 이 줄을 못 보고 넘기면 제목만 보고 남의 작품을 공개하게 된다.
+ * 그래서 점선으로 두른다: 채워질 자리가 비어 있다는 표시이고, 실패 메시지와 구분된다.
+ */
+.missing {
+  padding: var(--sp-4);
+  border: 1px dashed var(--border);
+  border-radius: var(--r-sm);
+  background: var(--bg-sunken);
+}
+
+.missingHead {
+  margin: 0 0 var(--sp-2);
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+
+.missingBody {
+  composes: hint;
+  margin: 0;
+}
+
+.reasons {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  margin: 0;
+  padding: var(--sp-4);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+}
+
+.legend {
+  padding: 0;
+  color: var(--fg-muted);
+  font-size: 0.875rem;
+}
+
+/* 체크박스 한 줄도 48px 이다 — 잘못 누르면 작성자에게 다른 사유가 간다 */
+.reason {
+  display: flex;
+  gap: var(--sp-3);
+  align-items: center;
+  min-height: 48px;
+  cursor: pointer;
+}
+
+.note {
+  width: 100%;
+  padding: var(--sp-3);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--bg);
+  color: var(--fg);
+  font: inherit;
+  resize: vertical;
+}
+
+.note:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/*
+ * 판정 셋. 폭이 좁아지면 세로로 쌓인다 — `wrap` 만으로는 한 버튼이 혼자 아래로 떨어져
+ * 나머지와 다른 무게로 보인다.
+ */
+.verdicts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+}
+
+/* 판정 셋만 남은 폭을 나눠 갖는다. 헤더의 "승격 해제" 는 자기 크기 그대로다 */
+.verdicts .button {
+  flex: 1 1 160px;
+}
+
+.button {
+  display: inline-flex;
+  min-height: 48px;
+  padding: 0 var(--sp-4);
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--bg);
+  color: var(--fg);
+  font: inherit;
+  cursor: pointer;
+}
+
+/* 셋을 한 줄로 둔다 — 못 누르는 버튼은 어느 종류든 같은 모양이어야 한다 */
+.button:disabled,
+.primary:disabled,
+.reject:disabled {
+  border-color: var(--border);
+  background: var(--bg-sunken);
+  color: var(--fg-subtle);
+  cursor: default;
+}
+
+.primary {
+  border-color: var(--fg);
+  background: var(--fg);
+  color: var(--bg);
+}
+
+/*
+ * 반려만 `--danger` 를 쓴다. 되돌릴 수 없고, 작성자에게 통보가 나가는 유일한 판정이다 —
+ * tokens.css 가 이 색을 아껴 쓰라고 적은 자리가 정확히 이런 동작이다.
+ */
+.reject {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+.confirm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  padding: var(--sp-4);
+  border: 1px solid var(--fg);
+  border-radius: var(--r-sm);
+  background: var(--bg-sunken);
+}
+
+.confirmText {
+  margin: 0;
+  font-size: 0.9375rem;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}

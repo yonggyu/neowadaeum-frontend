@@ -127,6 +127,13 @@
   color: var(--fg-subtle);
 }
 
+/* 승격을 들고 있을 때의 두 줄 — 링크와 버튼이 서로 붙지 않게 한다 */
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+
 .aside {
   margin-top: var(--sp-6);
   padding-top: var(--sp-6);
