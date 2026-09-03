@@ -91,7 +91,13 @@ export function useDialogChrome(ref: RefObject<HTMLElement | null>, onEscape: ()
         return
       }
 
-      const items = root === null ? [] : Array.from(root.querySelectorAll<HTMLElement>(FOCUSABLE))
+      // **Tab 일 때만 판을 훑는다.** 신고 시트의 상세 입력은 글자마다 이 리스너를 지나고,
+      // 감아 돌릴 곳을 찾는 일은 Tab 이 아닌 키에는 필요하지 않다. 훑지 않았으면 목록이
+      // 비고, 그때의 판정은 `pass` 나 `close` 라 목록을 보지 않는다.
+      const items =
+        event.key === 'Tab' && root !== null
+          ? Array.from(root.querySelectorAll<HTMLElement>(FOCUSABLE))
+          : []
       const action = dialogKeyAction(event.key, event.shiftKey, focusSpot(root, items))
 
       if (action === 'close') {
