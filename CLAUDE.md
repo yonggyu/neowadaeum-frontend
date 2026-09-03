@@ -208,6 +208,22 @@ npm run typecheck && npm run lint && npm test
 데이터 계층(훅 · 엔드포인트)을 먼저 내고 화면을 뒤에 내는 것도 좋은 seam 이다.
 CI 잡 이름 셋(`build` · `test` · `gitleaks`)은 브랜치 보호의 필수 체크 이름이므로 **바꾸지 않는다.**
 
+**스택을 냈으면 부모를 머지한 뒤 자식을 리베이스한다 (#77).** squash 머지는 부모의 커밋들을
+**새 커밋 하나**로 바꾼다. 자식은 여전히 원래 커밋들을 들고 있으므로 조상 관계가 끊기고,
+git 이 보기에 같은 파일이 양쪽에서 새로 생긴 것이 된다 — **add/add 충돌**이다.
+`gh pr update-branch` 도 거부한다.
+
+```bash
+git checkout -B tmp origin/<자식>
+git rebase --onto frontend origin/<부모>
+git push --force-with-lease origin tmp:<자식>
+```
+
+**`DIRTY` 인 PR 은 CI 도 돌지 않는다.** GitHub 이 머지 커밋을 만들지 못하면 `pull_request`
+워크플로가 아예 트리거되지 않아 `no checks reported` 로 보인다 — `#51` 이 고친 것과 **증상은
+같고 원인은 다르다.** 구분하지 못하면 `#51` 이 안 고쳐진 줄 안다. 위의 푸시가 `synchronize`
+를 일으켜 CI 도 그때 붙는다.
+
 ## 프로젝트 위키 — **작업 PR 마다 갱신한다**
 
 두 레포 밖에 **너와다음 전용 위키**가 있다. 코드와 계약이 *무엇을* 하는지 말한다면, 위키는
