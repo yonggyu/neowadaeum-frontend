@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import { setAccessToken } from '../../api/client'
 import { getConsentTerms } from '../../api/endpoints/auth'
 import { withdraw } from '../../api/endpoints/me'
+import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { ROUTES } from '../../routes/routes'
 import {
   policyLinks,
@@ -165,81 +166,39 @@ function PolicyRow({ link }: { link: PolicyLink }) {
 }
 
 /**
- * 탈퇴 확인 — Desktop 420px 모달 · Mobile 전체화면 (6d).
+ * 탈퇴 확인 (5b · 6d).
  *
- * **시트로 띄우지 않는다** — 되돌릴 수 없는 동작이라고 6d 가 이유까지 적었다. 폭에 따라 다른
- * 컴포넌트를 만들지 않는다: 같은 마크업 하나를 CSS 가 두 폭으로 그린다 (F-9).
+ * 판은 `ConfirmDialog` 다 — 되돌릴 수 없는 동작 앞의 확인이 셋이 되면서 하나로 모았다(#63).
+ * 이 화면이 들고 있는 것은 **문구와 그 요청** 뿐이다.
  *
  * 성공하면 **토큰을 버리고 랜딩으로 보낸다.** 로그인 화면으로 보내지 않는 이유는 그 계정이
  * 다시 로그인할 수 없기 때문이다 — 열리지 않는 문 앞에 세우지 않는다.
  */
 function WithdrawDialog({ onClose }: { onClose: () => void }) {
   const navigate = useNavigate()
-  const [submitting, setSubmitting] = useState(false)
-  const [failure, setFailure] = useState<unknown>(null)
-
-  async function confirm(): Promise<void> {
-    setSubmitting(true)
-    setFailure(null)
-    try {
-      await withdraw()
-      // 이 계정의 토큰은 더 쓰지 않는다 (F-3 — 메모리에만 있으므로 지우는 것도 여기 한 줄이다).
-      setAccessToken(null)
-      navigate(ROUTES.landing, { replace: true })
-    } catch (error) {
-      setFailure(error)
-      setSubmitting(false)
-    }
-  }
 
   return (
-    <div className={styles.overlay} role="dialog" aria-modal="true" aria-label="회원 탈퇴 확인">
-      <div className={styles.dialog}>
-        <h2 className={styles.dialogTitle}>정말 탈퇴하시겠어요?</h2>
-
-        <ul className={styles.notice}>
-          {WITHDRAW_NOTICE.map((line) => (
-            <li key={line.before}>
-              <NoticeLine line={line} />
-            </li>
-          ))}
-        </ul>
-
-        {/*
-         * 모달 안의 실패는 화면 상태가 아니라 이 조작의 결과다. 서버의 `message` 만 그대로
-         * 낸다 (F-4) — 탈퇴가 어디까지 진행됐는지 화면이 추측해 말하지 않는다.
-         */}
-        {failure !== null ? (
-          <p className={shared.meta} role="alert">
-            {failure instanceof Error ? failure.message : String(failure)}
-          </p>
-        ) : null}
-
-        {/*
-         * DOM 순서는 **돌아가기 먼저**다. 6d 의 Desktop 행 순서(돌아가기 좌 · 탈퇴합니다 우)와
-         * 같고, 되돌릴 수 없는 쪽이 키보드 첫 초점이 되지 않는다. Mobile 은 5b 처럼 탈퇴합니다가
-         * 위에 오도록 CSS 가 뒤집는다.
-         */}
-        <div className={styles.dialogActions}>
-          <button
-            type="button"
-            className={`${shared.button} ${shared.tall}`}
-            onClick={onClose}
-            disabled={submitting}
-          >
-            돌아가기
-          </button>
-          <button
-            type="button"
-            className={`${shared.button} ${shared.tall} ${styles.destructive}`}
-            onClick={() => void confirm()}
-            disabled={submitting}
-          >
-            {submitting ? '처리 중…' : '탈퇴합니다'}
-          </button>
-        </div>
-      </div>
-    </div>
+    <ConfirmDialog
+      title="정말 탈퇴하시겠어요?"
+      confirmLabel="탈퇴합니다"
+      pendingLabel="처리 중…"
+      cancelLabel="돌아가기"
+      onCancel={onClose}
+      onConfirm={async () => {
+        await withdraw()
+        // 이 계정의 토큰은 더 쓰지 않는다 (F-3 — 메모리에만 있으므로 지우는 것도 여기 한 줄이다).
+        setAccessToken(null)
+        void navigate(ROUTES.landing, { replace: true })
+      }}
+    >
+      <ul className={styles.notice}>
+        {WITHDRAW_NOTICE.map((line) => (
+          <li key={line.before}>
+            <NoticeLine line={line} />
+          </li>
+        ))}
+      </ul>
+    </ConfirmDialog>
   )
 }
 

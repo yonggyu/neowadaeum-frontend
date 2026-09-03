@@ -8,6 +8,7 @@ import {
   type MySessionItem,
   type MyStoryItem,
 } from '../../api/endpoints/me'
+import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { usePagedApi, type PagedApi } from '../../hooks/usePagedApi'
 import { myStoryPath, resumePath, ROUTES, storyDetailPath } from '../../routes/routes'
 import { AiNoticeFooter } from '../library/parts'
@@ -254,9 +255,10 @@ function Cover({ src }: { src: string | null }) {
 }
 
 /**
- * 삭제 확인 (1i — 확인 Modal).
+ * 삭제 확인 (1i — "삭제(확인 Modal)").
  *
- * 진행 기록을 지우는 자리가 여기 하나다 (3g). 두 번 지워도 서버가 `204` 로 답하므로
+ * 판은 `ConfirmDialog` 다 — 되돌릴 수 없는 동작 앞의 확인이 셋이 되면서 하나로 모았다(#63).
+ * 진행 기록을 지우는 자리가 여기 하나이고 (3g), 두 번 지워도 서버가 `204` 로 답하므로
  * (백엔드 §13-26) 재시도가 화면을 어긋나게 하지 않는다.
  */
 function DeleteDialog({
@@ -268,49 +270,19 @@ function DeleteDialog({
   onClose: () => void
   onDeleted: () => void
 }) {
-  const [deleting, setDeleting] = useState(false)
-  const [failure, setFailure] = useState<unknown>(null)
-
-  async function confirm(): Promise<void> {
-    setDeleting(true)
-    setFailure(null)
-    try {
-      await deleteMySession(session.sessionId)
-      onDeleted()
-    } catch (error) {
-      setFailure(error)
-      setDeleting(false)
-    }
-  }
-
   return (
-    <div className={styles.scrim} role="dialog" aria-modal="true" aria-label="세션 삭제 확인">
-      <div className={styles.dialog}>
-        <h2 className={styles.dialogTitle}>{`“${session.title}” 의 진행 기록을 지울까요?`}</h2>
-        <p className={shared.body}>지운 기록은 되돌릴 수 없습니다.</p>
-        {/*
-          * 모달 안의 실패는 화면 상태가 아니라 이 조작의 결과다 — 전면 오류 블록을 넣으면
-          * 확인 버튼이 밀려난다. 서버의 `message` 만 그대로 낸다 (F-4).
-          */}
-        {failure !== null ? (
-          <p className={shared.meta} role="alert">
-            {failure instanceof Error ? failure.message : String(failure)}
-          </p>
-        ) : null}
-        <div className={shared.actions}>
-          <button
-            type="button"
-            className={`${shared.button} ${shared.primary}`}
-            onClick={() => void confirm()}
-            disabled={deleting}
-          >
-            {deleting ? '지우는 중…' : '삭제'}
-          </button>
-          <button type="button" className={shared.button} onClick={onClose} disabled={deleting}>
-            취소
-          </button>
-        </div>
-      </div>
-    </div>
+    <ConfirmDialog
+      title={`“${session.title}” 의 진행 기록을 지울까요?`}
+      confirmLabel="삭제"
+      pendingLabel="지우는 중…"
+      cancelLabel="취소"
+      onCancel={onClose}
+      onConfirm={async () => {
+        await deleteMySession(session.sessionId)
+        onDeleted()
+      }}
+    >
+      지운 기록은 되돌릴 수 없습니다.
+    </ConfirmDialog>
   )
 }

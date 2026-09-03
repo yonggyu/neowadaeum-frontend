@@ -109,27 +109,3 @@
   justify-content: center;
   margin-top: var(--sp-6);
 }
-
-/* 삭제 확인 Modal (1i — Session 카드 액션) */
-.scrim {
-  position: fixed;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: var(--sp-4);
-  background: rgb(0 0 0 / 45%);
-}
-
-.dialog {
-  width: 100%;
-  max-width: 420px;
-  padding: var(--sp-6);
-  border-radius: var(--r-lg);
-  background: var(--bg);
-}
-
-.dialogTitle {
-  margin: 0 0 var(--sp-3);
-  font-size: 1.125rem;
-}

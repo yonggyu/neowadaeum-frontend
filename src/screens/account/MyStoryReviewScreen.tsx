@@ -254,6 +254,15 @@ function VisibilityForm({
 }) {
   const readOnly = isVisibilityReadOnly(story.reviewStatus)
   const [target, setTarget] = useState<Visibility>(story.visibility)
+  /**
+   * 노출을 좁힐 때만 한 번 더 묻는다.
+   *
+   * **`ConfirmDialog` 로 옮기지 않았다** (#63). 확인이 셋으로 모인 것은 *되돌릴 수 없는*
+   * 동작이라는 한 가지 이유였는데(6d), 공개 중지는 되돌릴 수 있다 — 다시 넓히려면 검수를
+   * 처음부터 받을 뿐이고, 그 사실을 아래 문장이 그대로 말한다. 3f 도 이 자리에 모달을
+   * 그리지 않았고, 여기서는 라디오로 고른 값을 같은 버튼으로 한 번 더 누르는 것이 확인이다 —
+   * 판을 띄우면 고른 값을 그 판에 다시 옮겨 적어야 한다. 모양이 비슷하다는 이유로 합치지 않는다.
+   */
   const [confirming, setConfirming] = useState(false)
   const [saving, setSaving] = useState(false)
   const [failure, setFailure] = useState<unknown>(null)
