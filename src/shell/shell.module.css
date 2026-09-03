@@ -60,6 +60,23 @@
   text-decoration: none;
 }
 
+/*
+ * ＋ 작품 만들기 (3g 의 1차 CTA). 내비 링크가 아니라 **행동**이라 테두리를 갖는다 —
+ * 3g 의 wfbar 우측 버튼 그대로이며, 하단 탭바로 내려가지 않으므로 어느 폭에서도 여기 있다.
+ */
+.cta {
+  display: inline-flex;
+  align-items: center;
+  min-height: 40px;
+  padding: 0 var(--sp-3);
+  border: 1px solid var(--fg);
+  border-radius: var(--r-sm);
+  color: var(--fg);
+  font-size: 0.9375rem;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
 /* 현재 위치. `aria-current="page"` 는 NavLink 가 붙인다 */
 .on {
   color: var(--fg);
@@ -67,6 +84,7 @@
 }
 
 .brand:focus-visible,
+.cta:focus-visible,
 .navLink:focus-visible,
 .tab:focus-visible {
   outline: 2px solid var(--focus);

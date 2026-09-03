@@ -38,6 +38,18 @@ export function AppShell() {
               </NavLink>
             ))}
           </nav>
+
+          {/*
+           * ＋ 작품 만들기 — 3g 가 **1차 CTA** 로 정했다: *"탐색 중 창작 욕구가 생기는
+           * 지점이라 발견율이 높다."* 그래서 하단 탭바로 내리지 않고 어느 폭에서도 상단
+           * 우측에 둔다 — 탭바로 내리면 Library 를 보는 동안 보이지 않는다.
+           *
+           * `NAV_ITEMS` 에 넣지 않는다. 그 목록은 **어디에 있는가**를 말하고 이것은
+           * **무엇을 하는가**다 — 섞으면 탭바의 네 번째 칸이 되고, 6d 는 탭바를 셋으로 정했다.
+           */}
+          <Link className={css.cta} to={ROUTES.authoringDrafts}>
+            ＋ 작품 만들기
+          </Link>
         </div>
       </header>
 
