@@ -524,6 +524,152 @@
   text-align: center;
 }
 
+/*
+ * ── Step 4 — 챕터 & 엔딩 (3e) ─────────────────────────────────────────────────
+ *
+ * 카드·필드·버튼은 Step 1~3 의 것을 그대로 쓴다. 여기 새로 나는 자리는 넷뿐이다 —
+ * 목록의 머리(제목 + 다시 생성·추가) · 초안 생성 중 · 기본 엔딩 라디오 · 우측 흐름 요약.
+ */
+
+.listHead {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.rowActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+}
+
+/* 3e — "직접 작성하기" 는 점선이다. 초안을 받는 길이 굵은 쪽이라는 것을 형태가 말한다 */
+
+.dashed {
+  border-style: dashed;
+}
+
+/*
+ * 초안 생성 중 (3e). **min-height 만 둔다** — 문구가 한 줄이 되든 두 줄이 되든 상자가
+ * 접히지 않게 하되, 높이를 px 로 박아 안을 잘라 내지 않는다 (CLAUDE.md 반응형).
+ */
+
+.outlineIntro {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  align-items: center;
+  justify-content: center;
+  min-height: 280px;
+  padding: var(--sp-8) var(--sp-4);
+  border: 1px dashed var(--border);
+  border-radius: var(--r-lg);
+  text-align: center;
+}
+
+.outlineIntroTitle {
+  margin: 0;
+  font-size: 1.25rem;
+  line-height: 1.5;
+}
+
+/* 생성 중이라는 것을 움직임으로 말한다. 남은 시간을 지어내지 않는다 — 계약이 주지 않는다 */
+
+.dots {
+  display: inline-flex;
+  gap: var(--sp-1);
+}
+
+.dots i {
+  width: var(--sp-1);
+  height: var(--sp-1);
+  border-radius: 50%;
+  background: var(--fg-subtle);
+  animation: wizard-fade 1.4s ease-in-out infinite;
+}
+
+.dots i:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.dots i:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes wizard-fade {
+  0%,
+  100% {
+    opacity: 0.25;
+  }
+
+  50% {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dots i {
+    animation: none;
+  }
+}
+
+/* 기본 엔딩 — 라디오. 터치 대상은 행 전체이고 높이는 3d 의 설정 행과 같은 48px 이다 */
+
+.radioRow {
+  display: flex;
+  gap: var(--sp-3);
+  align-items: center;
+  min-height: 48px;
+  cursor: pointer;
+}
+
+/* 우측 패널 Step 4 — 챕터·엔딩 흐름 (6a "Step 4 — 챕터·엔딩 흐름") */
+
+.flow {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.flowRow {
+  display: flex;
+  gap: var(--sp-2);
+  align-items: baseline;
+  line-height: 1.5;
+}
+
+.flowNo {
+  flex: none;
+  color: var(--fg-subtle);
+  font-size: 0.8125rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.flowTitle {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 0.9375rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 기본 엔딩 표식 (3e 의 "기본 엔딩" 칩) */
+
+.flowBadge {
+  flex: none;
+  padding: 0 var(--sp-2);
+  border: 1px solid var(--fg);
+  border-radius: var(--r-xl);
+  font-size: 0.75rem;
+  line-height: 1.6;
+}
+
 /* ── 768 Tablet — 1열 유지. 하단 고정 바를 걷고 본문 흐름으로 되돌린다 (6a) ──── */
 
 @media (min-width: 768px) {

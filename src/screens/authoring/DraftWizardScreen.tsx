@@ -7,6 +7,8 @@ import { ErrorNotice } from '../account/ErrorNotice'
 import { useResource } from '../library/useResource'
 import css from './wizard.module.css'
 import { clampStep, isBlocked, savedAtLabel, STEP_COUNT, STEP_LABELS } from './draft'
+import { chaptersMissingSeed, readOutline, writeOutline, type OutlineValues } from './outline'
+import { StepOutline } from './StepOutline'
 import { GENRES, readValues, writeValues, type StepValues } from './stepFields'
 import { usePrecheck, type PrecheckHandle } from './usePrecheck'
 import { StepBasics, StepCharacters, StepWorld } from './WizardSteps'
@@ -15,8 +17,8 @@ import { StepBasics, StepCharacters, StepWorld } from './WizardSteps'
  * 작품 만들기 마법사 (와이어프레임 3d · 6a).
  *
  * 상단 고정 진행바 · 임시 저장 표시 · 나가기 · 단계 이동은 골격(#54)이 세웠고, 이 화면은
- * 거기에 **Step 1~3 의 입력과 실시간 검수**를 채운다. Step 4·5(챕터 · 엔딩 · 미리보기)는
- * 아직 없으며, 그 사실을 화면이 직접 말한다 — 비어 있는 화면은 돌아가는 것처럼 보인다.
+ * 거기에 **Step 1~4 의 입력과 실시간 검수**를 채운다. Step 5(미리보기 · 공개 설정)는 아직
+ * 없으며, 그 사실을 화면이 직접 말한다 — 비어 있는 화면은 돌아가는 것처럼 보인다.
  *
  * **저장 버튼을 따로 두지 않는다** (6a). 저장은 단계가 넘어갈 때 일어나고, 헤더 우측의
  * 표시가 그 결과를 말한다.
@@ -66,6 +68,9 @@ function Wizard({ draft: loaded }: { draft: Draft }) {
   // 다시 조회하지 않는다 — 같은 값을 한 번 더 물어보는 셈이고, 그 사이에 화면이 되감긴다.
   const [draft, setDraft] = useState(loaded)
   const [values, setValues] = useState<StepValues>(() => readValues(loaded.payload))
+  // Step 4 의 값은 따로 든다 — 같은 `payload` 안에 있지만 고치는 자리가 다르고, 한 덩어리로
+  // 합치면 Step 1~3 의 입력 하나가 챕터 배열 전체를 다시 만들게 된다.
+  const [outline, setOutline] = useState<OutlineValues>(() => readOutline(loaded.payload))
   const [dirty, setDirty] = useState(false)
   const [save, setSave] = useState<SaveState>({ kind: 'saved' })
 
@@ -76,7 +81,15 @@ function Wizard({ draft: loaded }: { draft: Draft }) {
   const precheck = usePrecheck(draft.draftId, isBlocked(loaded.safetyState) ? loaded.findings : [])
 
   const step = clampStep(draft.step)
-  const blocked = isBlocked(draft.safetyState) || precheck.blocked
+  /*
+   * 진행을 막는 이유는 둘이다 — 검수(6a)와 계약이 필수로 받는 값(`summarySeed`, 3e).
+   *
+   * **둘 다 서버의 검증을 대신하지 않는다.** `safetyState` 가 `blocked` 면 서버가 거부하고
+   * (R8.3), 씨앗이 비면 계약이 거부한다 — 화면의 비활성 버튼은 그 거부를 눌러 보기 전에
+   * 알려 주는 안내다.
+   */
+  const seedMissing = step === 4 && chaptersMissingSeed(outline.chapters).length > 0
+  const blocked = isBlocked(draft.safetyState) || precheck.blocked || seedMissing
 
   function edit(next: StepValues): void {
     setValues(next)
@@ -86,8 +99,10 @@ function Wizard({ draft: loaded }: { draft: Draft }) {
   async function moveTo(next: number): Promise<void> {
     setSave({ kind: 'saving' })
     try {
-      // 아는 키만 남기지 않는다 — Step 4·5 의 입력이 같은 `payload` 안에 있다 (`writeValues`).
-      setDraft(await updateDraft(draft.draftId, { step: next, payload: writeValues(draft.payload, values) }))
+      // 아는 키만 남기지 않는다 — 두 함수 모두 원문을 펼친 뒤 자기 자리만 덮는다. Step 5 의
+      // 입력도 같은 `payload` 안에 오므로, 여기서 아는 키만 남기면 그것을 매번 지우게 된다.
+      const payload = writeOutline(writeValues(draft.payload, values), outline)
+      setDraft(await updateDraft(draft.draftId, { step: next, payload }))
       setDirty(false)
       setSave({ kind: 'saved' })
     } catch (error) {
@@ -126,11 +141,22 @@ function Wizard({ draft: loaded }: { draft: Draft }) {
           {step === 3 ? (
             <StepCharacters values={values} onChange={edit} precheck={precheck} />
           ) : null}
-          {step > 3 ? (
+          {step === 4 ? (
+            <StepOutline
+              draftId={draft.draftId}
+              values={outline}
+              onChange={(next) => {
+                setOutline(next)
+                setDirty(true)
+              }}
+              precheck={precheck}
+            />
+          ) : null}
+          {step === 5 ? (
             <div className={css.placeholder}>
-              <h1 className={css.placeholderTitle}>{`${STEP_LABELS[step - 1]} 입력은 아직 붙지 않았습니다`}</h1>
+              <h1 className={css.placeholderTitle}>미리보기는 아직 붙지 않았습니다</h1>
               <p className={css.body}>
-                챕터 · 엔딩(3e)과 미리보기는 다음 작업에서 이 자리에 들어옵니다.
+                미리보기 세션(3e)과 공개 설정 · 제출은 다음 작업에서 이 자리에 들어옵니다.
               </p>
             </div>
           ) : null}
@@ -175,7 +201,7 @@ function Wizard({ draft: loaded }: { draft: Draft }) {
           ) : null}
         </section>
 
-        <SidePanel step={step} values={values} precheck={precheck} />
+        <SidePanel step={step} values={values} outline={outline} precheck={precheck} />
       </div>
     </main>
   )
@@ -193,10 +219,12 @@ function Wizard({ draft: loaded }: { draft: Draft }) {
 function SidePanel({
   step,
   values,
+  outline,
   precheck,
 }: {
   step: number
   values: StepValues
+  outline: OutlineValues
   precheck: PrecheckHandle
 }) {
   if (step === 3) {
@@ -226,11 +254,41 @@ function SidePanel({
     )
   }
 
-  if (step > 3) {
+  /*
+   * 6a — *"Step 4 는 챕터·엔딩 흐름."* 편집하는 자리가 아니라 **읽는 자리**다: 카드가 길어질수록
+   * 지금 어디를 고치고 있는지가 흐려지고, 그 답은 순서와 제목뿐이라 한 줄이면 된다.
+   */
+  if (step === 4) {
+    return (
+      <aside className={css.side} aria-label="챕터·엔딩 흐름">
+        <h2 className={css.sideTitle}>챕터 · 엔딩 흐름</h2>
+        {outline.chapters.length === 0 && outline.endings.length === 0 ? (
+          <p className={css.meta}>아직 챕터가 없습니다.</p>
+        ) : null}
+        <ol className={css.flow}>
+          {outline.chapters.map((chapter, index) => (
+            <li key={`c${index}`} className={css.flowRow}>
+              <span className={css.flowNo}>{`CH ${String(index + 1).padStart(2, '0')}`}</span>
+              <span className={css.flowTitle}>{chapter.title === '' ? '제목 없음' : chapter.title}</span>
+            </li>
+          ))}
+          {outline.endings.map((ending, index) => (
+            <li key={`e${index}`} className={css.flowRow}>
+              <span className={css.flowNo}>{`EN ${String(index + 1).padStart(2, '0')}`}</span>
+              <span className={css.flowTitle}>{ending.label === '' ? '이름 없음' : ending.label}</span>
+              {ending.isDefault ? <span className={css.flowBadge}>기본</span> : null}
+            </li>
+          ))}
+        </ol>
+      </aside>
+    )
+  }
+
+  if (step === 5) {
     return (
       <aside className={css.side} aria-label="이 단계의 요약">
         <h2 className={css.sideTitle}>{STEP_LABELS[step - 1]}</h2>
-        <p className={css.meta}>챕터 흐름(Step 4)과 미리보기 세션(Step 5)은 아직 없습니다.</p>
+        <p className={css.meta}>미리보기 세션은 아직 없습니다.</p>
       </aside>
     )
   }
