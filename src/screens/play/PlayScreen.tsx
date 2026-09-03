@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type RefObject } from 'react'
+import { useEffect, useRef, useState, type RefObject } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 
 import type { Turn } from '../../api/endpoints/play'
@@ -6,12 +6,9 @@ import { usePlaySession } from '../../hooks/usePlaySession'
 import { ROUTES } from '../../routes/routes'
 import { ReportDialog } from '../report/ReportDialog'
 import { storyTarget, turnTarget } from '../report/report'
-import { ChapterInterstitial } from './ChapterInterstitial'
-import { ChoiceList } from './ChoiceList'
 import { EndingPanel } from './EndingPanel'
 import { PlayMenu } from './PlayMenu'
-import { Generating, PlayProblem } from './PlayNotice'
-import { StoryText } from './StoryText'
+import { isPlayable, PlayStage } from './PlayStage'
 import s from './play.module.css'
 
 /**
@@ -20,6 +17,10 @@ import s from './play.module.css'
  * 1c 의 Split(Visual 좌 / Story 우)은 1440 전용 옵션이고 1k 가 *"Play 는 1b 로 확정"* 이라고
  * 정했다. **한 폭에만 있는 두 번째 레이아웃을 지금 만들지 않는다** — 넓은 화면에서만 도는
  * 분기는 나머지 세 폭에서 아무도 보지 못한 채 낡는다.
+ *
+ * 읽고 고르는 자리 자체는 `PlayStage` 로 갈라져 있다 — 작품 만들기의 미리보기(3e)가 같은
+ * 조각을 쓰기 때문이다. 이 화면이 그 위에 얹는 것은 **여기에만 있는 것들**이다: Header(2f) ·
+ * 메뉴와 신고(3c) · Ending 의 세 행동(2d) · 화면 밖 선택지 힌트(2a).
  */
 export function PlayScreen() {
   const { sessionId } = useParams()
@@ -32,7 +33,6 @@ export function PlayScreen() {
 function Play({ sessionId }: { sessionId: string }) {
   const play = usePlaySession(sessionId)
   const navigate = useNavigate()
-  const storyRef = useRef<HTMLElement>(null)
   const choicesRef = useRef<HTMLDivElement>(null)
   /*
    * 시트는 **한 번에 하나만** 떠 있다 (3c). 둘을 각각 boolean 으로 두면 메뉴 위에 신고가
@@ -41,83 +41,24 @@ function Play({ sessionId }: { sessionId: string }) {
   const [sheet, setSheet] = useState<'none' | 'menu' | 'report'>('none')
 
   const turn = play.turn
-  const turnNo = turn?.turnNo
-
-  useEffect(() => {
-    if (turnNo === undefined) {
-      return
-    }
-    // 새 턴은 새 본문 시작에서 읽는다 (2a). 부드럽게 움직이되, 움직임을 줄여 달라고 한
-    // 사람에게는 즉시 옮긴다 — `scrollIntoView` 의 behavior 는 CSS 처럼 알아서 꺾이지 않는다.
-    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    storyRef.current?.scrollIntoView({ behavior: reduced ? 'auto' : 'smooth', block: 'start' })
-  }, [turnNo])
-
-  const handlers = useMemo(
-    () => ({
-      retry: play.retry,
-      chooseOther: play.chooseOther,
-      refresh: play.refresh,
-      leave: () => navigate(ROUTES.library),
-    }),
-    [play.retry, play.chooseOther, play.refresh, navigate],
-  )
-
-  const playable = play.status === 'ready' && turn !== null && !turn.isEnding
+  const leave = (): void => void navigate(ROUTES.library)
   // 선택지가 화면 밖이면 우하단에 미세 힌트만 띄운다. **sticky 로 끌어올리지 않는다** —
   // 읽는 자리를 가리는 순간 본문이 선택지에 밀린다 (2a · 1k).
-  const choicesOffscreen = useOffscreen(choicesRef, playable)
+  const choicesOffscreen = useOffscreen(choicesRef, isPlayable(play))
 
   return (
     <main className={s.screen} data-screen="PlayScreen">
       <PlayHeader turn={turn} onMenu={() => setSheet('menu')} />
-      {/*
-       * `sceneImage` 는 아직 발행되지 않는다(P3). 화면은 **언제나 그라디언트 폴백**이며,
-       * 오지 않을 값을 기다리는 빈 상자를 두지 않는다. 높이는 비율로만 잡는다 (1k).
-       */}
-      <div
-        className={s.visual}
-        role="presentation"
-        data-dimmed={play.status !== 'ready' && play.status !== 'chapter'}
-      />
-      <div className={s.column}>
-        <div className={s.center}>
-          {turn === null ? null : <StoryText turn={turn} ref={storyRef} />}
-
-          {play.status === 'restoring' ? (
-            // Resume 진입과 409 이후의 재조회가 같은 자리에 온다. 문구가 디자인에 없으므로
-            // dot 만 둔다 — 읽는 사람에게 없는 말을 지어내 보이지 않는다.
-            <p className={s.notice} aria-busy="true" aria-label="이야기를 불러오는 중">
-              <span className={s.dots} aria-hidden="true">
-                <i />
-                <i />
-                <i />
-              </span>
-            </p>
-          ) : null}
-
-          {play.status === 'generating' && play.startedAt !== null ? (
-            <Generating
-              choice={turn?.choices.find((c) => c.choiceId === play.selectedChoiceId) ?? null}
-              startedAt={play.startedAt}
-            />
-          ) : null}
-
-          {play.status === 'error' && play.error !== null ? (
-            <PlayProblem error={play.error} savedTurnNo={turnNo ?? null} handlers={handlers} />
-          ) : null}
-
-          {playable ? (
-            <div ref={choicesRef}>
-              <ChoiceList choices={turn.choices} onSelect={play.select} />
-            </div>
-          ) : null}
-
-          {play.status === 'ready' && turn?.isEnding === true ? (
+      <PlayStage
+        session={play}
+        choicesRef={choicesRef}
+        onLeave={leave}
+        tail={
+          play.status === 'ready' && turn?.isEnding === true ? (
             <EndingPanel turn={turn} sessionId={sessionId} />
-          ) : null}
-        </div>
-      </div>
+          ) : null
+        }
+      />
 
       {choicesOffscreen ? (
         <p className={s.hint} aria-hidden="true">
@@ -125,16 +66,12 @@ function Play({ sessionId }: { sessionId: string }) {
         </p>
       ) : null}
 
-      {play.status === 'chapter' && turn !== null ? (
-        <ChapterInterstitial turn={turn} onDone={play.skipChapter} />
-      ) : null}
-
       {sheet === 'menu' && turn !== null ? (
         <PlayMenu
           turn={turn}
           sessionId={sessionId}
           onReport={() => setSheet('report')}
-          onLeave={handlers.leave}
+          onLeave={leave}
           onClose={() => setSheet('none')}
         />
       ) : null}
