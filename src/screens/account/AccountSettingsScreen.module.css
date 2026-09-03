@@ -76,36 +76,13 @@
   color: var(--fg-subtle);
 }
 
-/* ── 탈퇴 확인 — Mobile 전체화면 (6d) ───────────────────────────────────────────
+/*
+ * 탈퇴 확인 판이 그리는 세 줄 (5b).
  *
- * 되돌릴 수 없는 동작이라 시트로 띄우지 않는다. 390 에서는 전체화면이므로 스크림이 아니라
- * **배경**이고, 하단 탭바(z-index 10)보다 위에 있어야 그 위를 덮는다.
+ * **판 자체는 여기 없다** — Mobile 전체화면 / Desktop 420px 모달은 `components/confirm.module.css`
+ * 가 그린다(#63). 이 화면에 남는 것은 그 안에 들어가는 내용뿐이다. 목록 표시자를 지우고
+ * 5b 의 가운뎃점을 직접 붙인다.
  */
-.overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 20;
-  display: flex;
-  flex-direction: column;
-  background: var(--bg);
-}
-
-.dialog {
-  display: flex;
-  flex: 1 1 auto;
-  flex-direction: column;
-  gap: var(--sp-3);
-  padding: var(--sp-6) var(--sp-4) calc(var(--sp-6) + env(safe-area-inset-bottom, 0px));
-  overflow-y: auto;
-}
-
-.dialogTitle {
-  margin: 0;
-  font-size: 1.3125rem;
-  line-height: 1.4;
-}
-
-/* 세 줄. 목록 표시자를 지우고 5b 의 가운뎃점을 직접 붙인다 */
 .notice {
   margin: 0;
   padding: var(--sp-3);
@@ -118,62 +95,4 @@
 
 .notice > li::before {
   content: "· ";
-}
-
-/*
- * 버튼 둘. DOM 순서는 돌아가기 → 탈퇴합니다 이고, Mobile 은 5b 처럼 탈퇴합니다가 위에
- * 오도록 여기서 뒤집는다 — 되돌릴 수 없는 쪽이 키보드 첫 초점이 되지 않게 하려고 DOM 을
- * 그대로 두었다. 개수와 무관하게 세로 full-width 다 (1k).
- */
-.dialogActions {
-  display: flex;
-  flex-direction: column-reverse;
-  gap: var(--sp-2);
-  margin-top: auto;
-  padding-top: var(--sp-6);
-}
-
-.dialogActions > * {
-  width: 100%;
-}
-
-.destructive {
-  border-color: var(--danger);
-  background: var(--danger);
-  color: var(--bg);
-}
-
-.destructive:disabled {
-  border-color: var(--border);
-  background: var(--bg-sunken);
-  color: var(--fg-subtle);
-}
-
-/* ── 768 이상 — 전체화면을 420px 모달로 (6d) ─────────────────────────────────── */
-@media (min-width: 768px) {
-  .overlay {
-    align-items: center;
-    justify-content: center;
-    padding: var(--sp-4);
-    background: rgb(0 0 0 / 45%);
-  }
-
-  .dialog {
-    flex: 0 1 auto;
-    width: 100%;
-    max-width: 420px;
-    padding: var(--sp-6);
-    border-radius: var(--r-lg);
-    background: var(--bg);
-  }
-
-  /* 6d 의 Desktop 행 — 돌아가기 좌 · 탈퇴합니다 우. DOM 순서가 곧 보이는 순서다 */
-  .dialogActions {
-    flex-direction: row;
-  }
-
-  .dialogActions > * {
-    flex: 1 1 0;
-    width: auto;
-  }
 }

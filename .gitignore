@@ -1,5 +1,8 @@
 # ── 의존성 · 빌드 산출물 ─────────────────────────────────────
-node_modules/
+# 슬래시를 붙이지 않는다. `node_modules/` 는 **디렉터리에만** 걸려서, 에이전트 worktree 가
+# 본체의 node_modules 를 심볼릭 링크로 걸어 두면 그 링크가 untracked 로 뜬다 —
+# `git add -A` 한 번이면 링크가 커밋에 들어간다 (#63).
+node_modules
 dist/
 dist-ssr/
 *.local

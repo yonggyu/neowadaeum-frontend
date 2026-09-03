@@ -2,6 +2,7 @@ import { useCallback, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 
 import { createDraft, deleteDraft, listDrafts } from '../../api/endpoints/authoring'
+import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { authoringDraftPath } from '../../routes/routes'
 import { ErrorNotice } from '../account/ErrorNotice'
 import { formatRelativeTime } from '../account/relativeTime'
@@ -95,24 +96,12 @@ function CreateFailure({ error }: { error: unknown }) {
  * 원고 한 줄. 3g 의 "제목 없는 작품 · 작성 중 · Step 3까지 작성 · 이어서 작성 →" 그대로다.
  *
  * 삭제를 한 번 더 묻는다 — 되돌릴 수 없고, 여기가 개수 상한을 푸는 유일한 자리다.
+ * **묻는 판은 줄 안이 아니라 `ConfirmDialog` 다** (#63): 인라인 확인에는 초점 가둠도 Esc 도
+ * 없었고, 되돌릴 수 없는 동작 앞에서 그 결함의 값이 크다. 세션 삭제 · 회원 탈퇴와 같은 판을
+ * 쓴다 — 셋이 6d 의 같은 한 문장을 따른다.
  */
 function DraftRow({ draft, onDeleted }: { draft: DraftSummary; onDeleted: () => void }) {
   const [confirming, setConfirming] = useState(false)
-  const [deleting, setDeleting] = useState(false)
-  const [failure, setFailure] = useState<unknown>(null)
-
-  async function remove(): Promise<void> {
-    setDeleting(true)
-    setFailure(null)
-    try {
-      await deleteDraft(draft.draftId)
-      // 지운 뒤 목록을 다시 받는다 — 없어도 `204` 라 재시도해도 화면이 어긋나지 않는다.
-      onDeleted()
-    } catch (error) {
-      setFailure(error)
-      setDeleting(false)
-    }
-  }
 
   return (
     <li className={css.row}>
@@ -131,29 +120,26 @@ function DraftRow({ draft, onDeleted }: { draft: DraftSummary; onDeleted: () => 
         <Link className={css.button} to={authoringDraftPath(draft.draftId)}>
           이어서 작성
         </Link>
-        {confirming ? (
-          <>
-            <button type="button" className={css.button} onClick={() => void remove()} disabled={deleting}>
-              {deleting ? '지우는 중…' : '정말 삭제'}
-            </button>
-            <button type="button" className={css.button} onClick={() => setConfirming(false)}>
-              취소
-            </button>
-          </>
-        ) : (
-          <button type="button" className={css.button} onClick={() => setConfirming(true)}>
-            삭제
-          </button>
-        )}
+        <button type="button" className={css.button} onClick={() => setConfirming(true)}>
+          삭제
+        </button>
       </div>
       {confirming ? (
-        <p className={css.meta}>지운 원고는 되돌릴 수 없습니다.</p>
+        <ConfirmDialog
+          title={`“${draft.title}” 를 지울까요?`}
+          confirmLabel="삭제"
+          pendingLabel="지우는 중…"
+          cancelLabel="취소"
+          onCancel={() => setConfirming(false)}
+          onConfirm={async () => {
+            await deleteDraft(draft.draftId)
+            // 지운 뒤 목록을 다시 받는다 — 없어도 `204` 라 재시도해도 화면이 어긋나지 않는다.
+            onDeleted()
+          }}
+        >
+          지운 원고는 되돌릴 수 없습니다.
+        </ConfirmDialog>
       ) : null}
-      {failure === null ? null : (
-        <p className={css.meta} role="alert">
-          {failure instanceof Error ? failure.message : String(failure)}
-        </p>
-      )}
     </li>
   )
 }

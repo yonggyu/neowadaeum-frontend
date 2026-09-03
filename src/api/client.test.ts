@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { ApiError, request, setAccessToken } from './client'
+import { ApiError, request, setAccessToken, toApiError } from './client'
 import { UNREACHABLE_MESSAGE } from './errors'
 
 /**
@@ -113,5 +113,53 @@ describe('request — 서버에 닿지 못한 경우', () => {
 
     expect(error).toBe(aborted)
     expect(error).not.toBeInstanceOf(ApiError)
+  })
+})
+
+/**
+ * `request()` 가 화면에 주는 약속 — **거절하는 값은 `ApiError` 아니면 취소뿐이다.**
+ *
+ * 이것이 성립해야 화면이 각자 폴백을 두지 않는다. 성립하지 않던 자리가 하나 있었다:
+ * 성공 응답의 본문이 파싱되지 않으면 브라우저의 `SyntaxError` 가 그대로 새어 나갔고,
+ * 그것을 화면 쪽 폴백들이 가리고 있었다 (#63).
+ */
+describe('request — 계약 밖으로 새지 않는다', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    setAccessToken(null)
+  })
+
+  it('성공_응답의_본문이_깨져도_ApiError_다 — SyntaxError 를 화면에 두지 않는다', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() =>
+        Promise.resolve(
+          new Response('{"sections":', {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          }),
+        ),
+      ),
+    )
+
+    const error = (await request('/landing').catch((thrown: unknown) => thrown)) as ApiError
+
+    expect(error).toBeInstanceOf(ApiError)
+    expect(error.errorCode).toBe('UNKNOWN')
+    expect(error.message).toBe(UNREACHABLE_MESSAGE)
+  })
+})
+
+/**
+ * 화면이 `unknown` 을 좁히는 자리 하나 (#63).
+ *
+ * 문구를 여기서 짓지 않는다는 것이 요점이다 — `usePlaySession` 이 자기 문구를 들고 있었고,
+ * 그 문구는 위의 약속 때문에 한 번도 화면에 뜨지 못했다.
+ */
+describe('toApiError', () => {
+  it('ApiError_는_그대로_통과시킨다 — 서버 message 를 다시 짓지 않는다 (F-4)', () => {
+    const original = new ApiError(423, 'STORY_SUSPENDED', '공개가 중지된 작품이에요.', {})
+
+    expect(toApiError(original)).toBe(original)
   })
 })

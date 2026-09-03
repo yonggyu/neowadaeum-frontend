@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { advanceTurn, getCurrentTurn, type Turn, type TurnRequest } from '../api/endpoints/play'
-import { ApiError } from '../api/client'
-import { UNKNOWN_ERROR, currentTurnNo } from '../api/errors'
+import { toApiError, type ApiError } from '../api/client'
+import { currentTurnNo } from '../api/errors'
 
 /**
  * Play 화면의 상태 전이 한 곳.
@@ -77,13 +77,10 @@ export function usePlaySession(sessionId: string): PlaySession {
     if (controller.signal.aborted) {
       return
     }
-    // 서버에 닿지도 못하면(네트워크 · CORS · 서버 미기동) 계약 응답 자체가 없다. 그때 쓸
-    // 문구는 와이어프레임 2c 의 ERROR 문장이며, 프론트가 원인을 짐작해 적지 않는다 (F-4) —
-    // 무엇이 잘못됐는지는 우리도 모른다.
-    const cause =
-      thrown instanceof ApiError
-        ? thrown
-        : new ApiError(0, UNKNOWN_ERROR, '이야기를 이어가지 못했어요.', {})
+    // 계약 밖 실패(네트워크 · CORS · 서버 미기동)의 문구는 여기서 짓지 않는다. `client.ts` 가
+    // 이미 `ApiError` 로 바꿔 주고, 이 훅이 들고 있던 자기 문구는 그래서 한 번도 화면에
+    // 뜨지 못했다 — **닿지 않는 코드는 그 경로가 살아 있다고 거짓말한다** (#63).
+    const cause = toApiError(thrown)
     if (cause.errorCode === 'TURN_CONFLICT') {
       // 이 턴의 선택지는 이제 제출될 수 없다 — 이전 턴의 `choiceId` 는 재사용 불가다 (§13-9).
       submission.current = null

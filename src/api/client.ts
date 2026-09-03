@@ -110,6 +110,10 @@ export interface RequestOptions {
  *
  * 자격 증명을 보내지 않는다 (`credentials` 기본값 `same-origin`). 인증은 `Authorization`
  * 헤더의 Bearer 토큰이고 서버도 쿠키를 받지 않는다 (backend B-12).
+ *
+ * **거절하는 값은 `ApiError` 아니면 취소(`AbortError`) 둘뿐이다.** 이것이 이 함수가 화면에
+ * 주는 약속이며, 부르는 쪽이 각자 폴백을 두지 않아도 되는 근거다 — 폴백을 화면마다 두면
+ * 같은 실패에 서로 다른 문구가 붙고, **닿지 않는 그 갈래를 다음 사람이 살아 있는 길로 읽는다.**
  */
 export async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const headers: Record<string, string> = {}
@@ -155,7 +159,15 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
   if (!hasJsonBody(response)) {
     return undefined as T
   }
-  return (await response.json()) as T
+  try {
+    return (await response.json()) as T
+  } catch (cause) {
+    // 성공 응답인데 본문이 계약 형태가 아니다 — 프록시가 끼어들었거나 읽는 도중 끊겼다.
+    // 여기서 막지 않으면 브라우저의 `SyntaxError: Unexpected end of JSON input` 이 그대로
+    // 화면의 `message` 가 된다. 오류 본문 쪽은 `errorOf` 가 이미 같은 일을 하고 있었고,
+    // 성공 쪽만 비어 있었다 (#63).
+    throw asUnreachable(cause)
+  }
 }
 
 /**
@@ -174,11 +186,12 @@ function hasJsonBody(response: Response): boolean {
 }
 
 /**
- * 응답이 **오지 않은** 실패를 계약 밖 오류로 옮긴다.
+ * 응답이 **오지 않았거나 읽어 낼 수 없는** 실패를 계약 밖 오류로 옮긴다.
  *
- * `errorOf` 의 폴백은 응답이 온 경우에만 붙는다. 서버가 뜨지 않았거나 · DNS 가 틀렸거나 ·
+ * `errorOf` 의 폴백은 오류 응답의 본문에만 붙는다. 서버가 뜨지 않았거나 · DNS 가 틀렸거나 ·
  * CORS 가 막았거나 · 오프라인이면 `fetch` 가 그 앞에서 던지고, 지금까지는 브라우저의
- * `TypeError: Failed to fetch` 가 그대로 화면에 떴다.
+ * `TypeError: Failed to fetch` 가 그대로 화면에 떴다. 성공 응답의 본문이 파싱되지 않는
+ * 경우도 같은 자리다 — 우리가 요청한 것을 받지 못한 것은 마찬가지다.
  *
  * 코드는 **계약의 것을 빌리지 않는다.** `UNKNOWN` 이 이미 같은 취지로 있다 — 계약 밖이라는
  * 사실을 그대로 들고 간다. 상태는 `0` 이다: HTTP 응답이 없었으므로 적을 상태 코드가 없고,
@@ -211,4 +224,23 @@ async function errorOf(
     // 계약 형태가 아니다. 아래로 떨어진다.
   }
   return [UNKNOWN_ERROR, `요청이 실패했어요 (HTTP ${response.status})`, {}]
+}
+
+/**
+ * `request()` 가 거절한 값을 화면이 쓰는 타입으로 좁힌다.
+ *
+ * **폴백이 아니다.** 위의 약속대로 `request()` 는 `ApiError` 아니면 취소만 던진다 — 계약 밖
+ * 실패도, 파싱되지 않는 본문도 여기서 이미 `ApiError` 가 된다. 그래서 아래 갈래에 남는 것은
+ * 취소뿐이고, 취소는 부르는 쪽이 `signal.aborted` 로 먼저 거른다.
+ *
+ * 그런데도 이 함수가 있는 이유는 하나다 — `Promise.catch` 와 `PagedApi.error` 가 `unknown`
+ * 을 주므로 **타입을 좁힐 자리**가 필요하다. 그 자리를 화면마다 두면 각자 다른 문구를
+ * 짓는다: 실제로 `usePlaySession` 이 여기와 다른 문구를 들고 있었고, 그 문구는 `client.ts`
+ * 가 앞에서 `ApiError` 로 바꾸는 바람에 한 번도 화면에 뜨지 못했다 (#63).
+ */
+export function toApiError(cause: unknown): ApiError {
+  if (cause instanceof ApiError) {
+    return cause
+  }
+  return new ApiError(0, UNKNOWN_ERROR, UNREACHABLE_MESSAGE, {})
 }
