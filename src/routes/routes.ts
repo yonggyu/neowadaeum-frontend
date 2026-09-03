@@ -22,6 +22,8 @@ export const ROUTES = {
   admin: '/admin',
   /** 그 앞의 문. **가드 밖에 둔다** — 승격을 만드는 자리가 승격을 요구하면 들어갈 길이 없다. */
   adminAuth: '/admin/auth',
+  /** 인간 검수 큐 (3h). 계약의 `/admin/reviews` 와 같은 모양으로 둔다. */
+  adminReviews: '/admin/reviews',
   /*
    * 작품 만들기 (3d · 3e · 6a). 경로를 계약과 같은 모양으로 둔다 — `/authoring/drafts` 는
    * `listDrafts` · `createDraft` 가 사는 자리이고, 그 아래 하나가 마법사다.
