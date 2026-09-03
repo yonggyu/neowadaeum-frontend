@@ -4,6 +4,7 @@ import type { AuthState } from '../auth/session'
 import { AccountSettingsScreen } from '../screens/account/AccountSettingsScreen'
 import { AdminAuthScreen } from '../screens/admin/AdminAuthScreen'
 import { AdminGuard } from '../screens/admin/AdminGuard'
+import { AdminReviewQueueScreen } from '../screens/admin/AdminReviewQueueScreen'
 import { HistoryScreen } from '../screens/account/HistoryScreen'
 import { LoginScreen } from '../screens/account/LoginScreen'
 import { MyStoriesScreen } from '../screens/account/MyStoriesScreen'
@@ -111,12 +112,15 @@ export function AppRoutes({ session }: { session: AuthState }) {
        * 곳이 전부 라이브러리 쪽이다. F-9 의 유일한 예외이며 `1j` · `3h` 가 그 예외를 정했다.
        *
        * 문(`/admin/auth`)은 가드 **밖**이다 — 승격을 만드는 자리가 승격을 요구하면 들어갈
-       * 길이 없다. 그 안쪽은 `AdminGuard` 가 지키고, 3h(검수·신고 큐) · 1j(Debug 콘솔) 이
-       * 다음 배치에 그 아래로 들어온다. 지금은 갈 곳이 없으므로 승격 여부와 무관하게 문으로
-       * 돌아온다 — 승격을 들고 있으면 문이 그 사실을 알려 준다.
+       * 길이 없다. 그 안쪽은 `AdminGuard` 가 지킨다. 그 아래 첫 목적지가 검수 큐(3h)이고,
+       * 1j(Debug 콘솔)이 다음 배치에 옆으로 들어온다.
+       *
+       * **신고 큐가 별도 라우트가 아니다.** 계약은 신고로 정지된 작품을 같은 큐에
+       * `suspended` 로 올린다 (정정본 §13-41) — 화면이 탭으로 가른다.
        */}
       <Route path={ROUTES.admin} element={<AdminGuard />}>
-        <Route index element={<Navigate to={ROUTES.adminAuth} replace />} />
+        <Route index element={<Navigate to={ROUTES.adminReviews} replace />} />
+        <Route path={ROUTES.adminReviews} element={<AdminReviewQueueScreen />} />
       </Route>
       <Route path={ROUTES.adminAuth} element={<AdminAuthScreen />} />
 

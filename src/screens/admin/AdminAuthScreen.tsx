@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
 
 import {
   clearAdminStepUp,
@@ -8,6 +9,7 @@ import {
   verifyAdminTotp,
   type TotpEnrollment,
 } from '../../api/endpoints/admin'
+import { ROUTES } from '../../routes/routes'
 import { canSubmitCode, CODE_LENGTH, failureMessage, normalizeCode } from './twoFactor'
 import styles from './admin.module.css'
 
@@ -29,22 +31,28 @@ export function AdminAuthScreen() {
   if (promoted) {
     return (
       <Console>
-        <p className={styles.body}>단계 승격을 들고 있어요. 관리자 화면을 열 수 있어요.</p>
-        {/*
-         * 새로고침하면 사라진다 — 승격은 메모리에만 있다. 그 사실을 화면이 숨기지 않는다.
-         * 값 자체도, 남은 시간도 보여 주지 않는다: 화면에 나오는 순간 스크린샷 · 화면 공유 ·
-         * 버그 리포트에 함께 실린다.
-         */}
-        <button
-          type="button"
-          className={styles.button}
-          onClick={() => {
-            clearAdminStepUp()
-            setPromoted(false)
-          }}
-        >
-          승격 해제
-        </button>
+        <div className={styles.stack}>
+          <p className={styles.body}>단계 승격을 들고 있어요.</p>
+          {/* 목적지가 생겼다 (#62). 문 안에서 나가는 길이 보이지 않으면 URL 을 손으로 쳐야 한다 */}
+          <Link className={`${styles.button} ${styles.primary}`} to={ROUTES.adminReviews}>
+            검수 큐 열기
+          </Link>
+          {/*
+           * 새로고침하면 사라진다 — 승격은 메모리에만 있다. 그 사실을 화면이 숨기지 않는다.
+           * 값 자체도, 남은 시간도 보여 주지 않는다: 화면에 나오는 순간 스크린샷 ·
+           * 화면 공유 · 버그 리포트에 함께 실린다.
+           */}
+          <button
+            type="button"
+            className={styles.button}
+            onClick={() => {
+              clearAdminStepUp()
+              setPromoted(false)
+            }}
+          >
+            승격 해제
+          </button>
+        </div>
       </Console>
     )
   }
