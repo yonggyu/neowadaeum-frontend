@@ -1,10 +1,20 @@
 import { useCallback, useState, type ReactNode } from 'react'
 import { useParams } from 'react-router-dom'
 
-import { getSessionDebug, type AdminSessionDebug } from '../../api/endpoints/admin'
+import {
+  getSessionDebug,
+  regenerateTurn,
+  rollbackSession,
+  submitAdminFreeInput,
+  type AdminSessionDebug,
+} from '../../api/endpoints/admin'
+import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { useResource } from '../library/useResource'
 import {
+  buildFreeInput,
   callLabel,
+  canSubmitFreeAction,
+  CONFIRM_COPY,
   COST_NOTE,
   currentTurn,
   DEBUG_PANEL_LABEL,
@@ -12,7 +22,9 @@ import {
   DEFAULT_PANEL,
   formatLatency,
   formatTokens,
+  FREE_ACTION_MAX_LENGTH,
   PROMPT_STARTS_OPEN,
+  rollbackTarget,
   turnsNewestFirst,
   type AiCall,
   type DebugPanel,
@@ -22,7 +34,7 @@ import { failureMessage } from './twoFactor'
 import styles from './adminDebug.module.css'
 
 /**
- * Admin Debug 콘솔 (`1j`) — 좌 미리보기 / 우 사실 다섯.
+ * Admin Debug 콘솔 (`1j`) — 좌 미리보기·조작 / 우 사실 다섯.
  *
  * **이 화면은 남의 플레이 기록과 AI 프롬프트 원문을 그린다.** 그래서 지키는 것이 셋이다.
  *
@@ -31,14 +43,10 @@ import styles from './adminDebug.module.css'
  * 2. **프롬프트 원문은 접힌 채로 열린다** (`PROMPT_STARTS_OPEN`). 콘솔을 여는 것만으로
  *    세이프티 지시가 화면에 뜨면 어깨너머로 읽히고, 읽힌 지시가 곧 우회 경로가 된다.
  *    **복사 버튼도 콘솔 로그도 두지 않는다** — 원문이 이 화면 밖으로 나가는 길을 만들지 않는다.
- * 3. **계약에 없는 값으로 패널을 채우지 않는다** — 아래 `MissingFromContract` 가 `1j` 가
+ * 3. **되돌릴 수 없는 둘 앞에 확인이 있다** — ROLLBACK · REGENERATE. 판은 `ConfirmDialog`
+ *    하나를 쓴다 (#43·#63). 두 번째 확인 판을 만들지 않는다.
+ * 4. **계약에 없는 값으로 패널을 채우지 않는다** — 아래 `MissingFromContract` 가 `1j` 가
  *    그렸지만 `debug` 응답에 없는 것을 그 자리에서 말한다. 빈 상자는 돌아가는 것처럼 보인다.
- *
- * **`1j` 좌측 아래의 조작 셋(SUBMIT TURN · REGENERATE · ROLLBACK)은 이 PR 에 없다.** 계약이
- * 그 선을 먼저 그었다 — 사용자 소유 세션에 대해 관리자가 할 수 있는 것은 *"읽기 전용
- * 디버그까지"* 다 (백엔드 R14.3). 이 화면이 그 절반이고, 되돌릴 수 없는 둘 앞의
- * 확인(`ConfirmDialog` — #43·#63)과 자유입력이 뒤따르는 PR 에 온다. `src/**` 800줄을 넘겨
- * 자른 자리이며, 주석을 줄여 상한을 맞추지 않았다.
  */
 export function AdminDebugScreen() {
   const { sessionId } = useParams<{ sessionId: string }>()
@@ -73,7 +81,7 @@ function DebugConsole({ sessionId }: { sessionId: string }) {
     (signal: AbortSignal) => getSessionDebug(sessionId, signal),
     [sessionId],
   )
-  const { resource } = useResource(load)
+  const { resource, reload } = useResource(load)
 
   if (resource.status === 'loading') {
     return <p className={styles.failure}>세션을 여는 중…</p>
@@ -86,10 +94,18 @@ function DebugConsole({ sessionId }: { sessionId: string }) {
       </p>
     )
   }
-  return <ConsoleBody sessionId={sessionId} debug={resource.data} />
+  return <ConsoleBody sessionId={sessionId} debug={resource.data} reload={reload} />
 }
 
-function ConsoleBody({ sessionId, debug }: { sessionId: string; debug: AdminSessionDebug }) {
+function ConsoleBody({
+  sessionId,
+  debug,
+  reload,
+}: {
+  sessionId: string
+  debug: AdminSessionDebug
+  reload: () => void
+}) {
   const { session, aiCalls } = debug
   const [panel, setPanel] = useState<DebugPanel>(DEFAULT_PANEL)
   const [callId, setCallId] = useState<string | null>(null)
@@ -110,6 +126,7 @@ function ConsoleBody({ sessionId, debug }: { sessionId: string; debug: AdminSess
           <span>test session: {session.testSession ? 'yes' : 'no'}</span>
         </p>
         <StoryPreview turn={currentTurn(session)} turnNo={session.turnNo} />
+        <SessionActions sessionId={sessionId} debug={debug} reload={reload} />
         <MissingFromContract />
       </div>
 
@@ -300,6 +317,166 @@ function PromptBox({ call }: { call: AiCall | null }) {
         {open ? '원문 접기' : '원문 펼치기 — 세이프티 지시가 들어 있어요'}
       </button>
       {open ? <pre className={styles.raw}>{call.requestRaw}</pre> : null}
+    </>
+  )
+}
+
+/**
+ * 좌측 아래 — 세 조작.
+ *
+ * **SUBMIT TURN 에는 확인이 없고 나머지 둘에는 있다** (`needsConfirmation` 이 그 판단이다).
+ * 자유입력은 턴을 덧붙일 뿐이라 되돌리기로 되돌아가지만, 되돌리기와 재생성은 이 화면에서
+ * 되돌릴 방법이 없다 — 계약에 취소 경로가 없다.
+ */
+function SessionActions({
+  sessionId,
+  debug,
+  reload,
+}: {
+  sessionId: string
+  debug: AdminSessionDebug
+  reload: () => void
+}) {
+  const { session } = debug
+  const [action, setAction] = useState('')
+  const [target, setTarget] = useState(String(Math.max(session.turnNo - 1, 0)))
+  const [confirming, setConfirming] = useState<'regenerate' | 'rollback' | null>(null)
+  const [pending, setPending] = useState(false)
+  const [failure, setFailure] = useState<string | null>(null)
+
+  const toTurnNo = rollbackTarget(target, session.turnNo)
+  const canSubmit = canSubmitFreeAction({ action, testSession: session.testSession, pending })
+
+  async function submit(): Promise<void> {
+    setPending(true)
+    setFailure(null)
+    try {
+      await submitAdminFreeInput(sessionId, buildFreeInput(action))
+      setAction('')
+      // 계약이 만들어진 본문을 응답에 담지 않는다 — *"디버그로 본다"*. 그래서 다시 읽는다.
+      reload()
+    } catch (error) {
+      // 세이프티에 걸리면 `422` 다. **어디에 걸렸는지는 오지 않고, 화면도 짐작하지 않는다** (F-5).
+      setFailure(failureMessage(error))
+    } finally {
+      setPending(false)
+    }
+  }
+
+  /**
+   * 확인 판이 부르는 그 요청.
+   *
+   * **판 안에서 실패를 잡지 않는다** — `ConfirmDialog` 가 자기 자리에서 서버 문장을 그대로
+   * 낸다 (F-4). 성공 뒤의 일(닫기 · 다시 읽기)만 여기서 한다.
+   */
+  async function runConfirmed(): Promise<void> {
+    if (confirming === 'rollback') {
+      if (toTurnNo === null) {
+        return
+      }
+      await rollbackSession(sessionId, { toTurnNo })
+    } else {
+      await regenerateTurn(sessionId, session.turnNo)
+    }
+    setConfirming(null)
+    reload()
+  }
+
+  return (
+    <>
+      <p className={styles.label}>FREE ACTION INPUT — 관리자 전용</p>
+      {/*
+       * **일반 Play 에는 자유입력이 없다.** 계약이 사용자 입력면을 `choiceId` 하나로 정했고
+       * (F-1), 이 입력은 그 규칙의 예외가 아니라 **다른 경로**다 — `/turns/free` 는 관리자
+       * 경로이며 테스트 세션에서만 열린다 (백엔드 I-18). 그래서 이 컴포넌트도, 이 입력을
+       * 판단하는 `canSubmitFreeAction` 도 관리자 화면 밖으로 나가지 않는다.
+       */}
+      <textarea
+        className={styles.textarea}
+        value={action}
+        maxLength={FREE_ACTION_MAX_LENGTH}
+        disabled={!session.testSession}
+        onChange={(event) => setAction(event.target.value)}
+        rows={2}
+        aria-label="자유 행동"
+        placeholder={session.testSession ? '자유 행동을 입력하고 턴 생성…' : ''}
+      />
+      {session.testSession ? null : (
+        <p className={styles.missing}>
+          테스트 세션이 아니에요. 자유입력은 테스트 세션에서만 열려요 — 사용자 소유 세션에
+          대해서는 <b>읽기 전용 디버그까지</b>예요 (백엔드 R14.3).
+        </p>
+      )}
+
+      <div className={styles.actions}>
+        <button
+          type="button"
+          className={`${styles.button} ${styles.primary}`}
+          disabled={!canSubmit}
+          onClick={() => void submit()}
+        >
+          {pending ? '보내는 중…' : 'SUBMIT TURN'}
+        </button>
+        <button
+          type="button"
+          className={`${styles.button} ${styles.destructive}`}
+          disabled={pending}
+          onClick={() => {
+            setFailure(null)
+            setConfirming('regenerate')
+          }}
+        >
+          REGENERATE t{session.turnNo}
+        </button>
+        <button
+          type="button"
+          className={`${styles.button} ${styles.destructive}`}
+          disabled={pending || toTurnNo === null}
+          onClick={() => {
+            setFailure(null)
+            setConfirming('rollback')
+          }}
+        >
+          ROLLBACK
+        </button>
+        {/* 되돌린 뒤 **남아 있을** 턴이다 (계약). 빈 칸을 0 으로 읽지 않는다 */}
+        <label className={styles.label} htmlFor="admin-debug-rollback-to">
+          to turn
+        </label>
+        <input
+          id="admin-debug-rollback-to"
+          className={styles.turnInput}
+          value={target}
+          inputMode="numeric"
+          onChange={(event) => setTarget(event.target.value)}
+        />
+      </div>
+
+      {failure === null ? null : (
+        <p className={styles.failure} role="alert">
+          {failure}
+        </p>
+      )}
+
+      {confirming === null ? null : (
+        <ConfirmDialog
+          title={CONFIRM_COPY[confirming].title}
+          confirmLabel={CONFIRM_COPY[confirming].confirmLabel}
+          pendingLabel={CONFIRM_COPY[confirming].pendingLabel}
+          cancelLabel="그만두기"
+          onConfirm={runConfirmed}
+          onCancel={() => setConfirming(null)}
+        >
+          {confirming === 'rollback' ? (
+            <>t{toTurnNo} 까지 접어요. 턴 · 스냅샷 · 요약이 함께 접히고, 되돌릴 수 없어요.</>
+          ) : (
+            <>
+              t{session.turnNo} 을(를) 접고 같은 선택으로 다시 만들어요. 지금 본문은 사라지고,
+              되돌릴 수 없어요.
+            </>
+          )}
+        </ConfirmDialog>
+      )}
     </>
   )
 }

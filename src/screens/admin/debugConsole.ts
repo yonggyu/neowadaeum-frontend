@@ -1,12 +1,13 @@
-import type { AdminSessionDebug } from '../../api/endpoints/admin'
+import type { AdminSessionDebug, FreeInputRequest } from '../../api/endpoints/admin'
 
 /**
- * Debug 콘솔(`1j`)이 판단하는 것 — 무엇을 처음부터 보여 주는가, 계약이 주지 않은 값을
- * 어떻게 말하는가.
+ * Debug 콘솔(`1j`)이 판단하는 것 — 무엇을 처음부터 보여 주는가, 무엇에 확인을 두는가,
+ * 계약이 주지 않은 값을 어떻게 말하는가.
  *
- * React 밖에 두는 이유는 `twoFactor.ts` · `reviewQueue.ts` 와 같다. 이것이 이 화면의 보안
- * 면이고, 컴포넌트 안에 있으면 렌더링 없이는 확인할 수 없다 — 그러면 **"프롬프트 원문은
- * 접힌 채로 열린다" 를 지키는 것이 코드가 아니라 리뷰어가 된다.**
+ * React 밖에 두는 이유는 `twoFactor.ts` · `reviewQueue.ts` 와 같다. 이 셋이 이 화면의 보안
+ * 면 전체이고, 컴포넌트 안에 있으면 렌더링 없이는 확인할 수 없다 — 그러면 **"프롬프트
+ * 원문은 접힌 채로 열린다" 와 "되돌릴 수 없는 동작 앞에 확인이 있다" 를 지키는 것이 코드가
+ * 아니라 리뷰어가 된다.**
  */
 
 type DebugSession = AdminSessionDebug['session']
@@ -81,14 +82,105 @@ export function turnsNewestFirst(session: DebugSession): DebugTurn[] {
   return [...session.recentTurns].sort((a, b) => b.turnNo - a.turnNo)
 }
 
-/*
- * **조작 셋(SUBMIT TURN · REGENERATE · ROLLBACK)은 이 PR 에 없다.**
+// ── 관리자 동작 셋 ─────────────────────────────────────────────────────
+
+/** `1j` 의 버튼 셋 — SUBMIT TURN / REGENERATE / ROLLBACK. */
+export type DebugAction = 'submit' | 'regenerate' | 'rollback'
+
+/**
+ * 확인을 한 번 물어야 하는가.
  *
- * `1j` 의 좌측 아래가 그 자리이고, 계약이 그 선을 먼저 그었다 — 사용자 소유 세션에 대해
- * 관리자가 할 수 있는 것은 *"읽기 전용 디버그까지"* 다 (백엔드 R14.3). 이 PR 이 그 절반이며,
- * 되돌릴 수 없는 둘 앞의 확인(`ConfirmDialog`)과 자유입력이 뒤따르는 PR 에 온다.
- * `src/**` 800줄을 넘겨 자른 자리이고, 주석을 줄여 맞추지 않았다.
+ * **되돌리기와 재생성만이다.** 롤백은 턴 · 스냅샷 · 요약을 함께 접고(R14.4), 재생성은 접은
+ * 뒤 AI 를 다시 불러 본문을 갈아 끼운다 (정정본 §13-30) — 둘 다 이 화면에서 되돌릴 방법이
+ * 없다. 자유입력은 턴을 **덧붙일** 뿐이라 롤백으로 되돌아간다. 검수 큐가 `HOLD` 앞에 확인을
+ * 두지 않은 것과 같은 판단이다: 되돌릴 수 있는 동작 앞에 확인을 두면 확인 자체가 값싸 보인다.
  */
+export function needsConfirmation(action: DebugAction): boolean {
+  return action !== 'submit'
+}
+
+/**
+ * 확인 판의 문구. **`ConfirmDialog`(#43·#63)가 그대로 받는다.**
+ *
+ * 두 번째 확인 판을 만들지 않는다 — 그 컴포넌트가 이미 되돌릴 수 없는 동작 앞의 판 하나로
+ * 정해져 있고, 여기 새로 그리면 같은 사건에 두 모양이 생긴다.
+ */
+export const CONFIRM_COPY: Record<'regenerate' | 'rollback', {
+  title: string
+  confirmLabel: string
+  pendingLabel: string
+}> = {
+  regenerate: {
+    title: '이 턴을 다시 만들까요?',
+    confirmLabel: 'REGENERATE',
+    pendingLabel: '다시 만드는 중…',
+  },
+  rollback: {
+    title: '이 세션을 되돌릴까요?',
+    confirmLabel: 'ROLLBACK',
+    pendingLabel: '되돌리는 중…',
+  },
+}
+
+// ── ROLLBACK 의 목적지 ─────────────────────────────────────────────────
+
+/**
+ * `toTurnNo` — 되돌린 뒤 **남아 있을** 턴이다 (계약 `RollbackRequest`).
+ *
+ * `0` 은 첫 턴까지 접는다는 뜻이며 계약이 허용한다(`minimum: 0`). 현재 턴보다 큰 값은 되돌릴
+ * 곳이 아니므로 여기서 막는다 — 서버도 막지만, 그 `400` 은 관리자가 오타를 냈다는 것을
+ * 알려 주지 않는다.
+ *
+ * **읽을 수 없는 값에 기본값을 씌우지 않는다.** 빈 칸을 `0` 으로 읽으면 손이 미끄러진 채
+ * 누른 ROLLBACK 이 세션을 첫 턴까지 접는다.
+ */
+export function rollbackTarget(raw: string, currentTurnNo: number): number | null {
+  const text = raw.trim()
+  if (!/^\d+$/.test(text)) {
+    return null
+  }
+  const value = Number(text)
+  return value <= currentTurnNo ? value : null
+}
+
+// ── FREE ACTION INPUT — 관리자 전용 ────────────────────────────────────
+
+/**
+ * 계약 `FreeInputRequest.action.maxLength`. 손으로 정한 값이 아니다.
+ *
+ * 서버가 자르기 전에 화면이 막는다 — 계약이 길이를 제한한 이유가 *"길어질수록 프롬프트에서
+ * 차지하는 몫이 커져 세계관과 최근 턴을 밀어낸다"* 이고, 잘린 문장으로 만들어진 턴은 관리자가
+ * 재현하려던 것이 아니다.
+ */
+export const FREE_ACTION_MAX_LENGTH = 200
+
+/**
+ * 지금 자유 행동을 보낼 수 있는가.
+ *
+ * **`testSession` 이 아니면 보내지 않는다** (계약 I-18, R14.3). 사용자 소유 세션에서 이
+ * 경로는 `403` 이며, 그런 세션에 대해 관리자가 할 수 있는 것은 읽기 전용 디버그까지다 —
+ * *남의 이야기에 관리자가 문장을 넣는 것은 디버그가 아니라 개입이다.* 서버가 막는 것을 화면이
+ * 한 번 더 막는 이유는 그 문장이 **이미 남의 세션을 향해 떠난 뒤**에 거절당하기 때문이다.
+ *
+ * **이 판단은 이 화면 밖으로 나가지 않는다.** 일반 Play 에 자유입력이 없는 것은 계약이 정한
+ * 것이다 — 사용자 입력면은 `choiceId` 하나뿐이다 (F-1).
+ */
+export function canSubmitFreeAction(input: {
+  action: string
+  testSession: boolean
+  pending: boolean
+}): boolean {
+  if (input.pending || !input.testSession) {
+    return false
+  }
+  const action = input.action.trim()
+  return action.length > 0 && action.length <= FREE_ACTION_MAX_LENGTH
+}
+
+/** 보낼 것을 만든다. 계약이 받는 필드는 `action` 하나다. */
+export function buildFreeInput(action: string): FreeInputRequest {
+  return { action: action.trim() }
+}
 
 // ── USAGE — 없는 값을 지어내지 않는다 ──────────────────────────────────
 
