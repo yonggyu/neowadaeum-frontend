@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
-import type { ApiError } from '../../api/client'
+import { toApiError, type ApiError } from '../../api/client'
 import { precheckDraft, type Finding } from '../../api/endpoints/authoring'
-import { toApiError } from '../library/useResource'
 import { hasBlocked, mergeFindings, PRECHECK_DEBOUNCE_MS } from './precheck'
 
 /**
