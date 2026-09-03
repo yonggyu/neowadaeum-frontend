@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 
-import { ApiError } from '../../api/client'
-import { UNKNOWN_ERROR, UNREACHABLE_MESSAGE } from '../../api/errors'
+import { toApiError, type ApiError } from '../../api/client'
 
 /**
  * 한 번 읽어 오는 화면 데이터의 세 상태.
@@ -41,8 +40,6 @@ export function useResource<T>(load: (signal: AbortSignal) => Promise<T>): Resou
       },
       (cause: unknown) => {
         if (controller.signal.aborted) return
-        // 계약 밖의 실패(네트워크 단절 · CORS)도 화면은 하나의 모양으로 다뤄야 한다.
-        // `ApiError` 가 아닌 것을 그대로 두면 화면이 `message` 를 읽지 못한다.
         setResource({ status: 'failed', error: toApiError(cause) })
       },
     )
@@ -57,16 +54,4 @@ export function useResource<T>(load: (signal: AbortSignal) => Promise<T>): Resou
   }, [])
 
   return { resource, reload }
-}
-
-/**
- * 계약 형태가 아닌 실패를 화면이 다룰 수 있는 모양으로 옮긴다.
- *
- * 문구를 지어내지 않는 것이 원칙이지만(F-4), **서버가 아무 말도 하지 않은 실패**가 있다 —
- * 요청이 서버에 닿지도 못한 경우다. 그때만 최소한의 문구를 두고, 코드는 계약의 것을 빌리지
- * 않고 `UNKNOWN` 으로 남긴다.
- */
-export function toApiError(cause: unknown): ApiError {
-  if (cause instanceof ApiError) return cause
-  return new ApiError(0, UNKNOWN_ERROR, UNREACHABLE_MESSAGE, {})
 }
