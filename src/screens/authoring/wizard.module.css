@@ -143,8 +143,268 @@
   line-height: 1.4;
 }
 
-.side {
+/* ── Step 1~3 의 입력 (3d) ───────────────────────────────────────────────────── */
+
+.field {
   display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  margin: 0;
+  padding: 0;
+  border: 0; /* fieldset 의 기본 테두리를 걷는다 — 장르 칩 묶음이 fieldset 이다 */
+}
+
+.fieldHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-2);
+}
+
+.fieldLabel {
+  padding: 0;
+  color: var(--fg-muted);
+  font-size: 0.8125rem;
+}
+
+/* 3d — "독자에게 보입니다" · "AI에게만 전달됩니다". 라벨과 한 줄에 붙어야 대상이 읽힌다 */
+
+.fieldHint {
+  color: var(--fg-subtle);
+}
+
+/* 글자 수와 "확인 중" 이 같은 자리를 쓴다 — 둘이 동시에 필요한 순간이 없다 (3d) */
+
+.fieldMeta {
+  color: var(--fg-subtle);
+  font-size: 0.8125rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.control {
+  width: 100%;
+  min-height: 48px;
+  padding: var(--sp-3);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--bg);
+  color: var(--fg);
+  font: inherit;
+  line-height: 1.6;
+  resize: vertical;
+}
+
+.control:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+
+/*
+ * 차단은 **두 단계 중 하나**다 (3d · 정정본 13-33). 주황 "진행 가능한 경고" 를 위한 색을
+ * 여기 두지 않는다 — 있으면 언젠가 누군가 쓴다.
+ */
+
+.controlBlocked {
+  border: 2px solid var(--danger);
+}
+
+.fieldBlocked {
+  gap: var(--sp-2);
+}
+
+.nearLimit {
+  margin: 0;
+  color: var(--danger);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+}
+
+.fieldFindings {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+}
+
+/* 문제 구간을 원문 위에 다시 그린다 — input 안에는 밑줄을 그을 수 없다 (3d) */
+
+.highlight {
+  margin: 0;
+  color: var(--fg-muted);
+  font-size: 0.9375rem;
+  line-height: 1.6;
+  word-break: break-word;
+}
+
+.mark {
+  border-radius: var(--r-sm);
+  background: rgba(214, 69, 69, 0.16);
+  color: inherit;
+}
+
+.blockedMessage {
+  margin: 0;
+  color: var(--danger);
+  font-size: 0.9375rem;
+  line-height: 1.5;
+}
+
+/* 장르 칩 — 다중 선택 (3d) */
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  margin-top: var(--sp-1);
+}
+
+.chip {
+  min-height: 40px;
+  padding: 0 var(--sp-4);
+  border: 1px solid var(--border);
+  border-radius: var(--r-xl);
+  background: var(--bg);
+  color: var(--fg-muted);
+  font: inherit;
+  cursor: pointer;
+}
+
+.chip:focus-visible,
+.iconButton:focus-visible,
+.jump:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.chipOn {
+  border-color: var(--fg);
+  color: var(--fg);
+}
+
+/*
+ * 그림 자리 — **비율로만** 고정한다 (CLAUDE.md · 1k). 커버는 2:3, 초상은 그보다 작은 같은 비율.
+ * 업로드 경로가 계약에 없어 지금은 자리와 안내만 있다 (`ImageSlot`).
+ */
+
+.imageSlot {
+  display: flex;
+  align-items: center;
+  align-self: flex-start; /* 세로 flex 안에서 폭까지 늘어나지 않게 — 비율이 무너진다 */
+  justify-content: center;
+  width: 96px;
+  aspect-ratio: var(--ratio-cover);
+  padding: var(--sp-2);
+  border: 1px dashed var(--border);
+  border-radius: var(--r-md);
+  background: var(--bg-sunken);
+}
+
+.cover {
+  width: 160px;
+}
+
+.imageSlotNote {
+  color: var(--fg-subtle);
+  font-size: 0.75rem;
+  line-height: 1.4;
+  text-align: center;
+}
+
+/* 등장인물 카드 (3d · 6a) */
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  padding: var(--sp-4);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+}
+
+.cardBlocked {
+  border: 2px solid var(--danger);
+  background: rgba(214, 69, 69, 0.04);
+}
+
+.cardHead,
+.cardActions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+}
+
+.iconButton {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 var(--sp-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--bg);
+  color: var(--fg-muted);
+  font: inherit;
+  cursor: pointer;
+}
+
+.iconButton:disabled {
+  color: var(--fg-subtle);
+  cursor: default;
+}
+
+.cardBody {
+  display: flex;
+  gap: var(--sp-3);
+}
+
+.cardFields {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: var(--sp-3);
+  min-width: 0;
+}
+
+.addCharacter {
+  width: 100%;
+  border-style: dashed;
+}
+
+/* 우측 패널의 미리보기 (6a — Step 1·2) */
+
+.previewCard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  padding: var(--sp-3);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--bg);
+}
+
+.previewTitle {
+  margin: 0;
+  font-size: 1.125rem;
+  line-height: 1.3;
+}
+
+.jump {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--focus);
+  font: inherit;
+  font-size: 0.8125rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+/*
+ * 우측 패널 — **1024 부터만 있다** (6a: 768 은 *"검수는 필드 아래 인라인, 미리보기는 Step 5로
+ * 이동"*). 아래로 흘러내린 패널을 두면 같은 오류가 필드 아래와 패널에서 두 번 보인다.
+ */
+
+.side {
+  display: none;
   flex-direction: column;
   gap: var(--sp-3);
   padding: var(--sp-4);
@@ -324,6 +584,7 @@
   }
 
   .side {
+    display: flex;
     position: sticky;
     /* 헤더(내비 높이 + 진행바 + 아래 여백)만큼 내려서 붙는다 — 진행바를 덮지 않는다 */
     top: calc(var(--nav-h) + var(--sp-6));

@@ -1,20 +1,22 @@
 import { useCallback, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 
-import { getDraft, updateDraft, type Draft, type Finding } from '../../api/endpoints/authoring'
+import { getDraft, updateDraft, type Draft } from '../../api/endpoints/authoring'
 import { ROUTES } from '../../routes/routes'
 import { ErrorNotice } from '../account/ErrorNotice'
 import { useResource } from '../library/useResource'
 import css from './wizard.module.css'
-import { clampStep, draftTitle, isBlocked, savedAtLabel, STEP_COUNT, STEP_LABELS } from './draft'
+import { clampStep, isBlocked, savedAtLabel, STEP_COUNT, STEP_LABELS } from './draft'
+import { GENRES, readValues, writeValues, type StepValues } from './stepFields'
+import { usePrecheck, type PrecheckHandle } from './usePrecheck'
+import { StepBasics, StepCharacters, StepWorld } from './WizardSteps'
 
 /**
- * 작품 만들기 마법사의 **골격** (와이어프레임 6a).
+ * 작품 만들기 마법사 (와이어프레임 3d · 6a).
  *
- * 이 화면이 지금 하는 일은 넷이다 — 상단 고정 진행바 · 임시 저장 표시 · 나가기 ·
- * 단계 이동(이전/다음이 `patchDraft` 로 실제 저장된다). **각 단계의 입력 폼은 아직 없다**
- * (#54 는 골격까지, 입력은 다음 이슈다). 그것을 화면이 직접 말한다 — 비어 있는 화면은
- * 돌아가는 것처럼 보이기 때문이다.
+ * 상단 고정 진행바 · 임시 저장 표시 · 나가기 · 단계 이동은 골격(#54)이 세웠고, 이 화면은
+ * 거기에 **Step 1~3 의 입력과 실시간 검수**를 채운다. Step 4·5(챕터 · 엔딩 · 미리보기)는
+ * 아직 없으며, 그 사실을 화면이 직접 말한다 — 비어 있는 화면은 돌아가는 것처럼 보인다.
  *
  * **저장 버튼을 따로 두지 않는다** (6a). 저장은 단계가 넘어갈 때 일어나고, 헤더 우측의
  * 표시가 그 결과를 말한다.
@@ -63,20 +65,30 @@ function Wizard({ draft: loaded }: { draft: Draft }) {
   // 서버가 방금 돌려준 원고가 진실이다. `patchDraft` 의 응답이 저장된 원고 전체이므로
   // 다시 조회하지 않는다 — 같은 값을 한 번 더 물어보는 셈이고, 그 사이에 화면이 되감긴다.
   const [draft, setDraft] = useState(loaded)
+  const [values, setValues] = useState<StepValues>(() => readValues(loaded.payload))
+  const [dirty, setDirty] = useState(false)
   const [save, setSave] = useState<SaveState>({ kind: 'saved' })
 
+  /*
+   * 이미 걸려 있던 것을 들고 시작한다. 원고에 남은 findings 는 `blocked` 일 때만 뜻이 있다 —
+   * `warned` 는 화면이 그리지 않는 상태이므로(3d) 그 findings 도 그리지 않는다.
+   */
+  const precheck = usePrecheck(draft.draftId, isBlocked(loaded.safetyState) ? loaded.findings : [])
+
   const step = clampStep(draft.step)
-  const blocked = isBlocked(draft.safetyState)
+  const blocked = isBlocked(draft.safetyState) || precheck.blocked
+
+  function edit(next: StepValues): void {
+    setValues(next)
+    setDirty(true)
+  }
 
   async function moveTo(next: number): Promise<void> {
     setSave({ kind: 'saving' })
     try {
-      /*
-       * `payload` 를 **그대로 되돌려 보낸다.** 이 골격에는 입력 폼이 없어 바꿀 것이 없고,
-       * 빈 객체를 보내면 서버에 저장된 원고가 지워진다. 입력이 붙는 이슈에서 이 자리가
-       * 각 Step 의 값으로 바뀐다.
-       */
-      setDraft(await updateDraft(draft.draftId, { step: next, payload: draft.payload ?? {} }))
+      // 아는 키만 남기지 않는다 — Step 4·5 의 입력이 같은 `payload` 안에 있다 (`writeValues`).
+      setDraft(await updateDraft(draft.draftId, { step: next, payload: writeValues(draft.payload, values) }))
+      setDirty(false)
       setSave({ kind: 'saved' })
     } catch (error) {
       setSave({ kind: 'failed', error })
@@ -92,7 +104,7 @@ function Wizard({ draft: loaded }: { draft: Draft }) {
             ← 나가기
           </Link>
           <span className={css.stepLabel}>{`STEP ${step} / ${STEP_COUNT} · ${STEP_LABELS[step - 1]}`}</span>
-          <SaveIndicator state={save} updatedAt={draft.updatedAt} />
+          <SaveIndicator state={save} updatedAt={draft.updatedAt} dirty={dirty} />
         </div>
         <ol className={css.progress} aria-label={`${STEP_COUNT}단계 중 ${step}단계`}>
           {STEP_LABELS.map((label, index) => (
@@ -109,19 +121,29 @@ function Wizard({ draft: loaded }: { draft: Draft }) {
 
       <div className={css.wizardBody}>
         <section className={css.main} aria-label={STEP_LABELS[step - 1]}>
-          <h1 className={css.pageTitle}>{draftTitle(draft.payload)}</h1>
+          {step === 1 ? <StepBasics values={values} onChange={edit} precheck={precheck} /> : null}
+          {step === 2 ? <StepWorld values={values} onChange={edit} precheck={precheck} /> : null}
+          {step === 3 ? (
+            <StepCharacters values={values} onChange={edit} precheck={precheck} />
+          ) : null}
+          {step > 3 ? (
+            <div className={css.placeholder}>
+              <h1 className={css.placeholderTitle}>{`${STEP_LABELS[step - 1]} 입력은 아직 붙지 않았습니다`}</h1>
+              <p className={css.body}>
+                챕터 · 엔딩(3e)과 미리보기는 다음 작업에서 이 자리에 들어옵니다.
+              </p>
+            </div>
+          ) : null}
 
           {/*
-           * 입력 폼이 들어올 자리. **빈 컴포넌트로 두지 않는다** — 무엇이 아직 없는지를
-           * 화면이 말한다. 이 문단은 Step 화면이 붙는 이슈에서 통째로 사라진다.
+           * 검수 자체가 실패한 경우. **결과를 지우지 않는다** — 검사가 실패했다는 것은
+           * 통과했다는 뜻이 아니다. 문구는 서버의 것이다 (F-4).
            */}
-          <div className={css.placeholder}>
-            <h2 className={css.placeholderTitle}>{`${STEP_LABELS[step - 1]} 입력은 아직 붙지 않았습니다`}</h2>
-            <p className={css.body}>
-              지금 이 화면이 하는 일은 단계 이동과 임시 저장까지입니다. 다섯 단계의 입력 폼(3d ·
-              3e)과 실시간 검수 · 초안 생성 · 미리보기는 다음 작업에서 이 자리에 들어옵니다.
+          {precheck.error === null ? null : (
+            <p className={css.blockedMessage} role="alert">
+              {`검수 결과를 받지 못했습니다 · ${precheck.error.message}`}
             </p>
-          </div>
+          )}
 
           <div className={css.wizardNav}>
             <button
@@ -153,49 +175,82 @@ function Wizard({ draft: loaded }: { draft: Draft }) {
           ) : null}
         </section>
 
-        {/*
-         * 우측 패널 (6a) — 1024 부터 sticky 로 붙고, 768 이하에서는 본문 아래로 내려온다.
-         * 6a 는 Step 마다 다른 것을 담는다고 정했다(1·2 미리보기 · 3 검수 · 4 흐름 · 5 세션).
-         * **지금 실을 수 있는 것은 검수 결과 하나뿐**이라 그것만 싣고, 나머지는 적어 둔다.
-         */}
-        <aside className={css.side} aria-label="검수">
-          <h2 className={css.sideTitle}>검수 · 이 원고에서 걸린 것</h2>
-          {draft.findings.length === 0 ? (
-            <p className={css.meta}>
-              {blocked ? '수정이 필요한 곳이 있습니다.' : '지금까지 걸린 곳이 없습니다.'}
-            </p>
-          ) : (
-            <ul className={css.findings}>
-              {draft.findings.map((finding) => (
-                <li key={`${finding.field}:${finding.span.join('-')}`} className={css.finding}>
-                  <FindingItem finding={finding} />
-                </li>
-              ))}
-            </ul>
-          )}
-          <p className={css.meta}>
-            커버 · 소개 미리보기(Step 1·2)와 챕터 흐름(Step 4) · 미리보기 세션(Step 5)은 아직
-            이 자리에 없습니다.
-          </p>
-        </aside>
+        <SidePanel step={step} values={values} precheck={precheck} />
       </div>
     </main>
   )
 }
 
 /**
- * 검수 항목 하나.
+ * 우측 패널 (6a) — **1024 부터만 있다.**
  *
- * **서버가 준 `message` 와 `field` 까지만 보여 준다.** `kind` 를 우리 문구로 옮기지 않고
- * 무엇이 걸렸는지도 덧붙이지 않는다 (F-5) — 계약이 `Finding` 에 걸린 항목 자체를 담지 않은
- * 이유와 같다: 우회 학습을 돕는다 (R8.7, S-11).
+ * 768 이하에서는 그리지 않는다: 6a 가 *"검수는 필드 아래 인라인, 미리보기는 Step 5로 이동"*
+ * 이라고 정했고, 필드 아래에 이미 같은 문구가 있는데 아래로 흘러내린 패널이 한 번 더 말하면
+ * 같은 오류가 두 번 보인다. 자리를 숨기는 것은 CSS 가 한다.
+ *
+ * Step 에 따라 **내용만** 바뀐다 (6a) — 1·2 는 커버·소개 미리보기, 3 은 검수 findings.
  */
-function FindingItem({ finding }: { finding: Finding }) {
+function SidePanel({
+  step,
+  values,
+  precheck,
+}: {
+  step: number
+  values: StepValues
+  precheck: PrecheckHandle
+}) {
+  if (step === 3) {
+    return (
+      <aside className={css.side} aria-label="검수">
+        <h2 className={css.sideTitle}>검수 · 이 단계에서 걸린 것</h2>
+        {precheck.findings.length === 0 ? (
+          <p className={css.meta}>지금까지 걸린 곳이 없습니다.</p>
+        ) : (
+          <ul className={css.findings}>
+            {precheck.findings.map((finding, index) => (
+              <li key={index} className={css.finding}>
+                {/* 서버가 준 `message` 그대로 (F-4). 무엇에 걸렸는지는 덧붙이지 않는다 (F-5) */}
+                <span className={css.body}>{finding.message}</span>
+                <button
+                  type="button"
+                  className={css.jump}
+                  onClick={() => document.getElementById(finding.field)?.focus()}
+                >
+                  해당 필드로 이동 →
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </aside>
+    )
+  }
+
+  if (step > 3) {
+    return (
+      <aside className={css.side} aria-label="이 단계의 요약">
+        <h2 className={css.sideTitle}>{STEP_LABELS[step - 1]}</h2>
+        <p className={css.meta}>챕터 흐름(Step 4)과 미리보기 세션(Step 5)은 아직 없습니다.</p>
+      </aside>
+    )
+  }
+
+  const genres = GENRES.filter((genre) => values.genres.includes(genre.value))
+
   return (
-    <>
-      <span className={css.body}>{finding.message}</span>
-      <span className={css.meta}>{finding.field}</span>
-    </>
+    <aside className={css.side} aria-label="미리보기">
+      <h2 className={css.sideTitle}>미리보기 · 독자에게 보이는 모습</h2>
+      <div className={css.previewCard}>
+        <div className={css.imageSlot}>
+          <span className={css.imageSlotNote}>커버 없음</span>
+        </div>
+        <p className={css.previewTitle}>{values.title === '' ? '제목 없는 작품' : values.title}</p>
+        <p className={css.meta}>{genres.map((genre) => genre.label).join(' · ')}</p>
+        <p className={css.body}>{values.shortDescription}</p>
+        {/* 배경 소개도 독자에게 보이는 값이다 (3d) — Step 2 에서만 자리를 차지한다 */}
+        {step === 2 ? <p className={css.body}>{values.worldIntro}</p> : null}
+      </div>
+    </aside>
   )
 }
 
@@ -204,8 +259,19 @@ function FindingItem({ finding }: { finding: Finding }) {
  *
  * 실패를 조용히 넘기지 않는다. 저장 버튼이 없다는 것은 **사용자가 다시 누를 수단이 없다**는
  * 뜻이므로, 실패했을 때 서버의 문구를 그대로 내는 것이 유일한 안내다 (F-4).
+ *
+ * 저장되지 않은 변경도 같은 이유로 말한다 — 저장은 단계가 넘어갈 때 일어나므로, 방금 친
+ * 글자가 아직 서버에 없다는 사실을 화면 말고는 알려 줄 것이 없다.
  */
-function SaveIndicator({ state, updatedAt }: { state: SaveState; updatedAt: string }) {
+function SaveIndicator({
+  state,
+  updatedAt,
+  dirty,
+}: {
+  state: SaveState
+  updatedAt: string
+  dirty: boolean
+}) {
   if (state.kind === 'saving') {
     return <span className={css.saveState}>저장 중…</span>
   }
@@ -215,6 +281,9 @@ function SaveIndicator({ state, updatedAt }: { state: SaveState; updatedAt: stri
         {state.error instanceof Error ? state.error.message : String(state.error)}
       </span>
     )
+  }
+  if (dirty) {
+    return <span className={css.saveState}>단계를 넘기면 저장됩니다</span>
   }
   return <span className={css.saveState}>{`임시 저장됨 · ${savedAtLabel(updatedAt, Date.now())}`}</span>
 }
