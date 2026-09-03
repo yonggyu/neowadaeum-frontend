@@ -10,8 +10,29 @@
 name: CI
 
 on:
+  # base 를 목록으로 좁히지 않는다.
+  #
+  # `branches: [frontend, dev, main]` 이었고, 그래서 base 가 **기능 브랜치**인 PR — 즉 스택 —
+  # 에는 어떤 잡도 붙지 않았다. 그런데 `CLAUDE.md` 의 800줄 상한이 넘치면 **화면 단위로
+  # 자르라**고 정하고, 자르는 방법이 스택이다. 규칙이 권하는 모양을 CI 가 보지 않았다는 뜻이고,
+  # 실제로 여섯 배치에서 네 번(#44 · #54 · #61 · #62) 두 번째 PR 이 체크 없이 대기했다.
+  #
+  # `no checks reported` 는 빨간불이 아니다 — 아무것도 없는 자리라 초록으로 읽힌다.
+  # 그 착시를 없애는 유일한 방법이 **모든 PR 에 잡을 붙이는 것**이다.
+  #
+  # `edited` 를 함께 듣는 이유는 다르다. base 필터를 넓히면 스택 PR 이 *자기 base* 위에서
+  # 돌지만, 부모가 머지되어 base 가 `frontend` 로 재조준되는 순간 **검사한 base 가 바뀐다.**
+  # 재조준은 `synchronize` 가 아니라 `edited` 이므로, 듣지 않으면 head SHA 에 붙어 있는
+  # 낡은 초록이 그대로 필수 체크를 만족시킨다. #50 이 그 자리였다 — 손으로 브랜치를 갱신하자
+  # 그 사이 바뀐 계약 때문에 실패했다. 우회가 없었으면 검증 없이 머지됐다.
+  #
+  # 두 가지는 **다른 문제를 푼다.** 하나만으로는 둘 중 하나가 남는다.
   pull_request:
-    branches: [frontend, dev, main]
+    types: [opened, synchronize, reopened, edited]
+  # `push` 는 `frontend` 에만 둔다. 기능 브랜치까지 넓히지 않는다 — PR 이벤트는 **head 를
+  # base 에 머지한 결과**를 검사하고 그것이 머지되는 것이며, push 는 head 만 본다. 정책상
+  # 모든 기능 브랜치에 PR 이 있으므로, 넓히면 브랜치마다 두 번 돌면서 **더 약한 조건**을
+  # 하나 더 얻을 뿐이다. `frontend` 의 push 는 어떤 PR 도 보지 않는 머지 후 상태라 남긴다.
   push:
     branches: [frontend]
 
@@ -40,6 +61,15 @@ env:
 jobs:
   build:
     name: build
+    # `edited` 는 제목·본문 수정에도 온다. 그때 세 잡을 전부 다시 도는 것은 낭비이고,
+    # `cancel-in-progress` 때문에 **돌고 있던 진짜 검사를 취소시키기까지 한다.**
+    # 그래서 `edited` 중 **base 가 바뀐 것만** 통과시킨다 — `changes.base` 가 그 표식이다.
+    # (`on:` 에서 걸러 낼 수 없다. `edited` 의 변경 필드는 워크플로 트리거의 필터가 아니다.)
+    #
+    # 같은 조건이 세 잡에 반복된다. job 의 `if` 는 `env` 를 읽지 못하므로 한곳에 둘 수 없고,
+    # 조건만을 위해 네 번째 잡을 만들면 PR 에 잡 이름이 하나 더 생긴다 — 세 이름이 곧
+    # 브랜치 보호의 계약이므로 그 목록을 흐리지 않는 쪽을 택했다.
+    if: github.event.action != 'edited' || github.event.changes.base.ref.from != ''
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -97,6 +127,8 @@ jobs:
 
   test:
     name: test
+    # `build` 의 `if` 와 같다 — 이유는 그쪽 주석에 있다.
+    if: github.event.action != 'edited' || github.event.changes.base.ref.from != ''
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -146,6 +178,8 @@ jobs:
 
   gitleaks:
     name: gitleaks
+    # `build` 의 `if` 와 같다 — 이유는 그쪽 주석에 있다.
+    if: github.event.action != 'edited' || github.event.changes.base.ref.from != ''
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
