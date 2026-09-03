@@ -25,6 +25,13 @@ export const ROUTES = {
   /** 인간 검수 큐 (3h). 계약의 `/admin/reviews` 와 같은 모양으로 둔다. */
   adminReviews: '/admin/reviews',
   /*
+   * Debug 콘솔 (1j). 계약의 `/admin/sessions/{sessionId}/debug` 와 같은 모양으로 둔다.
+   *
+   * **세션 id 가 URL 에 온다.** F-6 이 막는 것은 `player_ref` 이고, 세션 식별자는 계약이
+   * 직접 경로에 둔 값이다 — 응답에도 `playerRef` 는 없다 (백엔드 I-3).
+   */
+  adminSessionDebug: '/admin/sessions/:sessionId/debug',
+  /*
    * 작품 만들기 (3d · 3e · 6a). 경로를 계약과 같은 모양으로 둔다 — `/authoring/drafts` 는
    * `listDrafts` · `createDraft` 가 사는 자리이고, 그 아래 하나가 마법사다.
    *
