@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 
-import type { components } from '../../api/schema'
+import type { VisibleReviewStatus } from '../../api/endpoints/authoring'
 import {
   isVisibilityReadOnly,
   narrowsExposure,
@@ -13,9 +13,7 @@ import {
   visibilityBlockedReason,
 } from './reviewStatus'
 
-type ReviewStatus = components['schemas']['ReviewStatus']
-
-const ALL_STATUSES: ReviewStatus[] = [
+const ALL_STATUSES: VisibleReviewStatus[] = [
   'draft',
   'pending',
   'auto_rejected',
@@ -24,6 +22,20 @@ const ALL_STATUSES: ReviewStatus[] = [
   'rejected',
   'suspended',
 ]
+
+describe('§13-58 — 지운 작품 상태는 화면에 오지 않는다', () => {
+  it('13_58_deleted_에는_라벨을_두지_않는다', () => {
+    // 계약: "deleted 는 어떤 응답에도 실리지 않는다 … 클라이언트가 분기를 만들 값이 아니다".
+    // 라벨을 두면 절대 그려지지 않는 문구가 하나 생기고, 다음 사람은 그것을 보고 지운 작품이
+    // 목록에 남는다고 읽는다. 좁히는 자리는 `VisibleReviewStatus` 다.
+    expect(Object.keys(REVIEW_STATUS_LABEL)).not.toContain('deleted')
+  })
+
+  it('13_58_라벨_표는_화면에_오는_상태를_남김없이_덮는다', () => {
+    // 좁힌 타입이 늘어나면 이 표도 늘어야 한다 — 빠지면 배지가 `undefined` 로 뜬다.
+    expect(Object.keys(REVIEW_STATUS_LABEL).sort()).toEqual([...ALL_STATUSES].sort())
+  })
+})
 
 describe('R8.7 · F-5 — auto_rejected 는 사용자에게 rejected 로 표시한다', () => {
   it('R8_7_auto_rejected_와_rejected_는_같은_문구다', () => {

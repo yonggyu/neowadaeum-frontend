@@ -14,7 +14,26 @@ import type { components } from '../schema'
  */
 export type Visibility = components['schemas']['Visibility']
 export type ReviewStatus = components['schemas']['ReviewStatus']
-export type ReviewStatusResponse = components['schemas']['ReviewStatusResponse']
+
+/**
+ * 화면이 실제로 받는 검수 상태 — `deleted` 를 뺀 나머지.
+ *
+ * 계약이 이 값에 대해 직접 적었다: *"`deleted` 는 어떤 응답에도 실리지 않는다 … 열거에 두는
+ * 것은 상태 머신의 정의가 여기이기 때문이며, **클라이언트가 분기를 만들 값이 아니다**"*
+ * (`ReviewStatus`, 정정본 §13-58). 지운 작품은 목록 · 상세 · 이어하기 어디에서도 조회되지
+ * 않으므로 이 값을 담을 응답이 없다.
+ *
+ * **라벨을 지어 두는 대신 타입에서 뺀다.** 라벨을 두면 절대 그려지지 않는 문구가 하나 생기고,
+ * `ReviewPhase` 에 갈래를 더하면 절대 들어오지 않는 갈래가 생긴다 — 다음 사람은 그 둘을 보고
+ * **지운 작품이 목록에 남는다**고 읽는다. 좁히는 자리가 여기인 이유는 생성 타입이 `api/` 까지
+ * 흐르고 그 아래로는 화면이 실제로 쓰는 모양으로 넘어가기 때문이다.
+ */
+export type VisibleReviewStatus = Exclude<ReviewStatus, 'deleted'>
+
+export type ReviewStatusResponse = Omit<
+  components['schemas']['ReviewStatusResponse'],
+  'reviewStatus'
+> & { reviewStatus: VisibleReviewStatus }
 
 export type Draft = components['schemas']['DraftResponse']
 export type DraftPatchRequest = components['schemas']['DraftPatchRequest']
