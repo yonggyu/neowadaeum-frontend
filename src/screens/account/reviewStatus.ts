@@ -21,12 +21,6 @@ export const REVIEW_STATUS_LABEL: Record<VisibleReviewStatus, string> = {
   approved: '공개 중',
   rejected: '반려',
   suspended: '정지됨',
-  /**
-   * **어떤 응답에도 실리지 않는다.** 지운 작품은 조회되지 않으므로 `getMyStories` 도
-   * `getDraftReview` 도 이 값을 돌려주지 않는다 (계약 `deleteStory`, 정정본 §13-58).
-   * 그래도 열거형에 있는 값이라 라벨을 비워 두면 배지가 `undefined` 로 뜬다.
-   */
-  deleted: '삭제됨',
 }
 
 /** 화면 문구는 **"링크 공유"** 다 (3f · 6c). 계약의 값 이름(`unlisted`)을 그대로 쓰지 않는다. */
@@ -52,7 +46,7 @@ export const VISIBILITY_OPTIONS: readonly Visibility[] = ['private', 'unlisted',
  * `auto_rejected` 와 `rejected` 가 같은 칸으로 접히는 것이 이 함수의 존재 이유다 — 두 값을
  * 화면 여러 곳에서 각각 비교하면 언젠가 한 곳이 빠지고, 그 한 곳이 "자동 반려"라고 말한다.
  */
-export type ReviewPhase = 'draft' | 'waiting' | 'approved' | 'rejected' | 'suspended' | 'deleted'
+export type ReviewPhase = 'draft' | 'waiting' | 'approved' | 'rejected' | 'suspended'
 
 export function reviewPhase(status: VisibleReviewStatus): ReviewPhase {
   switch (status) {
@@ -68,9 +62,6 @@ export function reviewPhase(status: VisibleReviewStatus): ReviewPhase {
       return 'rejected'
     case 'suspended':
       return 'suspended'
-    // 지운 작품은 목록에 오지 않는다 (§13-58). 자리를 비워 두지 않을 뿐이다.
-    case 'deleted':
-      return 'deleted'
   }
 }
 
