@@ -1,8 +1,8 @@
 import { Navigate, Outlet } from 'react-router-dom'
 
-import { UNREACHABLE_MESSAGE } from '../api/errors'
 import { guardDecision } from '../auth/guard'
 import type { AuthState } from '../auth/session'
+import { UnreachableScreen } from '../screens/system/UnreachableScreen'
 import { ROUTES } from './routes'
 
 /**
@@ -42,14 +42,28 @@ export function RequireAuth({ session }: { session: AuthState }) {
        * 서버가 답하지 못했다 — 로그인 여부는 **여전히 모른다.** 로그인 화면으로 보내면
        * 있지도 않은 로그아웃을 사용자가 고치려 든다.
        *
-       * **골격까지만 둔다.** 와이어프레임에 이 상태를 알리는 자리가 없고, 화면을 지어내지
-       * 않는다는 규칙이 그대로 적용된다. 문구는 계약 밖 실패에 쓰는 그 하나를 빌린다 —
-       * 같은 사실이므로 두 번째 문구를 만들지 않는다.
+       * 8차 와이어프레임(B-2)이 이 자리를 그려서 골격을 화면으로 바꿨다 (#117). 라우트가
+       * 아니라 여전히 **이 분기 하나**이며, 셸이 붙는 라우트에서는 셸의 본문 자리에 그대로
+       * 들어간다.
        */
-      return (
-        <p role="alert" data-screen="Unreachable">
-          {UNREACHABLE_MESSAGE}
-        </p>
-      )
+      return <UnreachableScreen onRetry={restartBoot} />
   }
+}
+
+/**
+ * [다시 시도] — **부팅을 통째로 다시 돌린다.**
+ *
+ * 복원은 `App` 이 한 번 돌리고 그 결과가 이리로 내려온다. 여기서 `restoreSession` 을 다시
+ * 부르면 성공했을 때 그 사실을 위로 올릴 길이 없어 **두 번째 인증 상태**가 생긴다 — 화면은
+ * 로그인됐다고 보는데 앱은 아니라고 보는 자리다.
+ *
+ * 새로 고치면 그 한 번이 처음부터 다시 일어난다. 잃는 것도 없다 — 이 상태에서 앱이 들고 있는
+ * 것은 아직 아무것도 아니고, 액세스 토큰은 애초에 메모리에만 있다 (F-3). 리프레시 쿠키는
+ * `HttpOnly` 로 남아 있으므로 서버가 살아나면 그대로 이어진다.
+ *
+ * **자동으로 부르지 않는다.** 서버가 뜨는 순간 모든 탭이 동시에 몰린다 — 다시 부르는 시점은
+ * 사람이 정한다.
+ */
+function restartBoot() {
+  window.location.reload()
 }
