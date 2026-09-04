@@ -15,7 +15,6 @@ import {
   readOutline,
   setConditionParam,
   setConditionTemplate,
-  setDefaultEnding,
   templateBlockedReason,
   writeOutline,
   type ChapterDraft,
@@ -117,7 +116,7 @@ describe('payload 를 화면의 값으로 (Step 4)', () => {
       undefined,
       {
         chapters: [chapter('돌아온 캠퍼스'), chapter('같은 강의실')],
-        endings: [ending('봄이 오기 전에', { isDefault: true }), ending('다른 봄')],
+        endings: [ending('봄이 오기 전에'), ending('다른 봄')],
       },
       TEMPLATES,
       SOURCES,
@@ -143,7 +142,6 @@ describe('payload 를 화면의 값으로 (Step 4)', () => {
         endingNo: 1,
         label: '봄이 오기 전에',
         epilogueText: null,
-        isDefault: true,
         conditionTemplateKey: null,
         conditionParams: {},
       },
@@ -151,7 +149,6 @@ describe('payload 를 화면의 값으로 (Step 4)', () => {
         endingNo: 2,
         label: '다른 봄',
         epilogueText: null,
-        isDefault: false,
         conditionTemplateKey: null,
         conditionParams: {},
       },
@@ -244,19 +241,48 @@ describe('고른 조건을 저장할 때 — 계약 DraftChapter · DraftEnding'
     expect(row?.['conditionParams']).toEqual({})
   })
 
-  it('R7_16_§13-16_기본_엔딩은_조건을_싣지_않는다', () => {
+  /**
+   * 계약 `DraftEnding` — *"`isDefault` 를 서버가 받아들이지 않는다 (§13-16, I-10). 기본
+   * 엔딩은 서버가 따로 하나를 더해 만든다."*
+   *
+   * **보내도 오류가 나지 않는다** — 그래서 조용히 틀린다. 서버는 그 값을 참고만 하고 자기
+   * 폴백을 따로 더하므로, 화면이 기본으로 삼아 조건을 지운 엔딩은 *조건이 필요한데 조건이
+   * 없는 엔딩*이 되어 영영 나오지 않는다.
+   */
+  it('§13-16_isDefault_를_저장에_싣지_않는다', () => {
     const picked = setConditionParam(
       setConditionTemplate(ending('봄'), 'turn_at_least'),
       'threshold',
       5,
     )
-    const [asDefault] = setDefaultEnding([picked], 0)
     const row = written(
-      writeOutline(undefined, { chapters: [], endings: [asDefault!] }, TEMPLATES, SOURCES),
+      writeOutline(undefined, { chapters: [], endings: [picked] }, TEMPLATES, SOURCES),
       'endings',
     )[0]
-    expect(row?.['isDefault']).toBe(true)
-    expect(row?.['conditionTemplateKey']).toBeNull()
+    expect(row).not.toHaveProperty('isDefault')
+    // 조건은 그대로 나간다 — 기본이 되면서 지워지던 자리가 없어졌다.
+    expect(row?.['conditionTemplateKey']).toBe('turn_at_least')
+    expect(row?.['conditionParams']).toEqual({ threshold: 5 })
+  })
+
+  /**
+   * 이미 저장된 원고에 남아 있는 `isDefault` — **읽지도, 다시 쓰지도 않는다.**
+   *
+   * 최상위의 모르는 키는 그대로 보존되지만(`모르는_키를_지우지_않는다`), 엔딩 한 줄은
+   * `writeOutline` 이 새로 만들므로 그 안의 `isDefault` 는 다음 저장에서 사라진다. 계약이
+   * *"참고만 한다"* 라고 적은 값이므로 남아도 사라져도 해롭지 않고, 달라지는 것은 **화면이
+   * 더는 그것으로 아무것도 결정하지 않는다**는 쪽이다.
+   */
+  it('옛_원고에_남은_isDefault_로_화면이_아무것도_결정하지_않는다', () => {
+    const stored: Record<string, unknown> = {
+      endings: [{ label: '봄', isDefault: true, conditionTemplateKey: null }],
+    }
+    const values = readOutline(stored as DraftPayload)
+    expect(values.endings[0]).not.toHaveProperty('isDefault')
+    // 조건이 없으므로 예외 없이 "도달 조건이 필요합니다" 의 대상이다.
+    expect(endingsMissingCondition(values.endings, TEMPLATES, SOURCES)).toEqual([0])
+    expect(written(writeOutline(stored as DraftPayload, values, TEMPLATES, SOURCES), 'endings')[0])
+      .not.toHaveProperty('isDefault')
   })
 })
 
@@ -325,27 +351,41 @@ describe('AI 초안 응답 (outlineDraft)', () => {
   })
 })
 
-describe('기본 엔딩 — 3e "isDefault 는 엔딩 하나에만 켜진다(라디오)"', () => {
-  it('R2_11_기본_엔딩은_언제나_하나뿐이다', () => {
-    const endings = [ending('하나', { isDefault: true }), ending('둘'), ending('셋')]
-    const next = setDefaultEnding(endings, 2)
-    expect(next.filter((e) => e.isDefault)).toHaveLength(1)
-    expect(next[2]?.isDefault).toBe(true)
-  })
-
-  it('둘이_켜져_있던_상태에서도_하나로_줄어든다', () => {
-    const endings = [ending('하나', { isDefault: true }), ending('둘', { isDefault: true })]
-    expect(setDefaultEnding(endings, 0).filter((e) => e.isDefault)).toHaveLength(1)
-  })
-
-  /** 계약 — *"기본 엔딩은 조건을 갖지 않고, 일반 엔딩은 조건을 반드시 갖는다"* (R2.11, §13-16). */
-  it('R2_11_기본이_되면_조건이_비워진다', () => {
+/**
+ * 라디오가 있던 자리 (#103). 3e 는 *"`isDefault` 는 엔딩 하나에만 켜진다"* 를 그렸지만, 계약이
+ * `DraftEnding` 에 그 값을 받지 않는다고 적으면서 그 불변이 지킬 것을 잃었다 (§13-16, I-10).
+ */
+describe('기본 엔딩은 서버가 만든다 — 계약 DraftEnding', () => {
+  it('모든_엔딩이_조건을_요구한다', () => {
     const endings = [
-      ending('하나', { conditionTemplateKey: 'has_flag', conditionParams: { flag: '봄' } }),
+      ending('조건 없음 하나'),
+      ending('조건 있음', {
+        conditionTemplateKey: 'turn_at_least',
+        conditionParams: { threshold: 5 },
+      }),
+      ending('조건 없음 둘'),
     ]
-    expect(setDefaultEnding(endings, 0)[0]?.conditionTemplateKey).toBeNull()
-    // 고른 값도 함께 사라진다 — 남으면 화면에 보이지 않는 채 payload 에만 남는다.
-    expect(setDefaultEnding(endings, 0)[0]?.conditionParams).toEqual({})
+    // 예외였던 기본 엔딩이 없다 — 첫 엔딩도 빠지지 않는다.
+    expect(endingsMissingCondition(endings, TEMPLATES, SOURCES)).toEqual([0, 2])
+  })
+
+  /** 값 모형에 그 자리가 없다 — 화면이 결정에 쓸 수 있는 값이 아니게 되었다. */
+  it('빈_엔딩은_isDefault_를_들고_있지_않는다', () => {
+    expect(emptyEnding()).not.toHaveProperty('isDefault')
+  })
+
+  /**
+   * 초안 응답은 `isDefault` 를 **필수로 준다** (계약 `OutlineEnding.required`). 받는 것과
+   * 옮겨 담는 것은 다른 문제다.
+   */
+  it('초안_응답의_isDefault_를_편집_값으로_옮기지_않는다', () => {
+    const values = fromOutlineResponse({
+      chapters: [],
+      endings: [{ endingNo: 1, label: '봄이 오기 전에', isDefault: true }],
+      conditionTemplates: [],
+    })
+    expect(values.endings[0]).not.toHaveProperty('isDefault')
+    expect(endingsMissingCondition(values.endings, TEMPLATES, SOURCES)).toEqual([0])
   })
 })
 
@@ -360,16 +400,15 @@ describe('다음으로 갈 수 있는가', () => {
     expect(chaptersMissingSeed(chapters)).toEqual([1, 2])
   })
 
-  it('R2_11_조건이_없는_일반_엔딩만_센다', () => {
+  it('조건이_다_찬_엔딩은_세지_않는다', () => {
     const endings = [
-      ending('기본', { isDefault: true }),
       ending('조건 있음', {
         conditionTemplateKey: 'turn_at_least',
         conditionParams: { threshold: 5 },
       }),
       ending('조건 없음'),
     ]
-    expect(endingsMissingCondition(endings, TEMPLATES, SOURCES)).toEqual([2])
+    expect(endingsMissingCondition(endings, TEMPLATES, SOURCES)).toEqual([1])
   })
 
   /** 정정본 §13-56 — *"키만으로는 조건이 완성되지 않는다."* */

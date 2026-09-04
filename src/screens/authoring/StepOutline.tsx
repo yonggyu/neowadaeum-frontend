@@ -18,7 +18,6 @@ import {
   parameterOptions,
   setConditionParam,
   setConditionTemplate,
-  setDefaultEnding,
   templateBlockedReason,
   type ChapterDraft,
   type Conditioned,
@@ -178,14 +177,23 @@ export function StepOutline({
               endings: values.endings.map((e, i) => (i === index ? next : e)),
             })
           }
-          /* 라디오다 — 하나를 켜면 나머지가 꺼진다. 그 불변은 `setDefaultEnding` 한 곳에 있다 */
-          onDefault={() => onChange({ ...values, endings: setDefaultEnding(values.endings, index) })}
           onMove={(to) => restack({ ...values, endings: moveItem(values.endings, index, to) })}
           onRemove={() =>
             restack({ ...values, endings: values.endings.filter((_, i) => i !== index) })
           }
         />
       ))}
+
+      {/*
+       * **기본 엔딩 라디오가 있던 자리다** (#103). 계약이 `DraftEnding` 에 직접 적었다 —
+       * *"`isDefault` 를 서버가 받아들이지 않는다 (§13-16, I-10). 기본 엔딩은 서버가 따로
+       * 하나를 더해 만든다."* 그래서 작성자가 쓴 엔딩은 전부 조건을 갖고, 조건 없는 폴백이
+       * 있다는 사실만 여기서 말한다.
+       *
+       * **그 엔딩을 여기 보여 주지 않는다.** 계약에 작성자가 그것을 읽거나 고칠 길이 없다 —
+       * 자리를 그리면 고칠 수 있는 것처럼 보이고, 그것은 화면이 지어낸 사실이다.
+       */}
+      <p className={css.meta}>ⓘ 어느 조건에도 닿지 않았을 때 나올 엔딩은 서버가 따로 만듭니다.</p>
 
       {confirming ? (
         <ConfirmDialog
@@ -333,7 +341,6 @@ interface EndingCardProps {
   missingCondition: boolean
   precheck: PrecheckHandle
   onChange: (ending: EndingDraft) => void
-  onDefault: () => void
   onMove: (to: number) => void
   onRemove: () => void
 }
@@ -347,7 +354,6 @@ function EndingCard({
   missingCondition,
   precheck,
   onChange,
-  onDefault,
   onMove,
   onRemove,
 }: EndingCardProps) {
@@ -369,41 +375,23 @@ function EndingCard({
         precheck={precheck}
       />
       {/*
-       * `type="radio"` 에 같은 `name` 을 준다 — 하나만 켜지는 것이 브라우저의 기본 동작이고,
-       * 키보드 화살표 이동도 그것을 따라온다. 값을 바꾸는 쪽은 `setDefaultEnding` 이다.
+       * **엔딩에 예외가 없다** (#103). 조건 칸을 접던 자리는 `isDefault` 였고, 계약이 그 값을
+       * 받지 않는다고 적으면서 근거가 사라졌다 (§13-16, I-10).
        */}
-      <label className={css.radioRow} htmlFor={`${endingField(index, 'label')}--default`}>
-        <input
-          type="radio"
-          id={`${endingField(index, 'label')}--default`}
-          name="ending-default"
-          checked={ending.isDefault}
-          onChange={onDefault}
-        />
-        <span>기본 엔딩</span>
-      </label>
+      <ConditionSelect
+        id={`${endingField(index, 'label')}--condition`}
+        label="도달 조건"
+        templates={templates}
+        sources={sources}
+        value={ending}
+        onTemplate={(key) => onChange(setConditionTemplate(ending, key))}
+        onParam={(name, param) => onChange(setConditionParam(ending, name, param))}
+      />
       {/*
-       * 기본 엔딩에는 조건 칸이 없다 — 계약이 그렇게 적었다: *"기본 엔딩은 조건을 갖지 않고,
-       * 일반 엔딩은 조건을 반드시 갖는다"* (R2.11, 정정본 §13-16).
+       * 저장이 무엇을 뺐는지 여기서 말한다 — `endingsMissingCondition` 과 `writeOutline` 이
+       * **같은 판정**(`conditionIncomplete`)을 본다 (#98).
        */}
-      {ending.isDefault ? (
-        <p className={css.meta}>기본 엔딩은 조건 없이 도달합니다.</p>
-      ) : (
-        <>
-          <ConditionSelect
-            id={`${endingField(index, 'label')}--condition`}
-            label="도달 조건"
-            templates={templates}
-            sources={sources}
-            value={ending}
-            onTemplate={(key) => onChange(setConditionTemplate(ending, key))}
-            onParam={(name, param) => onChange(setConditionParam(ending, name, param))}
-          />
-          {missingCondition ? (
-            <p className={css.meta}>기본이 아닌 엔딩에는 도달 조건이 필요합니다.</p>
-          ) : null}
-        </>
-      )}
+      {missingCondition ? <p className={css.meta}>엔딩에는 도달 조건이 필요합니다.</p> : null}
       <DraftField
         field={endingField(index, 'epilogueText')}
         label="에필로그"

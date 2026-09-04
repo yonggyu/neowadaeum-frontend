@@ -340,8 +340,8 @@ function SidePanel({
           {outline.endings.map((ending, index) => (
             <li key={`e${index}`} className={css.flowRow}>
               <span className={css.flowNo}>{`EN ${String(index + 1).padStart(2, '0')}`}</span>
+              {/* "기본" 배지가 없다 (#103) — 기본 엔딩은 서버가 따로 만들고 이 목록에 없다 */}
               <span className={css.flowTitle}>{ending.label === '' ? '이름 없음' : ending.label}</span>
-              {ending.isDefault ? <span className={css.flowBadge}>기본</span> : null}
             </li>
           ))}
         </ol>

@@ -91,9 +91,9 @@ export function useOutlineDraft(
   function writeManually(): void {
     inFlight.current?.abort()
     if (values.chapters.length === 0 && values.endings.length === 0) {
-      // 빈 편집 화면을 주지 않는다 — 무엇을 채워야 하는지가 칸으로 보여야 한다. 첫 엔딩이
-      // 기본인 것은 R2.11 을 만족하는 유일한 시작 상태이기 때문이다(조건 없는 엔딩 하나).
-      onChange({ chapters: [emptyChapter()], endings: [{ ...emptyEnding(), isDefault: true }] })
+      // 빈 편집 화면을 주지 않는다 — 무엇을 채워야 하는지가 칸으로 보여야 한다. 첫 엔딩도
+      // **조건을 갖는 엔딩**이다 (#103): 조건 없는 폴백은 서버가 따로 만든다 (§13-16, I-10).
+      onChange({ chapters: [emptyChapter()], endings: [emptyEnding()] })
     }
     setJob({ kind: 'editing' })
   }
