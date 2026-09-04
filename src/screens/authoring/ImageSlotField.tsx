@@ -237,8 +237,16 @@ export function ImageSlotField({
           {body.image && picked !== null ? (
             <img className={css.imagePreview} src={picked.url} alt="" />
           ) : null}
+          {/*
+           * 실패는 **읽어 주게** 한다 (`role="alert"`) — 자리 안의 글이 곧 서버가 준 문구이고
+           * (F-4), 조용히 지나가면 사용자는 왜 아무 일도 없는지 모른다. 같은 문장을 밖에
+           * 한 번 더 두지 않는다: 스크린리더가 두 번 읽는다.
+           */}
           {body.note ? (
-            <span className={body.image ? `${css.imageSlotNote} ${css.overNote}` : css.imageSlotNote}>
+            <span
+              className={body.image ? `${css.imageSlotNote} ${css.overNote}` : css.imageSlotNote}
+              role={state.status === 'failed' ? 'alert' : undefined}
+            >
               {statusNote(state)}
             </span>
           ) : null}
@@ -268,15 +276,6 @@ export function ImageSlotField({
               </button>
             ))}
           </div>
-          {/*
-           * 서버가 준 문구 그대로다 (F-4). 자리 안의 글과 같은 문장이므로 여기서는
-           * `role="alert"` 만 두어 **읽어 주게** 한다 — 실패는 조용히 지나가면 안 된다.
-           */}
-          {state.status === 'failed' ? (
-            <p className={css.srOnly} role="alert">
-              {statusNote(state)}
-            </p>
-          ) : null}
           {/* 형식도 크기도 상한도 **서버가 준 값**이다 — 모르는 값은 말하지 않는다 */}
           {size === null ? null : <p className={css.fieldNote}>{size}</p>}
           {state.status === 'empty' ? (
