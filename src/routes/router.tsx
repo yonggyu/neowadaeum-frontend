@@ -19,6 +19,7 @@ import { LibraryScreen } from '../screens/library/LibraryScreen'
 import { LibrarySectionScreen } from '../screens/library/LibrarySectionScreen'
 import { StoryDetailScreen } from '../screens/library/StoryDetailScreen'
 import { PlayScreen } from '../screens/play/PlayScreen'
+import { NotFoundScreen } from '../screens/system/NotFoundScreen'
 import { AppShell } from '../shell/AppShell'
 import { RequireAuth } from './RequireAuth'
 import { ROUTES } from './routes'
@@ -137,17 +138,14 @@ export function AppRoutes({ session }: { session: AuthState }) {
       </Route>
       <Route path={ROUTES.adminAuth} element={<AdminAuthScreen />} />
 
-      <Route path="*" element={<NotFound />} />
+      {/*
+       * 없는 경로 (8차 B-1 · #117). 셸을 붙이지 않는다 — 셸의 링크가 가리키는 곳이 전부
+       * 인증 뒤에 있고, 이 화면은 로그아웃 상태에서도 열린다.
+       *
+       * **API 의 `NOT_FOUND` 는 여기 오지 않는다.** 없는 작품 · 없는 세션은 그 화면이 서버의
+       * `message` 로 답한다 (F-4) — 이 자리는 요청이 아예 일어나지 않은 자리다.
+       */}
+      <Route path="*" element={<NotFoundScreen />} />
     </Routes>
   )
-}
-
-/**
- * 없는 경로.
- *
- * 문구를 정성껏 짓지 않는다 — 디자인에 404 화면이 없다. 화면을 지어내지 않는다는 규칙 그대로,
- * 골격만 두고 디자인이 나오면 채운다. 셸도 붙이지 않는다 — 붙일 화면이 없다.
- */
-function NotFound() {
-  return <main data-screen="NotFound" />
 }
