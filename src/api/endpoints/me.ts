@@ -1,5 +1,6 @@
 import { request } from '../client'
 import type { components } from '../schema'
+import type { VisibleReviewStatus } from './authoring'
 
 /**
  * 내 계정 — `GET /me` 와, 내 세션 · 내가 만든 작품.
@@ -12,8 +13,20 @@ import type { components } from '../schema'
 export type MeResponse = components['schemas']['MeResponse']
 export type MySessionItem = components['schemas']['MySessionItem']
 export type MySessionsResponse = components['schemas']['MySessionsResponse']
-export type MyStoryItem = components['schemas']['MyStoryItem']
-export type MyStoriesResponse = components['schemas']['MyStoriesResponse']
+
+/**
+ * 내가 만든 작품 한 줄. `reviewStatus` 가 계약보다 **좁다** — `deleted` 가 빠진다.
+ *
+ * 지운 작품은 이 목록에서 조회되지 않는다 (정정본 §13-58). 근거와 좁히는 이유는
+ * `VisibleReviewStatus` 에 적혀 있다.
+ */
+export type MyStoryItem = Omit<components['schemas']['MyStoryItem'], 'reviewStatus'> & {
+  reviewStatus: VisibleReviewStatus
+}
+
+export type MyStoriesResponse = Omit<components['schemas']['MyStoriesResponse'], 'items'> & {
+  items: MyStoryItem[]
+}
 
 /** 계약의 `status` 는 이 둘뿐이다 — `in_progress` 는 존재하지 않는 값이었다 (§13-6). */
 export type MySessionStatus = MySessionItem['status']

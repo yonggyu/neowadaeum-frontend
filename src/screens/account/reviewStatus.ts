@@ -1,16 +1,19 @@
+import type { VisibleReviewStatus } from '../../api/endpoints/authoring'
 import type { components } from '../../api/schema'
 
-type ReviewStatus = components['schemas']['ReviewStatus']
 type Visibility = components['schemas']['Visibility']
 
 /**
- * 내가 만든 작품의 배지 (와이어프레임 3g — `reviewStatus` 7종).
+ * 내가 만든 작품의 배지 (와이어프레임 3g — 화면에 오는 `reviewStatus` 7종).
+ *
+ * **`deleted` 는 여기 없다.** 계약이 그 값을 어떤 응답에도 싣지 않으므로 화면에 올 수 없고,
+ * 라벨을 두면 절대 그려지지 않는 문구가 하나 생긴다 (§13-58 — `VisibleReviewStatus`).
  *
  * `auto_rejected` 를 **`rejected` 와 같은 문구로** 낸다. 계약이 *"내부 기록이며 사용자에게는
  * `rejected` 로 표시한다"* 고 적었다 — 자동인지 사람인지를 알리면 어디까지가 기계 판정인지
  * 드러나고, 그것은 세이프티를 우회하는 실마리가 된다 (F-5 와 같은 이유).
  */
-export const REVIEW_STATUS_LABEL: Record<ReviewStatus, string> = {
+export const REVIEW_STATUS_LABEL: Record<VisibleReviewStatus, string> = {
   draft: '작성 중',
   pending: '접수됨',
   auto_rejected: '반려',
@@ -45,7 +48,7 @@ export const VISIBILITY_OPTIONS: readonly Visibility[] = ['private', 'unlisted',
  */
 export type ReviewPhase = 'draft' | 'waiting' | 'approved' | 'rejected' | 'suspended'
 
-export function reviewPhase(status: ReviewStatus): ReviewPhase {
+export function reviewPhase(status: VisibleReviewStatus): ReviewPhase {
   switch (status) {
     case 'draft':
       return 'draft'
@@ -68,7 +71,7 @@ export function reviewPhase(status: ReviewStatus): ReviewPhase {
  * 정지는 신고로 내려간 것이고, 그 상태에서 작성자가 범위를 바꿀 수 있으면 정지가 정지가
  * 아니게 된다. 계약도 정지를 `review_status` 로만 다루며 `visibility` 는 건드리지 않는다.
  */
-export function isVisibilityReadOnly(status: ReviewStatus): boolean {
+export function isVisibilityReadOnly(status: VisibleReviewStatus): boolean {
   return reviewPhase(status) === 'suspended'
 }
 

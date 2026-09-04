@@ -29,6 +29,8 @@ function queueItem(overrides: Partial<ReviewQueueItem> = {}): ReviewQueueItem {
     title: '더미 작품',
     reviewStatus: 'in_review',
     queuedAt: '2026-09-01T00:00:00Z',
+    // 재검토 요청 신호. 계약이 필수로 정했다 (backend #290, 정정본 §13-59).
+    appealed: false,
     ...overrides,
   }
 }
