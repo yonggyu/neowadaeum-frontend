@@ -109,6 +109,19 @@ function Wizard({ draft: loaded, metadata }: { draft: Draft; metadata: Authoring
   const [outline, setOutline] = useState<OutlineValues>(() => readOutline(loaded.payload))
   const [dirty, setDirty] = useState(false)
   const [save, setSave] = useState<SaveState>({ kind: 'saved' })
+  /*
+   * 진행 중인 이미지 자리들 (#88). 자리가 여럿이라(커버 하나 · 인물마다 하나) **어느 것이든
+   * 하나라도** 진행 중이면 단계를 넘기지 않는다 — 넘어가면 확정이 끝나기 전의 원고가
+   * 저장되고, 그 자리는 언마운트되면서 업로드가 중단된다. 사용자는 올렸다고 믿은 이미지가
+   * 없는 채로 다음 화면을 본다 (`isBusy` 의 주석).
+   *
+   * 세는 대신 이름을 키로 두는 이유는 StrictMode 다 — 효과가 두 번 도는 동안 숫자는 어긋나고
+   * 같은 이름에 같은 값을 두 번 적는 것은 어긋나지 않는다.
+   */
+  const [imageBusy, setImageBusy] = useState<Readonly<Record<string, boolean>>>({})
+  const onImageBusy = useCallback((key: string, busy: boolean): void => {
+    setImageBusy((prev) => (prev[key] === busy ? prev : { ...prev, [key]: busy }))
+  }, [])
 
   /*
    * 이미 걸려 있던 것을 들고 시작한다. 원고에 남은 findings 는 `blocked` 일 때만 뜻이 있다 —
@@ -131,6 +144,7 @@ function Wizard({ draft: loaded, metadata }: { draft: Draft; metadata: Authoring
    * 알려 주는 안내다.
    */
   const seedMissing = step === 4 && chaptersMissingSeed(outline.chapters).length > 0
+  const uploading = Object.values(imageBusy).some((busy) => busy)
   const blocked = isBlocked(draft.safetyState) || precheck.blocked || seedMissing
 
   function edit(next: StepValues): void {
@@ -188,15 +202,31 @@ function Wizard({ draft: loaded, metadata }: { draft: Draft; metadata: Authoring
         <section className={css.main} aria-label={STEP_LABELS[step - 1]}>
           {step === 1 ? (
             <StepBasics
+              draftId={draft.draftId}
               values={values}
               onChange={edit}
               precheck={precheck}
+              onImageBusy={onImageBusy}
               genres={metadata.genres}
             />
           ) : null}
-          {step === 2 ? <StepWorld values={values} onChange={edit} precheck={precheck} /> : null}
+          {step === 2 ? (
+            <StepWorld
+              draftId={draft.draftId}
+              values={values}
+              onChange={edit}
+              precheck={precheck}
+              onImageBusy={onImageBusy}
+            />
+          ) : null}
           {step === 3 ? (
-            <StepCharacters values={values} onChange={edit} precheck={precheck} />
+            <StepCharacters
+              draftId={draft.draftId}
+              values={values}
+              onChange={edit}
+              precheck={precheck}
+              onImageBusy={onImageBusy}
+            />
           ) : null}
           {step === 4 ? (
             <StepOutline
@@ -228,7 +258,7 @@ function Wizard({ draft: loaded, metadata }: { draft: Draft; metadata: Authoring
               type="button"
               className={css.button}
               onClick={() => void moveTo(step - 1)}
-              disabled={step === 1 || save.kind === 'saving'}
+              disabled={step === 1 || save.kind === 'saving' || uploading}
             >
               이전
             </button>
@@ -244,7 +274,7 @@ function Wizard({ draft: loaded, metadata }: { draft: Draft; metadata: Authoring
                 type="button"
                 className={`${css.button} ${css.primary}`}
                 onClick={() => void moveTo(step + 1)}
-                disabled={blocked || save.kind === 'saving'}
+                disabled={blocked || save.kind === 'saving' || uploading}
               >
                 {`다음 · ${STEP_LABELS[step]}`}
               </button>
@@ -370,8 +400,15 @@ function SidePanel({
     <aside className={css.side} aria-label="미리보기">
       <h2 className={css.sideTitle}>미리보기 · 독자에게 보이는 모습</h2>
       <div className={css.previewCard}>
+        {/*
+         * **여기에 그림이 없다** (I-8). 원고가 든 것은 객체 키뿐이고 버킷이 비공개라 볼 수
+         * 있는 URL 이 존재하지 않는다 — 방금 올린 파일의 미리보기는 Step 1 의 자리에만 있다.
+         * 그래서 이 칸은 커버가 **있는지 없는지**만 말한다.
+         */}
         <div className={css.imageSlot}>
-          <span className={css.imageSlotNote}>커버 없음</span>
+          <span className={css.imageSlotNote}>
+            {values.coverImage === null ? '커버 없음' : '커버 있음'}
+          </span>
         </div>
         <p className={css.previewTitle}>{values.title === '' ? '제목 없는 작품' : values.title}</p>
         <p className={css.meta}>{genres.map((genre) => genre.label).join(' · ')}</p>

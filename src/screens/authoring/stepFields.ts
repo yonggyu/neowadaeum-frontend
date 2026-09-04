@@ -86,7 +86,8 @@ export function isNearLimit(length: number, max: number): boolean {
  */
 
 /**
- * Step 3 의 등장인물 하나. 초상은 계약에 올릴 길이 없어 언제나 `null` 이다 (아래 주석).
+ * Step 3 의 등장인물 하나. `portraitImage` 는 **확정을 통과한 객체 키**이며 (#88 · §13-65),
+ * 아직 올리지 않았으면 `null` 이다 — URL 이 아니다 (I-8).
  *
  * **`persona` 와 `oneLine` 은 서로 다른 독자를 갖는다** (계약 `DraftCharacter`, 백엔드 #350).
  * `oneLine` 은 발행되면 `CharacterCard.oneLine` 으로 **독자에게 보이고**, `persona` 는 매 턴

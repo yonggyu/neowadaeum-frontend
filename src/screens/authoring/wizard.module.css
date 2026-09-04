@@ -301,17 +301,24 @@
 }
 
 /*
- * 그림 자리 — **비율로만** 고정한다 (CLAUDE.md · 1k). 커버는 2:3, 초상은 그보다 작은 같은 비율.
- * 업로드 경로가 계약에 없어 지금은 자리와 안내만 있다 (`ImageSlot`).
+ * 그림 자리 — **비율로만** 고정한다 (CLAUDE.md · 1k). 커버는 160, 초상은 96, 비율은 둘 다 2:3
+ * (7차 `UploadStates` — *"같은 컴포넌트를 씁니다. 폭만 다릅니다"*). **높이를 px 로 박지 않는다.**
+ *
+ * 390 에서도 슬롯이 폭을 다 쓰지 않는다 (`ImageUploadMobile`) — 2:3 이라 전폭으로 늘리면
+ * 240px 짜리가 520px 이 되어 한 화면에 제목도 소개도 들어오지 않는다. 그래서 폭이 상수다.
  */
 
 .imageSlot {
   display: flex;
+  position: relative; /* 미리보기 그림과 그 위의 한 줄이 같은 칸을 쓴다 */
+  flex-direction: column;
   align-items: center;
   align-self: flex-start; /* 세로 flex 안에서 폭까지 늘어나지 않게 — 비율이 무너진다 */
   justify-content: center;
+  gap: var(--sp-2);
   width: 96px;
   aspect-ratio: var(--ratio-cover);
+  overflow: hidden;
   padding: var(--sp-2);
   border: 1px dashed var(--border);
   border-radius: var(--r-md);
@@ -322,11 +329,120 @@
   width: 160px;
 }
 
+/* 무엇이 들어 있는 자리는 실선이다 — 비어 있는 자리의 점선과 한눈에 갈린다 (아트보드 ②③⑤) */
+
+.slotFilled {
+  border-style: solid;
+}
+
+/*
+ * 실패 (아트보드 ④). **그림을 그리지 않는다** — 확정이 400 이면 서버가 그 객체를 지웠고,
+ * 우리 브라우저에 남은 파일을 그 자리에 그리면 화면이 "올라갔다" 고 말하는 셈이 된다.
+ */
+
+.slotFailed {
+  /*
+   * **넘쳐도 자른다는 뜻이 아니다.** 실패한 자리에는 그림이 없으므로(`slotBody`) 잘라 둘
+   * 이유가 없고, 서버가 준 문구는 길이를 우리가 정하지 않는다 — 96px 짜리 초상 자리에서
+   * 잘리면 화면은 **서버가 한 말의 절반**만 보여 준다 (F-4).
+   */
+  overflow: visible;
+  border: 2px solid var(--danger);
+  background: rgba(214, 69, 69, 0.04);
+}
+
+.slotFailed > .imageSlotNote {
+  color: var(--danger);
+}
+
 .imageSlotNote {
   color: var(--fg-subtle);
   font-size: 0.75rem;
   line-height: 1.4;
   text-align: center;
+}
+
+.imagePreview {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* 그림 위에 오는 한 줄 — 진행 중에만 온다. 바탕이 없으면 밝은 사진 위에서 읽히지 않는다 */
+
+.overNote {
+  position: relative;
+  padding: var(--sp-1) var(--sp-2);
+  border-radius: var(--r-sm);
+  background: var(--bg);
+}
+
+/*
+ * 진행 막대 — **퍼센트가 없다.** `fetch` 는 업로드 진행률을 알려 주지 않으므로(`putToStorage`)
+ * 62% 같은 숫자는 화면이 지어낸 값이 된다. 정해지지 않은 진행으로 그리고, 크기는 아래 줄이
+ * 서버가 준 상한에 대고 말한다.
+ */
+
+.uploadBar {
+  position: relative;
+  width: 100%;
+  height: 4px;
+  overflow: hidden;
+  border-radius: var(--r-sm);
+  background: var(--border);
+}
+
+.uploadBar > i {
+  display: block;
+  width: 40%;
+  height: 100%;
+  animation: slide 1.2s ease-in-out infinite;
+  background: var(--fg);
+}
+
+@keyframes slide {
+  0% {
+    transform: translateX(-100%);
+  }
+
+  100% {
+    transform: translateX(250%);
+  }
+}
+
+/*
+ * 자리와 버튼 — 390 은 세로(슬롯 아래 전폭 버튼 둘), 768 부터 가로 (아트보드).
+ *
+ * **버튼을 그림 위에 겹치지 않는다** (`ImageUploadMobile` — *"슬롯 위에 겹치면 48px 터치
+ * 대상이 이미지 안에 갇힙니다"*).
+ */
+
+.imageRow {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  margin-top: var(--sp-1);
+}
+
+.imageControls {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: var(--sp-2);
+  min-width: 0;
+}
+
+.imageActions {
+  display: flex;
+  gap: var(--sp-2);
+}
+
+/* Mobile 은 개수와 무관하게 세로 full-width (1k) — 버튼이 하나든 둘이든 폭을 나눠 갖는다 */
+
+.imageActions > .button {
+  flex: 1 1 0;
 }
 
 /* 등장인물 카드 (3d · 6a) */
@@ -632,6 +748,13 @@
   .dots i {
     animation: none;
   }
+
+  /* 움직임 없이도 "진행 중" 이 보여야 한다 — 막대를 채워 둔다 */
+
+  .uploadBar > i {
+    width: 100%;
+    animation: none;
+  }
 }
 
 /* 기본 엔딩 — 라디오. 터치 대상은 행 전체이고 높이는 3d 의 설정 행과 같은 48px 이다 */
@@ -784,6 +907,20 @@
 
   .wizardNav > .primary {
     flex: 1.6 1 0;
+  }
+
+  /* 이미지 자리는 옆으로 — 슬롯 왼쪽, 버튼과 안내가 오른쪽 (`ImageUpload` 1440) */
+
+  .imageRow {
+    flex-direction: row;
+    align-items: flex-start;
+    gap: var(--sp-4);
+  }
+
+  /* 옆으로 서면 버튼이 폭을 나눠 가질 이유가 없다 — 글자만큼만 차지한다 */
+
+  .imageActions > .button {
+    flex: 0 0 auto;
   }
 }
 
