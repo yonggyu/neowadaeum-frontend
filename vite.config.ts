@@ -1,6 +1,8 @@
 import react from '@vitejs/plugin-react'
 import { configDefaults, defineConfig } from 'vitest/config'
 
+import { EveryTestFileRuns } from './vitest.guard'
+
 /**
  * 개발 서버 설정.
  *
@@ -18,6 +20,38 @@ export default defineConfig({
     strictPort: true,
   },
   test: {
+    /*
+     * 테스트에서만 쓰는 가짜 API 오리진 (#113).
+     *
+     * `src/api/config.ts` 는 값이 없으면 던진다. 그래서 `.env` 가 없는 자리 — 특히 `.env` 가
+     * gitignore 라 복사되지 않는 에이전트 워크트리 — 에서 `src/api/client.ts` 를 타고 들어가는
+     * 파일이 통째로 수집에 실패했다. **테스트가 실패한 것이 아니라 아예 돌지 않았고**, 요약의
+     * `Tests` 줄은 실패 0 으로 초록이었다. 그 상태를 각자 `.env` 를 복사해 넘긴 흔적이
+     * 두 번 있었고, 어디에도 남지 않았다.
+     *
+     * **`${VAR:기본값}` 금지를 어기지 않는다.** 그 규칙은 *런타임 설정*을 향한다 — 설정을
+     * 빠뜨린 빌드가 정상인 척 뜨다가 엉뚱한 곳을 부르는 것을 막는 것이 목적이고, `config.ts`
+     * 의 `required()` 는 그대로 남아 그 일을 계속한다 (`src/api/config.test.ts` 가 못박는다).
+     * 여기 있는 것은 **러너의 픽스처**다. `test` 블록은 vitest 만 읽으므로 `vite build` 가
+     * 만드는 번들에는 이 값이 들어가지 않는다 — 들어갔다면 규칙을 진짜로 어긴 것이다.
+     *
+     * 값은 **명백히 가짜여야 한다.** `.invalid` 는 RFC 2606 이 예약해 둔 TLD 라 이름이 절대
+     * 풀리지 않는다. 테스트가 실수로 진짜 요청을 보내면 성공하는 대신 실패하고, 이 값을 실제
+     * 호스트로 오해할 수도 없다. 운영 오리진은 이 레포 어디에도 적지 않는다 (S-11).
+     */
+    env: {
+      VITE_API_BASE_URL: 'http://api.invalid',
+    },
+
+    /*
+     * 이 설정이 잡는 테스트 셋이 디스크의 테스트 파일과 같은지 센다 (#113).
+     * 근거는 `vitest.guard.ts` 에 적었다.
+     *
+     * `env` 는 *이번* 원인 하나를 없앨 뿐이다. 다음에 다른 이유로 파일이 빠지면 같은 거짓
+     * 초록이 다시 온다 — 그것을 막는 것은 이쪽이다.
+     */
+    reporters: ['default', new EveryTestFileRuns()],
+
     /*
      * 에이전트 워크트리를 테스트에서 제외한다 (#81).
      *
