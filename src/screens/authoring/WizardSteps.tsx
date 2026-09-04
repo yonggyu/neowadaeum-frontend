@@ -130,8 +130,12 @@ export function StepWorld({ values, onChange, precheck }: StepProps) {
 /**
  * Step 3 — 등장인물 (3d · 6a). 이름 필드가 검수의 최우선 지점이다 (3d).
  *
+ * **한 줄 소개와 페르소나의 대상이 다르다는 것을 라벨이 말한다.** 3d 가 세계관 쪽(배경 소개 ·
+ * 설정 상세)에 세운 구분을 인물 카드에 그대로 옮긴 것이고, 그 한 줄이 없으면 작성자는 독자용
+ * 문장 하나로 두 가지 일을 시킨다 — 그것이 지금까지 매 턴 프롬프트로 나가던 값이다 (#350).
+ *
  * **개수 상한을 화면이 말하지 않는다** — 계약도 정정본도 값을 주지 않는다. 지어 두면 그
- * 숫자가 규칙이 된다.
+ * 숫자가 규칙이 된다. `persona` 의 글자 수 상한도 같은 이유로 없다.
  */
 export function StepCharacters({ values, onChange, precheck }: StepProps) {
   /**
@@ -145,6 +149,7 @@ export function StepCharacters({ values, onChange, precheck }: StepProps) {
     characters.forEach((character, index) => {
       precheck.check(characterField(index, 'name'), character.name)
       precheck.check(characterField(index, 'oneLine'), character.oneLine)
+      precheck.check(characterField(index, 'persona'), character.persona)
     })
   }
 
@@ -202,9 +207,9 @@ function CharacterCard({
 }: CharacterCardProps) {
   const nameField = characterField(index, 'name')
   const oneLineField = characterField(index, 'oneLine')
-  const blocked = precheck.findings.some(
-    (finding) => finding.field === nameField || finding.field === oneLineField,
-  )
+  const personaField = characterField(index, 'persona')
+  const cardFields = [nameField, oneLineField, personaField]
+  const blocked = precheck.findings.some((finding) => cardFields.includes(finding.field))
 
   return (
     <section className={blocked ? `${css.card} ${css.cardBlocked}` : css.card}>
@@ -252,11 +257,30 @@ function CharacterCard({
           <DraftField
             field={oneLineField}
             label="한 줄 소개"
+            hint="독자에게 보입니다"
             control="input"
             value={character.oneLine}
             onChange={(oneLine) => onChange({ ...character, oneLine })}
             precheck={precheck}
           />
+          {/*
+           * **비어 있는 것이 오류가 아니다** — 비면 서버가 `oneLine` 을 대신 발행한다
+           * (계약 `DraftCharacter`, 백엔드 #350). 그래서 필수 표시를 붙이지 않고, 대신
+           * 무엇이 대신 가는지를 적는다: 그 사실을 모르면 작성자는 빈 칸을 미완성으로 읽고
+           * 한 줄 소개를 한 번 더 옮겨 적는다.
+           */}
+          <div className={css.fieldGroup}>
+            <DraftField
+              field={personaField}
+              label="페르소나"
+              hint="AI에게만 전달됩니다"
+              control="textarea"
+              value={character.persona}
+              onChange={(persona) => onChange({ ...character, persona })}
+              precheck={precheck}
+            />
+            <p className={css.fieldNote}>비우면 한 줄 소개가 대신 쓰입니다.</p>
+          </div>
         </div>
       </div>
     </section>

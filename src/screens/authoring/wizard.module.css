@@ -173,6 +173,25 @@
   color: var(--fg-subtle);
 }
 
+/*
+ * 라벨 한 줄로는 부족한 사실을 필드 바로 아래에 붙인다 — 인물의 페르소나가 **비어 있어도
+ * 되고, 비면 한 줄 소개가 대신 간다**는 것 (계약 `DraftCharacter`, 백엔드 #350). 라벨 옆에
+ * 이어 붙이면 390 에서 라벨 줄이 두 줄로 접히고 글자 수 자리와 다툰다.
+ */
+
+.fieldGroup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+}
+
+.fieldNote {
+  margin: 0;
+  color: var(--fg-subtle);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+}
+
 /* 글자 수와 "확인 중" 이 같은 자리를 쓴다 — 둘이 동시에 필요한 순간이 없다 (3d) */
 
 .fieldMeta {

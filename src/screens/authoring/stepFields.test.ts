@@ -66,7 +66,7 @@ describe('payload 를 화면의 값으로', () => {
       coverImage: null,
       worldIntro: '다',
       settingDetail: '라',
-      characters: [{ name: '마', oneLine: '바', portraitImage: null }],
+      characters: [{ name: '마', oneLine: '바', persona: '사', portraitImage: null }],
     }
     expect(writeValues(payload, readValues(payload))).toEqual(payload)
   })
@@ -79,14 +79,66 @@ describe('필드 경로', () => {
     expect(characterField(2, 'oneLine')).toBe('characters[2].oneLine')
   })
 
+  /**
+   * **`persona` 도 검수에 보낸다.** 계약 `PrecheckRequest.fields` 는 경로 → 값의 열린 맵이고
+   * (`additionalProperties: {type: string}`) 어떤 경로를 받는지 제한하지 않는다. 그리고 이
+   * 값은 **매 턴 모델에게 들어가고 검수자가 보는 것도 이것이다** (계약 `DraftCharacter` ·
+   * `ReviewManuscript.characters[].persona`) — 검수 대상이 아니라고 볼 근거가 없다.
+   *
+   * 보내지 않으면 작성자는 제출 뒤에야 반려로 그 사실을 만난다. R8.1 이 실시간 검수를 둔
+   * 이유가 그것이다.
+   */
+  it('R8_1_persona_도_실시간_검수의_대상이다', () => {
+    expect(characterField(0, 'persona')).toBe('characters[0].persona')
+  })
+
   it('자리가_바뀔_때_버릴_경로를_모두_센다', () => {
     expect(characterFieldPaths(2)).toEqual([
       'characters[0].name',
       'characters[0].oneLine',
+      'characters[0].persona',
       'characters[1].name',
       'characters[1].oneLine',
+      'characters[1].persona',
     ])
     expect(characterFieldPaths(0)).toEqual([])
+  })
+})
+
+/**
+ * 계약 `DraftCharacter` — `persona` 는 **매 턴 모델에게 들어가는 인물 문장**이고 `oneLine` 은
+ * 발행되면 독자에게 보이는 값이다 (`CharacterCard.oneLine`). 화면에 `persona` 칸이 없는 동안
+ * 한 줄 소개 하나가 두 일을 했다 (#104 · 백엔드 #350).
+ */
+describe('인물의 persona', () => {
+  it('빈_원고에도_persona_자리가_있다_한_줄_소개와_따로_읽고_쓴다', () => {
+    const values = readValues({
+      characters: [{ name: '유나', oneLine: '옆자리 짝꿍', persona: '먼저 말을 걸지 않는다' }],
+    })
+    expect(values.characters[0]?.oneLine).toBe('옆자리 짝꿍')
+    expect(values.characters[0]?.persona).toBe('먼저 말을 걸지 않는다')
+  })
+
+  it('persona_가_없는_옛_원고도_빈_값으로_열린다', () => {
+    const values = readValues({ characters: [{ name: '유나', oneLine: '옆자리 짝꿍' }] })
+    expect(values.characters[0]?.persona).toBe('')
+  })
+
+  /**
+   * **비어 있는 것이 오류가 아니다** — 비면 서버가 `oneLine` 을 대신 발행한다 (#350).
+   * 그래서 화면은 빈 값을 막지도, 한 줄 소개를 몰래 베껴 넣지도 않는다: 베끼면 작성자가
+   * 한 줄 소개를 고친 뒤에도 옛 문장이 프롬프트로 남는다.
+   */
+  it('persona_가_비어도_저장된다_비면_한_줄_소개가_대신_발행된다_350', () => {
+    const values = readValues({ characters: [{ name: '유나', oneLine: '옆자리 짝꿍' }] })
+    const saved = writeValues({}, values)
+    expect(saved['characters']).toEqual([
+      { name: '유나', oneLine: '옆자리 짝꿍', persona: '', portraitImage: null },
+    ])
+  })
+
+  it('추가한_인물의_persona_는_빈_문자열이다_null_이_아니다', () => {
+    expect(emptyCharacter().persona).toBe('')
   })
 })
 
