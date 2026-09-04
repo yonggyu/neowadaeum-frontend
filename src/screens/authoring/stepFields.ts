@@ -12,6 +12,9 @@ import type { DraftPayload } from '../../api/endpoints/authoring'
  * 이름을 고를 자유가 없는 자리가 하나 있다 — **캐릭터의 필드 경로**다. precheck 요청의
  * 예시가 `characters[0].name` 이므로 배열 표기는 그 형식이다.
  *
+ * 인물의 `persona` 는 고를 자유가 없는 또 하나의 자리다 — 계약 `DraftCharacter` 가 직접
+ * 적어 둔 이름이고, 검수 원고(`ReviewManuscript.characters[].persona`)가 같은 이름으로 받는다.
+ *
  * `settingDetail`(AI 에게만 전달되는 설정 상세)만 발행물에 짝이 없다. 독자에게 보이지 않는
  * 값이라 `StoryDetail` 에 나올 이유가 없기 때문이고, 이름은 3d 의 라벨에서 왔다.
  */
@@ -27,18 +30,29 @@ export const FIELD = {
   characters: 'characters',
 } as const
 
+/** 인물 카드가 쓰는 세 칸. 이름은 계약 `DraftCharacter` 의 것이며 여기서 짓지 않는다. */
+export type CharacterKey = 'name' | 'oneLine' | 'persona'
+
+/** 검수·초기화가 한 인물에서 훑는 순서. 두 곳이 다른 목록을 들면 한쪽이 조용히 빠진다. */
+const CHARACTER_KEYS: readonly CharacterKey[] = ['name', 'oneLine', 'persona']
+
 /** `characters[0].name` (계약 `PrecheckRequest.fields` 의 예시 형식). */
-export function characterField(index: number, key: 'name' | 'oneLine'): string {
+export function characterField(index: number, key: CharacterKey): string {
   return `${FIELD.characters}[${index}].${key}`
 }
 
-/** 등장인물 `count` 명이 차지하는 필드 경로 전부. 자리가 바뀔 때 옛 결과를 버리는 데 쓴다. */
+/**
+ * 등장인물 `count` 명이 차지하는 필드 경로 전부. 자리가 바뀔 때 옛 결과를 버리는 데 쓴다.
+ *
+ * **`persona` 도 센다.** 검수에 보내는 값이면 버릴 때도 같이 버려야 한다 — 한쪽만 세면
+ * 지운 인물의 밑줄이 페르소나 자리에만 남고, 그것은 영영 사라지지 않는다.
+ */
 export function characterFieldPaths(count: number): string[] {
-  return Array.from({ length: Math.max(0, count) }, (_, index) => [
-    characterField(index, 'name'),
-    characterField(index, 'oneLine'),
-  ]).flat()
+  return Array.from({ length: Math.max(0, count) }, (_, index) =>
+    CHARACTER_KEYS.map((key) => characterField(index, key)),
+  ).flat()
 }
+
 
 /**
  * 글자 수 상한 — **3d 가 값으로 적은 셋만** 둔다.
@@ -71,10 +85,21 @@ export function isNearLimit(length: number, max: number): boolean {
  * 라벨도 서버의 것이다. 서버로 나가는 값은 언제나 `AuthoringGenre.key` 다.
  */
 
-/** Step 3 의 등장인물 하나. 초상은 계약에 올릴 길이 없어 언제나 `null` 이다 (아래 주석). */
+/**
+ * Step 3 의 등장인물 하나. 초상은 계약에 올릴 길이 없어 언제나 `null` 이다 (아래 주석).
+ *
+ * **`persona` 와 `oneLine` 은 서로 다른 독자를 갖는다** (계약 `DraftCharacter`, 백엔드 #350).
+ * `oneLine` 은 발행되면 `CharacterCard.oneLine` 으로 **독자에게 보이고**, `persona` 는 매 턴
+ * 모델에게 들어가며 검수자가 보는 것도 이쪽이다 (`ReviewManuscript.characters[].persona`).
+ *
+ * **`persona` 가 비어 있는 것은 오류가 아니다.** 비면 서버가 `oneLine` 을 대신 발행한다
+ * (#350) — 서버가 문장을 지어내지는 않는다. 그래서 여기에 필수 검사를 두지 않는다: 두면
+ * 계약이 이미 정해 둔 폴백을 화면이 막는 셈이 된다.
+ */
 export interface CharacterDraft {
   readonly name: string
   readonly oneLine: string
+  readonly persona: string
   readonly portraitImage: string | null
 }
 
@@ -122,6 +147,7 @@ function readCharacter(raw: unknown): CharacterDraft {
   return {
     name: text(value['name']),
     oneLine: text(value['oneLine']),
+    persona: text(value['persona']),
     portraitImage: nullableText(value['portraitImage']),
   }
 }
@@ -152,7 +178,12 @@ export function toggleGenre(genres: readonly string[], value: string): string[] 
 }
 
 /** 빈 등장인물. **개수 상한을 두지 않는다** — 계약이 값을 주지 않는다. */
-export const emptyCharacter = (): CharacterDraft => ({ name: '', oneLine: '', portraitImage: null })
+export const emptyCharacter = (): CharacterDraft => ({
+  name: '',
+  oneLine: '',
+  persona: '',
+  portraitImage: null,
+})
 
 /**
  * 순서를 한 칸 옮긴다 (3d — *"⠿ 순서 · 삭제"*).
