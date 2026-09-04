@@ -36,11 +36,43 @@ describe('restoreSession', () => {
     setAccessToken(null)
   })
 
-  it('토큰이_없으면_GET_me_를_부르지_않는다 — 물어보지 못한 것과 거절당한 것은 다른 사실이다', async () => {
+  it('토큰이_없고_재발급도_못_하면_GET_me_를_부르지_않는다 — 물어보지 못한 것과 거절당한 것은 다른 사실이다', async () => {
+    // CSRF 쿠키가 없다 — 재발급은 성립하지 않는 요청이므로 나가지 않는다 (ADR-0008).
     const fetchMock = mockFetch(errorResponse(401, 'UNAUTHENTICATED'))
 
     expect(await restoreSession()).toEqual({ kind: 'anonymous', reason: 'no_token' })
     expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('토큰이_없으면_먼저_재발급한다 — 새로고침 뒤에도 로그인이 유지되는 자리가 여기다', async () => {
+    vi.stubGlobal('document', { cookie: 'XSRF-TOKEN=csrf-1' })
+    const paths: string[] = []
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((url: string) => {
+        paths.push(new URL(url).pathname)
+        return Promise.resolve(
+          url.endsWith('/auth/refresh')
+            ? jsonResponse(200, { accessToken: 'fresh', tokenType: 'Bearer', expiresIn: 1800 })
+            : jsonResponse(200, ACCOUNT),
+        )
+      }),
+    )
+
+    expect(await restoreSession()).toEqual({ kind: 'authenticated', account: ACCOUNT })
+    // **순서가 요구사항이다** — 재발급이 `GET /me` 앞에 있고, 상태 셋은 그대로다 (#24 · #85).
+    expect(paths).toEqual(['/api/v1/auth/refresh', '/api/v1/me'])
+    expect(hasAccessToken()).toBe(true)
+  })
+
+  it('재발급이_거절되면_익명이다 — 쿠키가 없거나 만료됐다는 사실을 화면에 지어내 붙이지 않는다', async () => {
+    vi.stubGlobal('document', { cookie: 'XSRF-TOKEN=csrf-1' })
+    const fetchMock = mockFetch(errorResponse(401, 'UNAUTHENTICATED'))
+
+    expect(await restoreSession()).toEqual({ kind: 'anonymous', reason: 'no_token' })
+    // 재발급 한 번뿐이다 — 그 401 로 다시 재발급하지 않는다.
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(hasAccessToken()).toBe(false)
   })
 
   it('200 이면 로그인됨이다 — 로그인 여부는 본문이 아니라 상태 코드가 답한다', async () => {
