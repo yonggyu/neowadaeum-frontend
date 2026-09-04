@@ -1,20 +1,57 @@
 import { describe, expect, it } from 'vitest'
 
-import type { OutlineResponse } from '../../api/endpoints/authoring'
+import type { ConditionTemplateSpec, OutlineResponse } from '../../api/endpoints/authoring'
 import {
   chapterField,
   chapterFieldPaths,
   chaptersMissingSeed,
+  conditionIncomplete,
   emptyChapter,
   emptyEnding,
   endingField,
   endingsMissingCondition,
   fromOutlineResponse,
+  parameterOptions,
   readOutline,
+  setConditionParam,
+  setConditionTemplate,
   setDefaultEnding,
+  templateBlockedReason,
   writeOutline,
   type EndingDraft,
 } from './outline'
+
+/**
+ * `getAuthoringMetadata` 가 주는 모양 그대로 (정정본 §13-56).
+ *
+ * **라벨을 테스트가 지어내도 되는 이유**는 이것이 서버 응답의 자리이기 때문이다 — 화면이
+ * 이 문자열을 만들지 않는다는 것이 아래 테스트가 붙잡는 것이다.
+ */
+const AFFINITY: ConditionTemplateSpec = {
+  key: 'affinity_at_least',
+  label: '호감도 이상',
+  description: '대상 인물의 호감도가 임계값 이상이면 참입니다.',
+  parameters: [
+    { name: 'character', type: 'character', label: '인물' },
+    { name: 'threshold', type: 'integer', label: '임계값' },
+  ],
+}
+
+const HAS_FLAG: ConditionTemplateSpec = {
+  key: 'has_flag',
+  label: '플래그 있음',
+  description: '플래그가 켜져 있으면 참입니다.',
+  parameters: [{ name: 'flag', type: 'flag', label: '플래그' }],
+}
+
+const TURN: ConditionTemplateSpec = {
+  key: 'turn_at_least',
+  label: '턴 수 이상',
+  description: '진행한 턴이 임계값 이상이면 참입니다.',
+  parameters: [{ name: 'threshold', type: 'integer', label: '턴 수' }],
+}
+
+const TEMPLATES = [AFFINITY, HAS_FLAG, TURN]
 
 const ending = (label: string, patch: Partial<EndingDraft> = {}): EndingDraft => ({
   ...emptyEnding(),
@@ -53,8 +90,20 @@ describe('payload 를 화면의 값으로 (Step 4)', () => {
       endings: [ending('봄이 오기 전에', { isDefault: true }), ending('다른 봄')],
     })
     expect(payload['chapters']).toEqual([
-      { chapterNo: 1, title: '돌아온 캠퍼스', summarySeed: '씨앗', conditionTemplateKey: null },
-      { chapterNo: 2, title: '같은 강의실', summarySeed: '씨앗', conditionTemplateKey: null },
+      {
+        chapterNo: 1,
+        title: '돌아온 캠퍼스',
+        summarySeed: '씨앗',
+        conditionTemplateKey: null,
+        conditionParams: {},
+      },
+      {
+        chapterNo: 2,
+        title: '같은 강의실',
+        summarySeed: '씨앗',
+        conditionTemplateKey: null,
+        conditionParams: {},
+      },
     ])
     expect(payload['endings']).toEqual([
       {
@@ -63,6 +112,7 @@ describe('payload 를 화면의 값으로 (Step 4)', () => {
         epilogueText: null,
         isDefault: true,
         conditionTemplateKey: null,
+        conditionParams: {},
       },
       {
         endingNo: 2,
@@ -70,6 +120,7 @@ describe('payload 를 화면의 값으로 (Step 4)', () => {
         epilogueText: null,
         isDefault: false,
         conditionTemplateKey: null,
+        conditionParams: {},
       },
     ])
   })
@@ -112,8 +163,12 @@ describe('기본 엔딩 — 3e "isDefault 는 엔딩 하나에만 켜진다(라�
 
   /** 계약 — *"기본 엔딩은 조건을 갖지 않고, 일반 엔딩은 조건을 반드시 갖는다"* (R2.11, §13-16). */
   it('R2_11_기본이_되면_조건이_비워진다', () => {
-    const endings = [ending('하나', { conditionTemplateKey: 'has_flag' })]
+    const endings = [
+      ending('하나', { conditionTemplateKey: 'has_flag', conditionParams: { flag: '봄' } }),
+    ]
     expect(setDefaultEnding(endings, 0)[0]?.conditionTemplateKey).toBeNull()
+    // 고른 값도 함께 사라진다 — 남으면 화면에 보이지 않는 채 payload 에만 남는다.
+    expect(setDefaultEnding(endings, 0)[0]?.conditionParams).toEqual({})
   })
 })
 
@@ -131,10 +186,73 @@ describe('다음으로 갈 수 있는가', () => {
   it('R2_11_조건이_없는_일반_엔딩만_센다', () => {
     const endings = [
       ending('기본', { isDefault: true }),
-      ending('조건 있음', { conditionTemplateKey: 'turn_at_least' }),
+      ending('조건 있음', {
+        conditionTemplateKey: 'turn_at_least',
+        conditionParams: { threshold: 5 },
+      }),
       ending('조건 없음'),
     ]
-    expect(endingsMissingCondition(endings)).toEqual([2])
+    expect(endingsMissingCondition(endings, TEMPLATES)).toEqual([2])
+  })
+
+  /** 정정본 §13-56 — *"키만으로는 조건이 완성되지 않는다."* */
+  it('키만_고른_엔딩은_아직_조건이_없는_것으로_센다', () => {
+    const endings = [ending('임계값 없음', { conditionTemplateKey: 'turn_at_least' })]
+    expect(endingsMissingCondition(endings, TEMPLATES)).toEqual([0])
+  })
+})
+
+describe('조건 템플릿 — 정정본 §13-56 (backend #282)', () => {
+  it('선언된_슬롯이_다_차야_조건이_완성된다', () => {
+    const partial = { conditionTemplateKey: 'affinity_at_least', conditionParams: { character: '유나' } }
+    expect(conditionIncomplete(partial, TEMPLATES)).toBe(true)
+    expect(
+      conditionIncomplete(
+        { ...partial, conditionParams: { character: '유나', threshold: 30 } },
+        TEMPLATES,
+      ),
+    ).toBe(false)
+  })
+
+  it('목록에_없는_키는_고르지_않은_것으로_읽는다 — 라벨을_지어내지_않는다', () => {
+    expect(
+      conditionIncomplete({ conditionTemplateKey: 'has_flag', conditionParams: {} }, [TURN]),
+    ).toBe(true)
+  })
+
+  /** 후보가 없는 입력을 요구하는 템플릿은 고를 수 없다 — `visibilityBlockedReason`(3f) 과 같다. */
+  it('인물이_없으면_호감도_템플릿을_잠근다', () => {
+    expect(templateBlockedReason(AFFINITY, { characters: [], flags: [] })).not.toBeNull()
+    expect(templateBlockedReason(AFFINITY, { characters: ['유나'], flags: [] })).toBeNull()
+  })
+
+  it('플래그를_선언할_자리가_없어_플래그_템플릿은_잠긴다', () => {
+    expect(templateBlockedReason(HAS_FLAG, { characters: ['유나'], flags: [] })).not.toBeNull()
+  })
+
+  it('임계값_템플릿은_원고와_무관하게_고를_수_있다', () => {
+    expect(templateBlockedReason(TURN, { characters: [], flags: [] })).toBeNull()
+  })
+
+  it('선택지는_원고에서_온다 — 정수는_목록이_아니다', () => {
+    const sources = { characters: ['유나', '민'], flags: ['봄'] }
+    expect(parameterOptions(AFFINITY.parameters[0]!, sources)).toEqual(['유나', '민'])
+    expect(parameterOptions(HAS_FLAG.parameters[0]!, sources)).toEqual(['봄'])
+    expect(parameterOptions(AFFINITY.parameters[1]!, sources)).toEqual([])
+  })
+
+  it('템플릿을_바꾸면_고른_값을_버린다 — 슬롯_이름이_템플릿마다_다르다', () => {
+    const filled = setConditionParam(
+      setConditionTemplate(emptyChapter(), 'affinity_at_least'),
+      'character',
+      '유나',
+    )
+    expect(setConditionTemplate(filled, 'turn_at_least').conditionParams).toEqual({})
+  })
+
+  it('빈_값을_고르면_슬롯이_다시_비워진다', () => {
+    const filled = setConditionParam(emptyChapter(), 'threshold', 30)
+    expect(setConditionParam(filled, 'threshold', null).conditionParams).toEqual({})
   })
 })
 

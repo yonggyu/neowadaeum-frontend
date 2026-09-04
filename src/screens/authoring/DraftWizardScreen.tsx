@@ -1,16 +1,29 @@
 import { useCallback, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 
-import { getDraft, updateDraft, type Draft } from '../../api/endpoints/authoring'
+import {
+  getAuthoringMetadata,
+  getDraft,
+  updateDraft,
+  type AuthoringGenre,
+  type AuthoringMetadata,
+  type Draft,
+} from '../../api/endpoints/authoring'
 import { ROUTES } from '../../routes/routes'
 import { ErrorNotice } from '../account/ErrorNotice'
 import { useResource } from '../library/useResource'
 import css from './wizard.module.css'
 import { clampStep, isBlocked, savedAtLabel, STEP_COUNT, STEP_LABELS } from './draft'
-import { chaptersMissingSeed, readOutline, writeOutline, type OutlineValues } from './outline'
+import {
+  chaptersMissingSeed,
+  readOutline,
+  writeOutline,
+  type ConditionSources,
+  type OutlineValues,
+} from './outline'
 import { StepOutline } from './StepOutline'
 import { PreviewPanel, StepPublish } from './StepPreview'
-import { GENRES, readValues, writeValues, type StepValues } from './stepFields'
+import { readValues, writeValues, type StepValues } from './stepFields'
 import { usePrecheck, type PrecheckHandle } from './usePrecheck'
 import { usePreviewSession, type PreviewHandle } from './usePreviewSession'
 import { StepBasics, StepCharacters, StepWorld } from './WizardSteps'
@@ -32,32 +45,53 @@ import { StepBasics, StepCharacters, StepWorld } from './WizardSteps'
 export function DraftWizardScreen() {
   const { draftId } = useParams<{ draftId: string }>()
   const id = draftId ?? ''
-  const { resource, reload } = useResource(
-    useCallback((signal: AbortSignal) => getDraft(id, signal), [id]),
+  const draft = useResource(useCallback((signal: AbortSignal) => getDraft(id, signal), [id]))
+  /*
+   * 작성 메타데이터 (`getAuthoringMetadata`, backend #282 · #315).
+   *
+   * **원고와 함께 게이트에 둔다.** 장르 칩과 조건 템플릿이 이 응답에서 오므로, 없으면 Step 1
+   * 은 고를 것이 하나도 없는 화면이 되고 Step 4 는 조건 칸이 빈 드롭다운이 된다 — 비어 있는
+   * 화면은 돌아가는 것처럼 보인다. 실패는 실패로 말하고 다시 시도할 길을 준다.
+   */
+  const metadata = useResource(
+    useCallback((signal: AbortSignal) => getAuthoringMetadata(signal), []),
   )
 
-  if (resource.status === 'loading') {
+  function retry(): void {
+    draft.reload()
+    metadata.reload()
+  }
+
+  if (draft.resource.status === 'loading' || metadata.resource.status === 'loading') {
     return (
       <main className={css.screen} data-screen="DraftWizardScreen">
         <p className={css.status}>불러오는 중…</p>
       </main>
     )
   }
-
-  if (resource.status === 'failed') {
-    return (
-      <main className={css.screen} data-screen="DraftWizardScreen">
-        {/*
-         * **`403` 과 `404` 를 구분해 말하지 않는다.** 남의 원고는 없는 것과 구분되지 않는다
-         * (I-8) — 화면이 "권한이 없습니다" 와 "없습니다" 를 나눠 말하면 원고 id 를 훑어 남이
-         * 무엇을 쓰고 있는지 알 수 있다. 서버의 `message` 를 그대로 낸다 (F-4).
-         */}
-        <ErrorNotice error={resource.error} onRetry={reload} />
-      </main>
-    )
+  if (draft.resource.status === 'failed') {
+    return <WizardFailure error={draft.resource.error} onRetry={retry} />
+  }
+  if (metadata.resource.status === 'failed') {
+    return <WizardFailure error={metadata.resource.error} onRetry={retry} />
   }
 
-  return <Wizard draft={resource.data} />
+  return <Wizard draft={draft.resource.data} metadata={metadata.resource.data} />
+}
+
+/**
+ * 열리지 않은 마법사.
+ *
+ * **`403` 과 `404` 를 구분해 말하지 않는다.** 남의 원고는 없는 것과 구분되지 않는다 (I-8) —
+ * 화면이 "권한이 없습니다" 와 "없습니다" 를 나눠 말하면 원고 id 를 훑어 남이 무엇을 쓰고
+ * 있는지 알 수 있다. 서버의 `message` 를 그대로 낸다 (F-4).
+ */
+function WizardFailure({ error, onRetry }: { error: unknown; onRetry: () => void }) {
+  return (
+    <main className={css.screen} data-screen="DraftWizardScreen">
+      <ErrorNotice error={error} onRetry={onRetry} />
+    </main>
+  )
 }
 
 type SaveState =
@@ -65,7 +99,7 @@ type SaveState =
   | { kind: 'saving' }
   | { kind: 'failed'; error: unknown }
 
-function Wizard({ draft: loaded }: { draft: Draft }) {
+function Wizard({ draft: loaded, metadata }: { draft: Draft; metadata: AuthoringMetadata }) {
   // 서버가 방금 돌려준 원고가 진실이다. `patchDraft` 의 응답이 저장된 원고 전체이므로
   // 다시 조회하지 않는다 — 같은 값을 한 번 더 물어보는 셈이고, 그 사이에 화면이 되감긴다.
   const [draft, setDraft] = useState(loaded)
@@ -144,7 +178,14 @@ function Wizard({ draft: loaded }: { draft: Draft }) {
 
       <div className={css.wizardBody}>
         <section className={css.main} aria-label={STEP_LABELS[step - 1]}>
-          {step === 1 ? <StepBasics values={values} onChange={edit} precheck={precheck} /> : null}
+          {step === 1 ? (
+            <StepBasics
+              values={values}
+              onChange={edit}
+              precheck={precheck}
+              genres={metadata.genres}
+            />
+          ) : null}
           {step === 2 ? <StepWorld values={values} onChange={edit} precheck={precheck} /> : null}
           {step === 3 ? (
             <StepCharacters values={values} onChange={edit} precheck={precheck} />
@@ -158,6 +199,8 @@ function Wizard({ draft: loaded }: { draft: Draft }) {
                 setDirty(true)
               }}
               precheck={precheck}
+              templates={metadata.conditionTemplates}
+              sources={conditionSources(values)}
             />
           ) : null}
           {step === 5 ? <StepPublish draftId={draft.draftId} preview={preview} /> : null}
@@ -203,6 +246,7 @@ function Wizard({ draft: loaded }: { draft: Draft }) {
 
         <SidePanel
           step={step}
+          genres={metadata.genres}
           values={values}
           outline={outline}
           precheck={precheck}
@@ -225,6 +269,7 @@ function Wizard({ draft: loaded }: { draft: Draft }) {
  */
 function SidePanel({
   step,
+  genres: catalog,
   values,
   outline,
   precheck,
@@ -232,6 +277,7 @@ function SidePanel({
   onEdit,
 }: {
   step: number
+  genres: readonly AuthoringGenre[]
   values: StepValues
   outline: OutlineValues
   precheck: PrecheckHandle
@@ -310,7 +356,7 @@ function SidePanel({
     )
   }
 
-  const genres = GENRES.filter((genre) => values.genres.includes(genre.value))
+  const genres = catalog.filter((genre) => values.genres.includes(genre.key))
 
   return (
     <aside className={css.side} aria-label="미리보기">
@@ -361,4 +407,25 @@ function SaveIndicator({
     return <span className={css.saveState}>단계를 넘기면 저장됩니다</span>
   }
   return <span className={css.saveState}>{`임시 저장됨 · ${savedAtLabel(updatedAt, Date.now())}`}</span>
+}
+
+/**
+ * 조건이 고를 수 있는 값이 **어디서 오는가** (§13-56).
+ *
+ * 인물은 Step 3 에서 작성자가 만든 사람들이다 — 서버가 줄 수 없는 값이고(원고마다 다르다)
+ * 계약도 그 사실을 적었다. 이름이 비어 있는 인물은 고를 수 없다: 빈 문자열을 조건에 담으면
+ * 아무도 가리키지 않는 조건이 된다.
+ *
+ * **플래그는 지금 언제나 비어 있다.** 원고가 플래그를 *선언하는* 자리가 3d~3e 어디에도 없고,
+ * 없는 화면을 여기서 지어내지 않는다 (CLAUDE.md 4번). 그래서 `has_flag` · `lacks_flag` 는
+ * `templateBlockedReason` 이 이유와 함께 잠근다 — 조용히 빈 드롭다운을 그리는 것보다 낫다.
+ * 플래그 선언 화면은 **별도 이슈**다.
+ */
+function conditionSources(values: StepValues): ConditionSources {
+  return {
+    characters: values.characters
+      .map((character) => character.name.trim())
+      .filter((name) => name !== ''),
+    flags: [],
+  }
 }

@@ -1,6 +1,9 @@
 import { useState } from 'react'
 
-import type { ConditionTemplateKey } from '../../api/endpoints/authoring'
+import type {
+  ConditionTemplateParameter,
+  ConditionTemplateSpec,
+} from '../../api/endpoints/authoring'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
 import {
   chapterField,
@@ -11,8 +14,15 @@ import {
   endingField,
   endingFieldPaths,
   endingsMissingCondition,
+  findTemplate,
+  parameterOptions,
+  setConditionParam,
+  setConditionTemplate,
   setDefaultEnding,
+  templateBlockedReason,
   type ChapterDraft,
+  type Conditioned,
+  type ConditionSources,
   type EndingDraft,
   type OutlineValues,
 } from './outline'
@@ -28,8 +38,11 @@ import css from './wizard.module.css'
  * **3e 가 지운 것을 다시 그리지 않는다.**
  * - 개수 상한(챕터 3~10 · 엔딩 1~5)을 말하지 않는다 — 상한은 백엔드 B-60 이 정하고 계약이
  *   값을 주지 않는다. 정해진 것은 *"작성 중인 원고 10개"* 뿐이다 (정정본 §13-32).
- * - 조건은 **드롭다운 하나**다. `[호감도 ▾][유나 ▾][30 이상 ▾]` 같은 3단은 계약에 자리가
- *   없다 — `conditionTemplateKey` 는 문자열 하나이고 대상·임계값을 담지 못한다.
+ *
+ * **조건은 이제 드롭다운 하나가 아니다.** 5차가 철거한 `[호감도 ▾][유나 ▾][30 이상 ▾]` 은
+ * *형태가 틀렸던 것이 아니라 근거가 계약에 없었다* — `getAuthoringMetadata` 가 템플릿마다
+ * 필요한 입력을 선언하면서 그 근거가 생겼다 (backend #282, 정정본 §13-56). 그래서 템플릿을
+ * 고르면 **그 템플릿이 선언한 칸만** 따라 나온다. 칸의 개수도 종류도 화면이 정하지 않는다.
  *
  * **입력 칸은 Step 1~3 과 같은 `DraftField` 다.** 같은 모양이라서가 아니라 같은 일을 하기
  * 때문이다 — 작성자가 쓴 글이고, 그래서 입력 중 검수(R8.1)의 대상이며, 6a 가 정한 대로
@@ -40,10 +53,21 @@ export interface StepOutlineProps {
   values: OutlineValues
   onChange: (values: OutlineValues) => void
   precheck: PrecheckHandle
+  /** `getAuthoringMetadata` 가 준 템플릿 선언. 화면이 라벨을 옮겨 적지 않는다 (§13-56) */
+  templates: readonly ConditionTemplateSpec[]
+  /** `character` · `flag` 의 후보. 서버가 아니라 **이 원고**에서 온다 */
+  sources: ConditionSources
 }
 
-export function StepOutline({ draftId, values, onChange, precheck }: StepOutlineProps) {
-  const outline = useOutlineDraft(draftId, values, onChange)
+export function StepOutline({
+  draftId,
+  values,
+  onChange,
+  precheck,
+  templates,
+  sources,
+}: StepOutlineProps) {
+  const outline = useOutlineDraft(draftId, values, onChange, templates)
   const [confirming, setConfirming] = useState(false)
 
   if (outline.job.kind !== 'editing') {
@@ -78,7 +102,7 @@ export function StepOutline({ draftId, values, onChange, precheck }: StepOutline
   }
 
   const missingSeed = chaptersMissingSeed(values.chapters)
-  const missingCondition = endingsMissingCondition(values.endings)
+  const missingCondition = endingsMissingCondition(values.endings, outline.templates)
 
   return (
     <>
@@ -109,6 +133,7 @@ export function StepOutline({ draftId, values, onChange, precheck }: StepOutline
           total={values.chapters.length}
           chapter={chapter}
           templates={outline.templates}
+          sources={sources}
           missingSeed={missingSeed.includes(index)}
           precheck={precheck}
           onChange={(next) =>
@@ -144,6 +169,7 @@ export function StepOutline({ draftId, values, onChange, precheck }: StepOutline
           total={values.endings.length}
           ending={ending}
           templates={outline.templates}
+          sources={sources}
           missingCondition={missingCondition.includes(index)}
           precheck={precheck}
           onChange={(next) =>
@@ -235,7 +261,8 @@ interface ChapterCardProps {
   index: number
   total: number
   chapter: ChapterDraft
-  templates: readonly ConditionTemplateKey[]
+  templates: readonly ConditionTemplateSpec[]
+  sources: ConditionSources
   missingSeed: boolean
   precheck: PrecheckHandle
   onChange: (chapter: ChapterDraft) => void
@@ -248,6 +275,7 @@ function ChapterCard({
   total,
   chapter,
   templates,
+  sources,
   missingSeed,
   precheck,
   onChange,
@@ -287,8 +315,10 @@ function ChapterCard({
         id={`${chapterField(index, 'title')}--condition`}
         label="전환 조건"
         templates={templates}
-        value={chapter.conditionTemplateKey}
-        onChange={(conditionTemplateKey) => onChange({ ...chapter, conditionTemplateKey })}
+        sources={sources}
+        value={chapter}
+        onTemplate={(key) => onChange(setConditionTemplate(chapter, key))}
+        onParam={(name, param) => onChange(setConditionParam(chapter, name, param))}
       />
     </section>
   )
@@ -298,7 +328,8 @@ interface EndingCardProps {
   index: number
   total: number
   ending: EndingDraft
-  templates: readonly ConditionTemplateKey[]
+  templates: readonly ConditionTemplateSpec[]
+  sources: ConditionSources
   missingCondition: boolean
   precheck: PrecheckHandle
   onChange: (ending: EndingDraft) => void
@@ -312,6 +343,7 @@ function EndingCard({
   total,
   ending,
   templates,
+  sources,
   missingCondition,
   precheck,
   onChange,
@@ -362,8 +394,10 @@ function EndingCard({
             id={`${endingField(index, 'label')}--condition`}
             label="도달 조건"
             templates={templates}
-            value={ending.conditionTemplateKey}
-            onChange={(conditionTemplateKey) => onChange({ ...ending, conditionTemplateKey })}
+            sources={sources}
+            value={ending}
+            onTemplate={(key) => onChange(setConditionTemplate(ending, key))}
+            onParam={(name, param) => onChange(setConditionParam(ending, name, param))}
           />
           {missingCondition ? (
             <p className={css.meta}>기본이 아닌 엔딩에는 도달 조건이 필요합니다.</p>
@@ -383,46 +417,147 @@ function EndingCard({
 }
 
 /**
- * 조건 템플릿 하나를 고른다 (3e).
+ * 조건 하나 — 템플릿을 고르고, **그 템플릿이 선언한 칸을 채운다** (3e · 정정본 §13-56).
  *
- * **키를 그대로 보여 준다.** 계약이 표시 라벨을 아직 정하지 않았고(*"표시 라벨은 아직 여기
- * 없다"*, 백엔드 #282) 3e 도 문구를 그리지 않았다 — 여기서 지어 두면 그것이 그대로 규칙이
- * 된다. 없는 디자인을 채우는 대신 없다는 사실을 화면이 말한다.
+ * **라벨과 설명을 화면이 짓지 않는다.** 여기 있던 것은 `affinity_at_least` 라는 **키 그대로**
+ * 였다 — 계약이 표시 문구를 주지 않아 지어내는 대신 없다는 사실을 화면이 말한 자리다.
+ * `getAuthoringMetadata` 가 라벨의 정본을 서버에 두면서 그 자리가 닫혔다 (backend #282).
+ *
+ * **고를 수 없는 템플릿은 이유와 함께 잠근다.** 후보가 하나도 없는 입력을 요구하는 템플릿을
+ * 고르게 두면 조건을 끝까지 채울 수 없는 자리에 갇힌다 — `visibilityBlockedReason`(3f) 과
+ * 같은 판단이다.
  */
+interface ConditionSelectProps {
+  id: string
+  label: string
+  templates: readonly ConditionTemplateSpec[]
+  sources: ConditionSources
+  value: Conditioned
+  onTemplate: (key: string | null) => void
+  onParam: (name: string, param: string | number | null) => void
+}
+
 function ConditionSelect({
   id,
   label,
   templates,
+  sources,
   value,
-  onChange,
-}: {
-  id: string
-  label: string
-  templates: readonly ConditionTemplateKey[]
-  value: string | null
-  onChange: (value: string | null) => void
-}) {
+  onTemplate,
+  onParam,
+}: ConditionSelectProps) {
+  const selected = findTemplate(templates, value.conditionTemplateKey)
+
   return (
     <div className={css.field}>
       <label className={css.fieldLabel} htmlFor={id}>
         {label}
-        <span className={css.fieldHint}> · 표시 문구는 아직 정해지지 않았습니다</span>
       </label>
       <select
         id={id}
         className={css.control}
-        value={value ?? ''}
+        value={value.conditionTemplateKey ?? ''}
+        onChange={(event) => onTemplate(event.target.value === '' ? null : event.target.value)}
+      >
+        <option value="">선택 안 함</option>
+        {templates.map((template) => {
+          const blocked = templateBlockedReason(template, sources)
+          return (
+            <option key={template.key} value={template.key} disabled={blocked !== null}>
+              {blocked === null ? template.label : `${template.label} — ${blocked}`}
+            </option>
+          )
+        })}
+      </select>
+      {selected === null ? null : (
+        <>
+          {/* 이 조건이 언제 참인지 — **서버가 준 한 줄이다** (§13-56) */}
+          <p className={css.meta}>{selected.description}</p>
+          <div className={css.conditionParams}>
+            {selected.parameters.map((parameter) => (
+              <ConditionParamField
+                key={parameter.name}
+                id={`${id}--${parameter.name}`}
+                parameter={parameter}
+                sources={sources}
+                value={value.conditionParams[parameter.name] ?? null}
+                onChange={(param) => onParam(parameter.name, param)}
+              />
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
+/**
+ * 선언된 칸 하나.
+ *
+ * **자유 텍스트가 없다** — 계약이 셋(`character` · `flag` · `integer`)만 두고 *"셋 다 고르는
+ * 것이다"* 라고 적었다. 입력창을 그리면 작성자가 조건식을 직접 쓰는 것과 같아진다.
+ */
+function ConditionParamField({
+  id,
+  parameter,
+  sources,
+  value,
+  onChange,
+}: {
+  id: string
+  parameter: ConditionTemplateParameter
+  sources: ConditionSources
+  value: string | number | null
+  onChange: (param: string | number | null) => void
+}) {
+  if (parameter.type === 'integer') {
+    return (
+      <div className={css.field}>
+        <label className={css.fieldLabel} htmlFor={id}>
+          {parameter.label}
+        </label>
+        {/* 상·하한을 화면이 정하지 않는다 — 계약이 `integer` 라고만 말한다 */}
+        <input
+          id={id}
+          className={css.control}
+          type="number"
+          step={1}
+          inputMode="numeric"
+          value={value ?? ''}
+          onChange={(event) => onChange(wholeNumber(event.target.value))}
+        />
+      </div>
+    )
+  }
+
+  const options = parameterOptions(parameter, sources)
+  return (
+    <div className={css.field}>
+      <label className={css.fieldLabel} htmlFor={id}>
+        {parameter.label}
+      </label>
+      <select
+        id={id}
+        className={css.control}
+        value={value === null ? '' : String(value)}
+        disabled={options.length === 0}
         onChange={(event) => onChange(event.target.value === '' ? null : event.target.value)}
       >
         <option value="">선택 안 함</option>
-        {templates.map((template) => (
-          <option key={template} value={template}>
-            {template}
+        {options.map((option) => (
+          <option key={option} value={option}>
+            {option}
           </option>
         ))}
       </select>
     </div>
   )
+}
+
+/** 정수가 아니면 **고르지 않은 것**으로 둔다. 반쯤 친 값을 조건에 남기지 않는다. */
+function wholeNumber(raw: string): number | null {
+  const parsed = Number.parseInt(raw, 10)
+  return Number.isInteger(parsed) ? parsed : null
 }
 
 /** 카드 머리 — 번호와 순서·삭제. 챕터와 엔딩이 같은 모양이고 같은 일을 한다 (3e). */

@@ -4,7 +4,6 @@ import {
   characterField,
   characterFieldPaths,
   emptyCharacter,
-  GENRES,
   isNearLimit,
   moveCharacter,
   readValues,
@@ -80,17 +79,6 @@ describe('Step 1 · 2 의 값', () => {
   it('장르는_다중_선택이며_고른_순서로_쌓인다', () => {
     expect(toggleGenre(['romance'], 'fantasy')).toEqual(['romance', 'fantasy'])
     expect(toggleGenre(['romance', 'fantasy'], 'romance')).toEqual(['fantasy'])
-  })
-
-  /** 정정본 13-25 가 정한 다섯. 라이브러리의 `genre:<key>` 섹션이 이 값으로 열린다. */
-  it('장르_키는_정정본의_다섯이다', () => {
-    expect(GENRES.map((genre) => genre.value)).toEqual([
-      'romance',
-      'school',
-      'fantasy',
-      'action',
-      'mystery',
-    ])
   })
 
   it('3d_글자_수_상한은_와이어프레임이_적은_셋이다', () => {

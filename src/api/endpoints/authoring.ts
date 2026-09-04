@@ -50,33 +50,41 @@ export type PreviewResponse = components['schemas']['PreviewResponse']
 export type DraftPayload = Draft['payload']
 
 /**
- * 챕터 전환 · 엔딩 도달 조건의 템플릿 키 (정정본 §13-35).
+ * 작품 만들기 메타데이터 — 장르와 조건 템플릿 (`getAuthoringMetadata`, backend #282 · #315).
  *
- * **타입은 계약에서 온다** (F-2). PR #59 가 이 상수를 들 때는 `conditionTemplateKey` 가
- * `string` 일 뿐이라 생성 타입이 값을 좁혀 주지 않았지만, 그 뒤 계약이 `OutlineResponse` 에
- * `conditionTemplates` 를 더하면서 **키 목록을 응답으로 준다.** 그러므로 이 파일이 좁히는
- * 것은 없다 — 유일한 진실은 `ConditionTemplateKey` 이고 그것은 계약이 정의한다.
+ * **둘의 정본이 서로 다르다** (정정본 §13-56). 장르는 `catalog` 의 표이고 운영이 늘릴 수
+ * 있으며, 조건 템플릿 넷은 조건 평가기가 지원하는 형태라 코드의 열거형이다. **그래도 화면이
+ * 읽는 자리는 하나다** — 같은 화면이 같은 시점에 둘 다 필요로 하고, 나누면 왕복이 둘이 된다.
  *
- * 그리고 계약이 그 자리에 이렇게 적었다 — *"클라이언트가 이 목록을 소스에 적지 않는다.
- * 목록이 바뀌는 날부터 옛 목록을 보여 주고, 서버가 거부할 때까지 아무도 모른다."* 그래서
- * **화면은 응답의 목록을 먼저 쓴다.** 아래 상수는 초안을 한 번도 받지 않은 경우(3e 의
- * "직접 작성하기")의 **폴백**일 뿐이다: 그 길로 오면 응답이 없고, 없다고 조건 칸을 비워
- * 두면 작성자는 일반 엔딩에 조건을 달 방법을 잃는다 (R2.11).
- *
- * §4.5 · §4.6 의 조건 DSL 전체는 노출하지 않는다 — 열면 아무도 못 쓰는 화면이 되거나,
- * 쓸 수 있는 사람이 조건 평가기의 미정의 동작을 찾아낸다.
- *
- * **화면 문구를 여기 함께 적지 않는다.** 라벨을 어디에 둘지는 계약도 *"아직 여기 없다"* 로
- * 남겨 두었다 (백엔드 #282) — 지금 지어 두면 그것이 기본값이 된다.
+ * **라벨은 어느 쪽이든 서버의 것이다.** 프론트가 `affinity_at_least` 를 "호감도 이상" 으로
+ * 옮기기 시작하면 표시 문구의 정본이 하나 더 생긴다 — `noticeText`(#257) ·
+ * `ConsentItem.version`(#261) 과 같은 종류의 문제이며 그 둘은 같은 이유로 닫혔다.
  */
-export type ConditionTemplateKey = OutlineResponse['conditionTemplates'][number]
+export type AuthoringMetadata = components['schemas']['AuthoringMetadataResponse']
+export type AuthoringGenre = components['schemas']['AuthoringGenre']
+export type ConditionTemplateSpec = components['schemas']['ConditionTemplateSpec']
+export type ConditionTemplateParameter = components['schemas']['ConditionTemplateParameter']
 
-export const CONDITION_TEMPLATE_KEYS: readonly ConditionTemplateKey[] = [
-  'affinity_at_least',
-  'has_flag',
-  'lacks_flag',
-  'turn_at_least',
-]
+/** 조건 템플릿 키 넷 (R7.16, 정정본 §13-35). **타입은 계약에서 온다** (F-2). */
+export type ConditionTemplateKey = ConditionTemplateSpec['key']
+
+/**
+ * 화면이 채워야 하는 입력의 종류 — `character` · `flag` · `integer`.
+ *
+ * **자유 텍스트가 없다.** 계약이 그렇게 정했다: *"셋 다 고르는 것이다."* 입력창을 그리면
+ * 작성자가 조건식을 직접 쓰는 것과 같아진다.
+ */
+export type ConditionParameterType = ConditionTemplateParameter['type']
+
+/**
+ * 작성 메타데이터 (`getAuthoringMetadata`). **작성자 경로라 토큰이 필요하다.**
+ *
+ * **순서를 화면이 정하지 않는다.** 장르는 `display_order` 로 오고 라이브러리와 같은 순서다 —
+ * 여기서 다시 정렬하면 두 화면이 다른 순서를 보여 준다.
+ */
+export function getAuthoringMetadata(signal?: AbortSignal): Promise<AuthoringMetadata> {
+  return request<AuthoringMetadata>('/authoring/metadata', { signal })
+}
 
 const drafts = '/authoring/drafts'
 const draft = (draftId: string): string => `${drafts}/${encodeURIComponent(draftId)}`
@@ -163,7 +171,8 @@ export function precheckDraft(
  *
  * **모델을 기다린다** — `504 GENERATION_TIMEOUT` 과 `502 PROVIDER_ERROR` 가 정상 응답의
  * 일부이며, 로딩이 이 호출의 기본 상태다. 조건은 사용자가 직접 쓰지 않고 **템플릿 선택만**
- * 한다 (R7.16) — `CONDITION_TEMPLATE_KEYS` 가 그 목록이다.
+ * 한다 (R7.16) — 이 응답의 `conditionTemplates` 가 **이 원고에서 고를 수 있는 키**이고,
+ * 그 키를 사람이 읽는 문구와 필요한 입력으로 옮기는 것은 `getAuthoringMetadata` 다 (§13-56).
  */
 export function outlineDraft(draftId: string, signal?: AbortSignal): Promise<OutlineResponse> {
   return request<OutlineResponse>(`${draft(draftId)}/outline`, { method: 'POST', signal })
