@@ -210,6 +210,27 @@ export function submitDraft(
 }
 
 /**
+ * 검수 상태 조회 (`getDraftReview`). **원고 쪽의 검수 상태다.**
+ *
+ * 내 작품 목록의 한 줄(`MyStoryItem`)은 catalog 가 그 쪽을 만들 때의 값이고, 이것은 작성자가
+ * 이어서 고칠 **원고**에게 직접 묻는 값이다. 반려 화면에서 다음에 할 일이 원고를 고치는
+ * 것이므로 그 원고가 지금 무엇을 들고 있는지는 원고에게 묻는다 — 둘이 어긋나면 이어서 쓸
+ * 대상은 원고 쪽이다.
+ *
+ * **가는 길은 `MyStoryItem.draftId` 하나다** (backend #340, 정정본 §13-66). 제목 같은 것으로
+ * 짝짓지 않는다 — 같은 제목의 원고가 둘이면 조용히 남의 것을 연다. 그래서 이 함수는
+ * `draftId` 밖에 받지 않고, `draftId` 가 `null` 인 작품에는 이 경로가 **없다**
+ * (미리보기가 만든 임시 작품, §13-5 · §13-37).
+ *
+ * `rejectReasons` 는 **카테고리만** 담는다 (R8.7) — 화면이 그 이상을 추측하지 않는다 (F-5).
+ * 남의 원고는 `403` 이 아니라 `404` 이고 그것이 방어다 (I-8) — `getDraft` 와 같은 이유로
+ * 화면도 없는 원고와 구분해 말하지 않는다.
+ */
+export function getDraftReview(draftId: string, signal?: AbortSignal): Promise<ReviewStatusResponse> {
+  return request<ReviewStatusResponse>(`${draft(draftId)}/review`, { signal })
+}
+
+/**
  * 공개 범위 변경 (`changeStoryVisibility`). 응답은 **변경 후 상태**다.
  *
  * `unlisted → public` 승격은 **재검수를 강제 트리거한다** — 계약이 이유를 적었다:
