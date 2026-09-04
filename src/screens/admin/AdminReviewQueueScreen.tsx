@@ -1,15 +1,42 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 import {
   clearAdminStepUp,
   decideReview,
+  getReviewHistory,
   listReviewQueue,
+  listStoryReports,
+  readReviewManuscript,
+  type ReviewHistoryEntry,
+  type ReviewManuscript,
   type ReviewQueueItem,
+  type StoryReports,
 } from '../../api/endpoints/admin'
 import { ROUTES } from '../../routes/routes'
 import { formatRelativeTime } from '../account/relativeTime'
-import { useResource } from '../library/useResource'
+// 가시성 문구는 작성자가 고를 때 본 이름 그대로다 (`3f` · `6c`) — 같은 값의 이름이 화면에
+// 따라 달라지면 검수자와 작성자가 다른 것을 말하게 된다.
+import { VISIBILITY_LABEL } from '../account/reviewStatus'
+import { useResource, type Resource } from '../library/useResource'
+import {
+  AUTO_CHECK_VERDICT_LABEL,
+  authorLabel,
+  DEFAULT_DETAIL_PANEL,
+  DETAIL_PANEL_LABEL,
+  endingBadges,
+  hasNote,
+  HISTORY_REASON_LABEL,
+  HISTORY_STAGE_LABEL,
+  HISTORY_VERDICT_LABEL,
+  panelInStatus,
+  panelsFor,
+  reasonCountsForDisplay,
+  REPORT_REASON_LABEL,
+  REPORT_STATUS_LABEL,
+  reportTargetLabel,
+  type DetailPanel,
+} from './reviewDetail'
 import { failureMessage } from './twoFactor'
 import {
   buildVerdict,
@@ -38,10 +65,14 @@ import styles from './adminQueue.module.css'
  * 그보다 한 발 더 갔다 — 신고로 정지된 작품은 **같은 큐**에 `suspended` 로 올라온다
  * (정정본 §13-41, R8.9). 그래서 목록도 판정도 하나이고, 탭이 그 셋을 가른다.
  *
- * **`3h` 의 우측 절반이 여기 없다.** 기본 정보 · 세계관 · 캐릭터 · 챕터/엔딩 · 미리보기 3턴 ·
- * 자동 검수 요약을 주는 경로가 계약에 없다 (아래 `MissingManuscript` 참고). 없는 경로를
- * 상상해 화면을 채우지 않고, 없다는 사실을 검수자에게 보이는 자리에 적는다 — 원고를 보지
- * 못한 채 판정하고 있다는 것을 검수자가 알아야 한다.
+ * **우측 패널은 고른 작품에 대해서만 채운다** (#86). 원고 · 신고 · 지난 판정 셋 다 계약이
+ * 열렸고 (`readReviewManuscript` · `listStoryReports` · `getReviewHistory`), 앞의 둘은
+ * **부르는 것만으로 감사 기록이 남는다** (backend R12.3 · R14.5). 그래서 목록을 그리려고
+ * 미리 부르지 않는다 — 열어 본 적 없는 작품이 열람 기록에 남으면 그 기록은 "누가 무엇을
+ * 봤는가" 를 더는 답하지 못한다.
+ *
+ * **미리보기 3턴 자리를 만들지 않는다.** `3h` 가 그렸지만 검수 대상 작품에서 그 턴으로 가는
+ * 길이 계약에 없다 (정정본 §13-5 · §13-61). 있는 척하는 빈 상자를 두지 않는다.
  *
  * **작성자를 그리지 않는다.** `3h` 는 "@yeonwoo · 작품 2 · 반려 1" 을 그렸지만 계약의
  * `ReviewQueueItem` 은 작성자를 담지 않는다 — *"누가 썼는지가 함께 오면 그것이 판정에
@@ -177,8 +208,9 @@ export function AdminReviewQueueScreen() {
 /**
  * 좌측 목록. 서버가 준 순서 그대로 — 오래 기다린 것부터다.
  *
- * `3h` 의 "auto: 2 flags" 배지를 그리지 않는다. 자동 검수 결과를 주는 경로가 계약에 없고,
- * 있더라도 어디에 몇 개가 걸렸는지는 그 자체가 판정기의 모양을 드러낸다 (F-5, S-11).
+ * `3h` 의 "auto: 2 flags" 배지를 그리지 않는다. 자동 검수 요약은 원고(`readReviewManuscript`)
+ * 안에 있고, 그것을 행마다 그리려면 **큐 전체의 원고를 미리 열어야 한다** — 열어 본 적 없는
+ * 작품들이 전부 열람 기록에 남는다 (R12.3). 배지 하나를 위해 치를 값이 아니다.
  */
 function QueueList({
   items,
@@ -292,7 +324,7 @@ function ReviewDetail({
         <code className={styles.storyId}>{item.storyId}</code>
       </div>
 
-      <MissingManuscript />
+      <DetailPanels item={item} />
 
       <fieldset className={styles.reasons}>
         <legend className={styles.legend}>반려 사유 — 작성자에게 카테고리로만 전달돼요</legend>
@@ -392,23 +424,319 @@ function ReviewDetail({
 }
 
 /**
- * 없는 것을 없다고 적는 자리.
+ * 상세의 세 면 — 원고 · 신고 · 지난 판정.
  *
- * **빈 상자로 넘기지 않는다.** 비어 있는 화면은 돌아가는 것처럼 보이고, 검수자는 원고가
- * 깨끗해서 아무것도 안 나온 줄 안다 — 실제로는 아무것도 불러오지 못한 것이다.
- *
- * 계약이 이유를 적었다: `ReviewQueueItem` 은 *"원고 본문도 담지 않는다 — 큐는 무엇을 볼
- * 차례인지를 답하는 자리이며, 원문 열람은 감사가 걸린 다른 문이다"*. 그 문이 아직 계약에
- * 없다. 프론트에서 우회하지 않고 백엔드 이슈로 연다.
+ * **한 번 연 면은 열어 둔다.** 탭을 오갈 때마다 다시 부르면 같은 작품의 열람 기록이 오간
+ * 횟수만큼 쌓이고 (backend R12.3 · R14.5), 그 기록은 *몇 번 봤는가*를 답하려던 것이 아니다.
+ * 그래서 연 적 있는 면만 그대로 두고 `hidden` 으로 감춘다 — 아직 열지 않은 면은 마운트
+ * 자체가 없으므로 **호출도 없다.**
  */
-function MissingManuscript() {
+function DetailPanels({ item }: { item: ReviewQueueItem }) {
+  const [panel, setPanel] = useState<DetailPanel>(DEFAULT_DETAIL_PANEL)
+  // 이 작품에서 실제로 연 면. `panel` 하나만으로는 감춘 면을 살려 둘 수 없다.
+  const [opened, setOpened] = useState<readonly DetailPanel[]>([DEFAULT_DETAIL_PANEL])
+  // 큐를 다시 읽어 상태가 바뀌면(신고 정지가 풀리면) 없는 면이 열려 있을 수 있다.
+  const current = panelInStatus(panel, item.reviewStatus)
+
   return (
-    <div className={styles.missing}>
-      <p className={styles.missingHead}>원고를 여는 경로가 계약에 없어요</p>
-      <p className={styles.missingBody}>
-        기본 정보 · 세계관 · 캐릭터 · 챕터/엔딩 · 미리보기 · 자동 검수 요약을 돌려주는
-        오퍼레이션이 아직 없어요. <b>지금 판정하면 제목만 보고 판정하는 것</b>이에요.
+    <div className={styles.panels}>
+      <nav className={styles.panelTabs} aria-label="검수 상세">
+        {panelsFor(item.reviewStatus).map((key) => (
+          <button
+            key={key}
+            type="button"
+            className={styles.panelTab}
+            aria-current={key === current ? 'page' : undefined}
+            onClick={() => {
+              setPanel(key)
+              setOpened((seen) => (seen.includes(key) ? seen : [...seen, key]))
+            }}
+          >
+            {DETAIL_PANEL_LABEL[key]}
+          </button>
+        ))}
+      </nav>
+
+      {opened.map((key) => (
+        <div key={key} hidden={key !== current}>
+          {key === 'manuscript' ? <ManuscriptPanel storyId={item.storyId} /> : null}
+          {key === 'reports' ? <ReportsPanel storyId={item.storyId} /> : null}
+          {key === 'history' ? <HistoryPanel storyId={item.storyId} /> : null}
+        </div>
+      ))}
+    </div>
+  )
+}
+
+/**
+ * 아직 그릴 것이 없는 동안 무엇을 적는가.
+ *
+ * 실패는 **서버가 준 문장 그대로**다 (F-4). `403` 이 역할 · IP · 2FA 중 무엇인지 나누지
+ * 않고, `404` 를 "지워진 작품" 으로 옮겨 적지도 않는다 — 서버가 하지 않은 말이 된다.
+ */
+function panelStatus<T>(resource: Resource<T>, opening: string): ReactNode | null {
+  if (resource.status === 'loading') {
+    return <p className={styles.hint}>{opening}</p>
+  }
+  if (resource.status === 'failed') {
+    return (
+      <p className={styles.failure} role="alert">
+        {failureMessage(resource.error)}
       </p>
+    )
+  }
+  return null
+}
+
+/**
+ * 원고 (계약 `readReviewManuscript`) — 검수자가 보고 판정하는 것.
+ *
+ * **여는 순간 열람 기록이 남는다** (R12.3, 정정본 §13-61). 그래서 고른 작품 하나에 대해서만
+ * 부른다.
+ *
+ * **`worldPrompt` 와 `persona` 를 감추지 않는다.** Debug 콘솔이 프롬프트 원문을 접어 두는
+ * 것과 반대 방향인데, 이유가 반대이기 때문이다 — 거기서 접히는 것은 **세이프티 지시**이고
+ * 여기서 펼치는 것은 **판정 대상인 UGC 원고**다. 매 턴 모델에게 들어가는 문장을 보지 않은
+ * 승인은 작품의 절반만 본 승인이다 (§13-61).
+ */
+function ManuscriptPanel({ storyId }: { storyId: string }) {
+  const load = useCallback(
+    (signal: AbortSignal) => readReviewManuscript(storyId, signal),
+    [storyId],
+  )
+  const { resource } = useResource(load)
+  const status = panelStatus(resource, '원고를 여는 중…')
+  if (resource.status !== 'ready') {
+    return status
+  }
+  return <Manuscript manuscript={resource.data} />
+}
+
+function Manuscript({ manuscript }: { manuscript: ReviewManuscript }) {
+  const now = Date.now()
+
+  return (
+    <div className={styles.panel}>
+      {/*
+       * 작성자 자리에 표시명 하나만 둔다 (F-6, backend I-3). 계약에 `playerRef` 가 없고,
+       * 화면이 그것을 대신할 식별자를 찾아 넣지도 않는다.
+       */}
+      <dl className={styles.facts}>
+        <div className={styles.factRow}>
+          <dt>작성자</dt>
+          <dd>{authorLabel(manuscript.authorDisplayName)}</dd>
+        </div>
+        <div className={styles.factRow}>
+          <dt>가시성</dt>
+          <dd>{VISIBILITY_LABEL[manuscript.visibility]}</dd>
+        </div>
+        <div className={styles.factRow}>
+          <dt>만들어진 때</dt>
+          <dd>{formatRelativeTime(manuscript.submittedAt, now)}</dd>
+        </div>
+      </dl>
+
+      {/*
+       * 자동 검수 요약 — **서버가 준 카테고리까지만** 적는다 (F-5, R8.7). 어디에 몇 번
+       * 걸렸는지를 화면이 덧붙이면 그것이 곧 우회 사전이 된다 (S-11).
+       */}
+      <section className={styles.block} aria-label="자동 검수">
+        {manuscript.autoCheck === null ? (
+          <p className={styles.hint}>자동 검수 기록이 없어요.</p>
+        ) : (
+          <>
+            <p className={styles.blockHead}>
+              {AUTO_CHECK_VERDICT_LABEL[manuscript.autoCheck.verdict]} ·{' '}
+              {formatRelativeTime(manuscript.autoCheck.checkedAt, now)}
+            </p>
+            {manuscript.autoCheck.reasons.length === 0 ? null : (
+              <ul className={styles.chips}>
+                {manuscript.autoCheck.reasons.map((reason) => (
+                  <li key={reason} className={styles.chip}>
+                    {REJECT_REASON_LABEL[reason]}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </>
+        )}
+      </section>
+
+      {/* `null` 은 작성자가 적지 않았다는 뜻이다 — 화면이 문장을 지어 채우지 않는다 */}
+      <Prose head="짧은 소개" text={manuscript.shortDesc} />
+      <Prose head="세계관 소개" text={manuscript.worldIntro} />
+      <Prose head="세계관 프롬프트 — 매 턴 모델에게 들어가요" text={manuscript.worldPrompt} />
+
+      <section className={styles.block} aria-label="캐릭터">
+        <p className={styles.blockHead}>캐릭터 {manuscript.characters.length}</p>
+        {manuscript.characters.map((character) => (
+          <div key={character.name} className={styles.entry}>
+            <p className={styles.entryHead}>{character.name}</p>
+            <p className={styles.prose}>{character.persona}</p>
+          </div>
+        ))}
+      </section>
+
+      {/* 진입 조건식은 계약에 없다 — 판정 로직이지 사람이 읽는 문장이 아니다 (§13-61) */}
+      <section className={styles.block} aria-label="챕터">
+        <p className={styles.blockHead}>챕터 {manuscript.chapters.length}</p>
+        {manuscript.chapters.map((chapter) => (
+          <div key={chapter.chapterNo} className={styles.entry}>
+            <p className={styles.entryHead}>
+              {chapter.chapterNo}. {chapter.title}
+            </p>
+            <p className={styles.hint}>
+              {chapter.minTurns}~{chapter.maxTurns}턴
+            </p>
+          </div>
+        ))}
+      </section>
+
+      <section className={styles.block} aria-label="엔딩">
+        <p className={styles.blockHead}>엔딩 {manuscript.endings.length}</p>
+        {manuscript.endings.map((ending) => (
+          <div key={ending.endingNo} className={styles.entry}>
+            <p className={styles.entryHead}>
+              {ending.endingNo}. {ending.label}
+            </p>
+            {endingBadges(ending).length === 0 ? null : (
+              <ul className={styles.chips}>
+                {endingBadges(ending).map((badge) => (
+                  <li key={badge} className={styles.chip}>
+                    {badge}
+                  </li>
+                ))}
+              </ul>
+            )}
+            <p className={styles.prose}>{ending.epilogueText}</p>
+          </div>
+        ))}
+      </section>
+    </div>
+  )
+}
+
+/** 작성자가 쓴 문단 하나. 계약이 `null` 을 주는 자리는 비었다고만 적는다. */
+function Prose({ head, text }: { head: string; text: string | null }) {
+  return (
+    <section className={styles.block} aria-label={head}>
+      <p className={styles.blockHead}>{head}</p>
+      {text === null || text.trim().length === 0 ? (
+        <p className={styles.hint}>비어 있어요.</p>
+      ) : (
+        <p className={styles.prose}>{text}</p>
+      )}
+    </section>
+  )
+}
+
+/**
+ * 신고 (계약 `listStoryReports`) — **임계에 닿아 내려온 작품에서만 연다** (정정본 §13-41).
+ *
+ * **신고자와 신고자가 쓴 문장은 오지 않는다** (backend I-3, §13-62). 그 자리를 만들지
+ * 않는 것이 화면이 지킬 몫이다 — 채우려 들면 판정에 쓰지 않기로 한 값을 판정에 들인다.
+ */
+function ReportsPanel({ storyId }: { storyId: string }) {
+  const load = useCallback((signal: AbortSignal) => listStoryReports(storyId, signal), [storyId])
+  const { resource } = useResource(load)
+  const status = panelStatus(resource, '신고를 여는 중…')
+  if (resource.status !== 'ready') {
+    return status
+  }
+  return <Reports reports={resource.data} />
+}
+
+function Reports({ reports }: { reports: StoryReports }) {
+  const now = Date.now()
+  const counts = reasonCountsForDisplay(reports.reasonCounts)
+
+  return (
+    <div className={styles.panel}>
+      <section className={styles.block} aria-label="사유별 집계">
+        <p className={styles.blockHead}>사유별 집계 — 전건이에요</p>
+        {counts.length === 0 ? (
+          <p className={styles.hint}>집계된 신고가 없어요.</p>
+        ) : (
+          <dl className={styles.facts}>
+            {counts.map((count) => (
+              <div key={count.reason} className={styles.factRow}>
+                <dt>{REPORT_REASON_LABEL[count.reason]}</dt>
+                {/* 합계를 만들지 않는다 — 사유별 사람 수를 더한 값은 신고한 사람 수가 아니다 */}
+                <dd>{count.count}명</dd>
+              </div>
+            ))}
+          </dl>
+        )}
+      </section>
+
+      <section className={styles.block} aria-label="개별 신고">
+        <p className={styles.blockHead}>최근 신고 — 전건은 위 집계가 답해요</p>
+        {reports.reports.length === 0 ? (
+          <p className={styles.hint}>목록에 올라온 신고가 없어요.</p>
+        ) : (
+          reports.reports.map((report) => (
+            <p key={report.reportId} className={styles.entryHead}>
+              {REPORT_REASON_LABEL[report.reason]} · {reportTargetLabel(report.turnNo)} ·{' '}
+              {REPORT_STATUS_LABEL[report.status]} · {formatRelativeTime(report.createdAt, now)}
+            </p>
+          ))
+        )}
+      </section>
+    </div>
+  )
+}
+
+/**
+ * 지난 판정 (계약 `getReviewHistory`) — append-only 이고 최근 것부터다.
+ *
+ * **`note` 가 여기에만 있다** (backend R8.7 · S-11, §13-63). 작성자가 보는 검수 상태 화면은
+ * 카테고리만 받으므로, 두 화면이 같은 데이터를 쓰지 않는다.
+ *
+ * **검수자가 누구인지는 오지 않는다** (I-3) — `reviewer_ref` 는 `player_ref` 이고, 그 물음에
+ * 답하는 자리는 관리자 감사 기록이다.
+ */
+function HistoryPanel({ storyId }: { storyId: string }) {
+  const load = useCallback((signal: AbortSignal) => getReviewHistory(storyId, signal), [storyId])
+  const { resource } = useResource(load)
+  const status = panelStatus(resource, '지난 판정을 여는 중…')
+  if (resource.status !== 'ready') {
+    return status
+  }
+  return <History entries={resource.data} />
+}
+
+function History({ entries }: { entries: readonly ReviewHistoryEntry[] }) {
+  const now = Date.now()
+
+  // 빈 목록은 **판정이 없다**는 뜻이다 — 없는 작품은 `404` 로 온다. 둘을 같은 말로 적지 않는다.
+  if (entries.length === 0) {
+    return (
+      <div className={styles.panel}>
+        <p className={styles.hint}>지난 판정이 없어요. 아직 아무도 이 작품을 판정하지 않았어요.</p>
+      </div>
+    )
+  }
+
+  return (
+    <div className={styles.panel}>
+      {entries.map((entry) => (
+        <div key={`${entry.reviewedAt}-${entry.stage}`} className={styles.entry}>
+          <p className={styles.entryHead}>
+            {HISTORY_STAGE_LABEL[entry.stage]} · {HISTORY_VERDICT_LABEL[entry.verdict]} ·{' '}
+            {formatRelativeTime(entry.reviewedAt, now)}
+          </p>
+          {entry.reasons.length === 0 ? null : (
+            <ul className={styles.chips}>
+              {entry.reasons.map((reason) => (
+                <li key={reason} className={styles.chip}>
+                  {HISTORY_REASON_LABEL[reason]}
+                </li>
+              ))}
+            </ul>
+          )}
+          {hasNote(entry) ? <p className={styles.prose}>내부 기록 — {entry.note}</p> : null}
+        </div>
+      ))}
     </div>
   )
 }
