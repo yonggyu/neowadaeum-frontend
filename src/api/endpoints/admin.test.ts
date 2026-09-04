@@ -7,6 +7,7 @@ import {
   enrollAdminTotp,
   getReviewHistory,
   hasAdminStepUp,
+  listAdminSessions,
   listReviewQueue,
   listStoryReports,
   readReviewManuscript,
@@ -278,5 +279,71 @@ describe('R12_3_원고를_미리_불러_두지_않는다', () => {
     expect(pathOf(fetchMock)).toContain('/admin/reviews')
     expect(pathOf(fetchMock)).not.toContain('/reports')
     expect(pathOf(fetchMock)).not.toContain('/history')
+  })
+})
+
+/**
+ * 세션 찾기 (계약 `listAdminSessions`, backend #339 · 정정본 §13-67).
+ *
+ * 픽스처의 uuid 와 커서는 전부 더미다 (S-11).
+ */
+const SESSION_QUERY_STORY_ID = '00000000-0000-4000-8000-000000000002'
+
+describe('S4_세션_목록도_승격_뒤에_있다', () => {
+  it('X_Admin_Step_Up_이_붙는다 — 세 조건은 여기서도 AND 다 (§13-67)', async () => {
+    const fetchMock = stubFetch(json(STEP_UP), json({ items: [], nextCursor: null, hasMore: false }))
+    await verifyAdminTotp('123456')
+
+    await listAdminSessions()
+
+    expect(headersOf(fetchMock, 1)['X-Admin-Step-Up']).toBe(STEP_UP.stepUpToken)
+  })
+
+  it('계약이_적은_경로를_읽기로_부른다', async () => {
+    const fetchMock = stubFetch(json({ items: [], nextCursor: null, hasMore: false }))
+
+    await listAdminSessions()
+
+    expect(pathOf(fetchMock)).toContain('/admin/sessions')
+    expect(pathOf(fetchMock)).not.toContain('/debug')
+    expect(fetchMock.mock.calls[0]?.[1]?.method ?? 'GET').toBe('GET')
+  })
+})
+
+describe('§13-67_목록은_계약이_연_축으로만_좁힌다', () => {
+  it('storyId_cursor_limit_을_질의로_보낸다', async () => {
+    const fetchMock = stubFetch(json({ items: [], nextCursor: null, hasMore: false }))
+
+    await listAdminSessions({ storyId: SESSION_QUERY_STORY_ID, cursor: 'dummy+cursor/1=', limit: 5 })
+
+    const url = new URL(pathOf(fetchMock), 'https://example.invalid')
+    expect(url.searchParams.get('storyId')).toBe(SESSION_QUERY_STORY_ID)
+    // 커서 형식을 계약이 정하지 않았다. 인코딩하지 않으면 `+` 와 `=` 가 조용히 망가진다.
+    expect(url.searchParams.get('cursor')).toBe('dummy+cursor/1=')
+    expect(url.searchParams.get('limit')).toBe('5')
+  })
+
+  it('주지_않은_값은_보내지_않는다 — limit 기본값을 프론트가 정하지 않는다', async () => {
+    const fetchMock = stubFetch(json({ items: [], nextCursor: null, hasMore: false }))
+
+    await listAdminSessions()
+
+    expect(pathOf(fetchMock)).not.toContain('?')
+  })
+})
+
+describe('§13-68_미리보기는_원고를_거쳐_온다', () => {
+  it('원고_한_번이_미리보기까지_가져온다 — 세션 목록을 뒤지지 않는다', async () => {
+    const fetchMock = stubFetch(
+      json({ storyId: STORY_ID, previewedAt: null, previewTurns: [] }),
+    )
+
+    const manuscript = await readReviewManuscript(STORY_ID)
+
+    // 호출이 늘지 않는다. 미리보기를 찾겠다고 `/admin/sessions` 를 함께 부르면, 그 목록은
+    // 제출된 작품의 세션이지 미리보기 작품의 세션이 아니다 (§13-68 — 원고가 기억한다).
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(pathOf(fetchMock)).not.toContain('/admin/sessions')
+    expect(manuscript.previewTurns).toEqual([])
   })
 })

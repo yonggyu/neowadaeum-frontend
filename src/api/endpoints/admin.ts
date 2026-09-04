@@ -17,6 +17,8 @@ export type TotpStepUp = components['schemas']['TotpStepUpResponse']
 export type TotpCodeRequest = components['schemas']['TotpCodeRequest']
 
 export type AdminSessionDebug = components['schemas']['AdminSessionDebugResponse']
+export type AdminSessionList = components['schemas']['AdminSessionListResponse']
+export type AdminSessionListItem = components['schemas']['AdminSessionListItem']
 export type RollbackRequest = components['schemas']['RollbackRequest']
 export type RollbackResult = components['schemas']['RollbackResult']
 export type RegenerateResult = components['schemas']['RegenerateResult']
@@ -31,6 +33,7 @@ export type ReviewManuscript = components['schemas']['ReviewManuscript']
 export type ManuscriptCharacter = components['schemas']['ManuscriptCharacter']
 export type ManuscriptChapter = components['schemas']['ManuscriptChapter']
 export type ManuscriptEnding = components['schemas']['ManuscriptEnding']
+export type ManuscriptPreviewTurn = components['schemas']['ManuscriptPreviewTurn']
 export type AutoCheckSummary = components['schemas']['AutoCheckSummary']
 export type StoryReports = components['schemas']['StoryReportsResponse']
 export type ReasonCount = components['schemas']['ReasonCount']
@@ -156,6 +159,55 @@ export async function verifyAdminTotp(code: string, signal?: AbortSignal): Promi
 // 빠뜨린 호출이 조용히 통과하고, 그때 `403` 의 원인은 화면 쪽에서 보이지 않는다.
 
 const sessionPath = (sessionId: string): string => `/admin/sessions/${encodeURIComponent(sessionId)}`
+
+/** 세션 목록 한 쪽을 고르는 값. 셋 다 계약의 `required: false` 이며 없으면 서버 기본값이다. */
+export interface AdminSessionQuery {
+  /** 작품으로 좁힌다. 계약이 연 유일한 필터 축이다 (정정본 §13-67) */
+  storyId?: string
+  /** 직전 응답의 `nextCursor`. 없으면 최신부터 */
+  cursor?: string | null
+  /** 1~50. 보내지 않으면 계약의 기본값(20)이다 — 프론트가 숫자를 정하지 않는다 */
+  limit?: number
+}
+
+/**
+ * 세션 찾기 (계약 `listAdminSessions`).
+ *
+ * **`getSessionDebug` 와 다른 층이다 — 그 차이가 이 경로의 존재 이유다** (정정본 §13-67).
+ * 디버그는 원문을 열고 읽을 때마다 `access_audit_log` 에 한 줄을 남긴다 (backend R12.3, S-5).
+ * 이 경로가 주는 것은 **식별자와 메타데이터뿐**이라 열람 감사를 남기지 않는다. 그러므로
+ * **이 응답으로 원문을 얻으려 하지 않는다** — 게임 상태 · 본문 · 선택지 · 프롬프트 · 응답
+ * 어느 것도 여기 없고, 있는 것처럼 화면을 만들면 그 자리는 영영 비어 있다.
+ *
+ * **`X-Admin-Step-Up` 을 붙인다.** 계약의 이 오퍼레이션이 `AdminStepUp` 파라미터를 참조하며
+ * 설명이 *"세 조건은 여기서도 AND 다 (S-4)"* 라고 적었다 — 찾는 것이 여는 것보다 헐거우면
+ * 문이 둘이 아니라 하나 반이 된다.
+ *
+ * **`playerRef` 는 응답에 없다** (F-6, backend I-3).
+ *
+ * 커서를 손으로 이어 붙이지 않는다 — 형식을 계약이 정하지 않았고(`type: string`), 인코딩하지
+ * 않으면 base64 의 `+` 나 `=` 가 조용히 망가진다.
+ */
+export function listAdminSessions(
+  query: AdminSessionQuery = {},
+  signal?: AbortSignal,
+): Promise<AdminSessionList> {
+  const search = new URLSearchParams()
+  if (query.storyId != null && query.storyId !== '') {
+    search.set('storyId', query.storyId)
+  }
+  if (query.cursor != null && query.cursor !== '') {
+    search.set('cursor', query.cursor)
+  }
+  if (query.limit !== undefined) {
+    search.set('limit', String(query.limit))
+  }
+  const encoded = search.toString()
+  return request<AdminSessionList>(`/admin/sessions${encoded === '' ? '' : `?${encoded}`}`, {
+    adminStepUp: stepUp(),
+    signal,
+  })
+}
 
 /**
  * 세션 디버그 (계약 `getSessionDebug`).
@@ -290,6 +342,11 @@ export function decideReview(
  *
  * **작성자는 `authorDisplayName` 뿐이다** — `player_ref` 는 이 응답에 나오지 않는다
  * (F-6, backend I-3). 설정하지 않은 작성자는 `null` 이고 서버가 이름을 지어내지 않는다.
+ *
+ * **미리보기 턴이 이 응답에 실려 온다** (`previewTurns` · `previewedAt`, backend #332,
+ * 정정본 §13-68). 원고가 마지막 미리보기를 기억하므로 **원고를 거쳐 그 턴에 닿는다** —
+ * 세션 목록(`listAdminSessions`)을 뒤져 찾아가는 것이 아니다. 그래서 검수 상세의 미리보기
+ * 칸은 호출을 하나도 더하지 않는다. **빈 배열이 실패가 아니다.**
  */
 export function readReviewManuscript(
   storyId: string,
