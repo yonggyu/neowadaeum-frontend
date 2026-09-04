@@ -29,6 +29,9 @@ function queueItem(overrides: Partial<ReviewQueueItem> = {}): ReviewQueueItem {
     title: '더미 작품',
     reviewStatus: 'in_review',
     queuedAt: '2026-09-01T00:00:00Z',
+    // 계약이 필수로 정한 필드다 (#290, §13-59). 화면은 아직 이 값을 그리지 않는다 —
+    // 이의 제기는 판정의 근거가 아니고, 그리는 자리는 별도 이슈다.
+    appealed: false,
     ...overrides,
   }
 }

@@ -27,6 +27,15 @@ export type BlocklistRegisterRequest = components['schemas']['BlocklistRegisterR
 export type ReviewQueueItem = components['schemas']['ReviewQueueItem']
 export type ReviewVerdictRequest = components['schemas']['ReviewVerdictRequest']
 export type ReviewVerdictResult = components['schemas']['ReviewVerdictResult']
+export type ReviewManuscript = components['schemas']['ReviewManuscript']
+export type ManuscriptCharacter = components['schemas']['ManuscriptCharacter']
+export type ManuscriptChapter = components['schemas']['ManuscriptChapter']
+export type ManuscriptEnding = components['schemas']['ManuscriptEnding']
+export type AutoCheckSummary = components['schemas']['AutoCheckSummary']
+export type StoryReports = components['schemas']['StoryReportsResponse']
+export type ReasonCount = components['schemas']['ReasonCount']
+export type ReportItem = components['schemas']['ReportItem']
+export type ReviewHistoryEntry = components['schemas']['ReviewHistoryEntryResponse']
 
 /**
  * 지금 들고 있는 승격. **메모리에만 둔다** (F-3 와 같은 이유이고 더 강하다).
@@ -253,6 +262,8 @@ export function listReviewQueue(signal?: AbortSignal): Promise<ReviewQueueItem[]
   return request<ReviewQueueItem[]>('/admin/reviews', { adminStepUp: stepUp(), signal })
 }
 
+const reviewPath = (storyId: string): string => `/admin/reviews/${encodeURIComponent(storyId)}`
+
 /**
  * 검수 판정 (계약 `decideReview`).
  *
@@ -264,6 +275,60 @@ export function decideReview(
   body: ReviewVerdictRequest,
   signal?: AbortSignal,
 ): Promise<ReviewVerdictResult> {
-  const path = `/admin/reviews/${encodeURIComponent(storyId)}/verdict`
+  const path = `${reviewPath(storyId)}/verdict`
   return request<ReviewVerdictResult>(path, { method: 'POST', body, adminStepUp: stepUp(), signal })
+}
+
+/**
+ * 검수 원고 열람 (계약 `readReviewManuscript`).
+ *
+ * **이 호출 하나가 열람 기록 한 줄이고, 기록에 실패하면 원문이 나가지 않는다**
+ * (backend R12.3 · R14.5, 정정본 §13-61). 그래서 **목록을 그리려고 미리 부르지 않는다** —
+ * 검수자가 그 작품을 실제로 열 때만 부른다. 큐 전체를 미리 채워 두면 열어 본 적 없는
+ * 작품들이 전부 열람 기록에 남고, 그 기록은 나중에 "누가 무엇을 봤는가" 를 답하지 못한다.
+ * `getSessionDebug` 가 같은 이유로 같은 규칙을 따른다.
+ *
+ * **작성자는 `authorDisplayName` 뿐이다** — `player_ref` 는 이 응답에 나오지 않는다
+ * (F-6, backend I-3). 설정하지 않은 작성자는 `null` 이고 서버가 이름을 지어내지 않는다.
+ */
+export function readReviewManuscript(
+  storyId: string,
+  signal?: AbortSignal,
+): Promise<ReviewManuscript> {
+  return request<ReviewManuscript>(reviewPath(storyId), { adminStepUp: stepUp(), signal })
+}
+
+/**
+ * 이 작품에 무엇이 신고됐는가 (계약 `listStoryReports`).
+ *
+ * **별도의 큐가 아니다** — 임계에 닿은 작품은 같은 인간 검수 큐에 `suspended` 로 올라와
+ * 있고 (정정본 §13-41), 이 경로는 그 안에서 *무엇이 몇 건인지*를 답한다.
+ *
+ * **신고자도, 신고자가 쓴 자유 문장도 오지 않는다** (backend I-3, §13-62). 화면이 그것을
+ * 채우려 하지 않는다 — 없는 것을 지어내면 판정에 쓰이지 않기로 한 값이 판정에 섞인다.
+ *
+ * **읽는 것도 감사에 남는다** (R14.5). 원고와 같은 규칙이다 — 미리 부르지 않는다.
+ */
+export function listStoryReports(storyId: string, signal?: AbortSignal): Promise<StoryReports> {
+  return request<StoryReports>(`${reviewPath(storyId)}/reports`, { adminStepUp: stepUp(), signal })
+}
+
+/**
+ * 지난 검수 판정 (계약 `getReviewHistory`). append-only 이며 **최근 것부터** 온다.
+ *
+ * **`note` 를 담는 유일한 응답이다** (backend R8.7 · S-11, 정정본 §13-63). 작성자가 보는
+ * 검수 상태 응답에는 카테고리만 가므로, 이 값이 작성자 쪽 화면으로 흘러가지 않아야 한다 —
+ * 그래서 이 호출은 관리자 화면에서만 부른다.
+ *
+ * **판정이 없으면 빈 목록이고, 없는 작품은 `404` 다** — 계약이 그 둘을 구분했다.
+ * **쪽을 나누지 않는다** — 커서가 계약에 없으므로 화면도 마지막 쪽을 도는 코드를 두지 않는다.
+ */
+export function getReviewHistory(
+  storyId: string,
+  signal?: AbortSignal,
+): Promise<ReviewHistoryEntry[]> {
+  return request<ReviewHistoryEntry[]>(`${reviewPath(storyId)}/history`, {
+    adminStepUp: stepUp(),
+    signal,
+  })
 }
