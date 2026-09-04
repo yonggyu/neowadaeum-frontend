@@ -102,7 +102,7 @@ export function StepOutline({
   }
 
   const missingSeed = chaptersMissingSeed(values.chapters)
-  const missingCondition = endingsMissingCondition(values.endings, outline.templates)
+  const missingCondition = endingsMissingCondition(values.endings, outline.templates, sources)
 
   return (
     <>

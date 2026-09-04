@@ -143,7 +143,15 @@ function Wizard({ draft: loaded, metadata }: { draft: Draft; metadata: Authoring
     try {
       // 아는 키만 남기지 않는다 — 두 함수 모두 원문을 펼친 뒤 자기 자리만 덮는다. Step 5 의
       // 입력도 같은 `payload` 안에 오므로, 여기서 아는 키만 남기면 그것을 매번 지우게 된다.
-      const payload = writeOutline(writeValues(draft.payload, values), outline)
+      // 고른 조건은 `conditionTemplateKey` · `conditionParams` 형제 필드로 나간다 (§13-70).
+      // 서버가 저장 시점에 조립하므로 템플릿 선언과 고를 수 있는 이름을 함께 넘긴다 —
+      // 완성되지 않았거나 원고 밖을 가리키는 조건을 실어 보내면 저장이 `400` 으로 막힌다.
+      const payload = writeOutline(
+        writeValues(draft.payload, values),
+        outline,
+        metadata.conditionTemplates,
+        conditionSources(values),
+      )
       setDraft(await updateDraft(draft.draftId, { step: next, payload }))
       setDirty(false)
       setSave({ kind: 'saved' })
