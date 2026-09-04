@@ -57,6 +57,82 @@
   outline-offset: 2px;
 }
 
+/*
+ * 줄 오른쪽에 붙는 값 — `@연우 ›` 또는 `설정하기 ›`.
+ *
+ * 라벨과 값이 한 줄에 있고 값이 길어지면 값 쪽이 줄어든다. 390 에서 표시명이 12자여도
+ * "표시명" 이 밀려나지 않게 하는 것이 이 `min-width: 0` 이다 (F-9).
+ */
+.rowValue {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: var(--sp-2);
+  overflow: hidden;
+  color: var(--fg-muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/*
+ * 표시명 입력 (backend #271).
+ *
+ * **줄과 같은 폭 안에 있다** — 420px 컬럼 하나가 네 폭 모두의 레이아웃이므로 이 폼도
+ * 자기 미디어 쿼리를 갖지 않는다 (6d · F-9). 그것이 이 화면의 규칙이다.
+ */
+.nameForm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  padding: var(--sp-3) 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.nameLabel {
+  color: var(--fg-muted);
+  font-size: 0.8125rem;
+}
+
+/* `@` 와 입력이 한 덩어리로 보여야 한다 — 붙는 표기이지 사용자가 지우는 글자가 아니다 */
+.nameRow {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+  min-height: 48px; /* 6d — 설정 행의 터치 대상 높이 */
+  padding: 0 var(--sp-3);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--bg);
+}
+
+.nameRow:focus-within {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+
+.namePrefix {
+  color: var(--fg-subtle);
+}
+
+.nameInput {
+  width: 100%;
+  min-width: 0;
+  padding: var(--sp-2) 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-size: 1.0625rem;
+}
+
+.nameInput:focus {
+  outline: none; /* 테두리는 `.nameRow` 가 그린다 — `@` 와 입력이 한 칸으로 읽혀야 한다 */
+}
+
+.nameInput:disabled {
+  color: var(--fg-muted);
+}
+
 /* 본문 주소가 없는 약관 — 누를 수 없으므로 `›` 도 커서도 주지 않는다 */
 .rowInert {
   color: var(--fg-muted);

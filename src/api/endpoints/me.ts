@@ -11,6 +11,7 @@ import type { VisibleReviewStatus } from './authoring'
  * 오지 않는다 (§13-7, I-3). 화면이 그것을 그릴 수 없는 것이 아니라 **받지 않는다** (F-6).
  */
 export type MeResponse = components['schemas']['MeResponse']
+export type UpdateMeRequest = components['schemas']['UpdateMeRequest']
 export type MySessionItem = components['schemas']['MySessionItem']
 export type MySessionsResponse = components['schemas']['MySessionsResponse']
 
@@ -63,6 +64,32 @@ function query(params: Record<string, string | null | undefined>): string {
  */
 export function getMe(signal?: AbortSignal): Promise<MeResponse> {
   return request<MeResponse>('/me', { signal })
+}
+
+/**
+ * 표시명 설정·변경 (`updateMe`). 응답은 **바뀐 내 계정**이다.
+ *
+ * **표시명을 만드는 유일한 경로다** (backend #271, 정정본 §13-55). 읽는 곳은 셋인데(작품 상세 ·
+ * 커뮤니티 카드 · `GET /me`) 쓰는 곳이 없어서 실사용에서 `displayName` 이 늘 `null` 이었다.
+ *
+ * **설정과 변경이 같은 요청이다** (upsert) — 프로필이 있는지 화면이 먼저 물어보지 않는다.
+ * 나누면 두 요청 사이에 다른 요청이 끼는 순간 어느 쪽도 맞지 않는다.
+ *
+ * **돌려받은 값이 저장된 이름이다.** 서버가 정규화한다(NFC · 양끝 공백 · 연속 공백 하나로).
+ * 보낸 값을 낙관적으로 그리면 화면과 서버가 갈라진다 — 그래서 이 함수가 `void` 가 아니라
+ * `MeResponse` 를 돌려주고, 화면은 그것만 쓴다.
+ *
+ * **형식 규칙을 여기 옮겨 적지 않는다.** 길이·허용 문자·`@` 금지의 정본은 서버 도메인이고
+ * (계약: *"화면 검증은 편의이지 계약이 아니다"*), 옮겨 적는 순간 정본이 둘이 된다 — 갈라지는
+ * 날 한쪽이 통과시킨 이름을 다른 쪽이 거절한다. 거절은 `400 VALIDATION_ERROR` 로 오고 화면은
+ * 서버의 `message` 를 그대로 낸다 (F-4).
+ *
+ * **`409` 가 없다.** 표시명에 유일 제약이 없어 같은 이름을 가진 회원이 둘 이상 있을 수 있다 —
+ * 화면이 "이미 사용 중" 같은 문구를 지어내지 않는다.
+ */
+export function updateMe(displayName: string, signal?: AbortSignal): Promise<MeResponse> {
+  const body: UpdateMeRequest = { displayName }
+  return request<MeResponse>('/me', { method: 'PATCH', body, signal })
 }
 
 /**
