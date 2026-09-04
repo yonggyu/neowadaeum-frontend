@@ -1,8 +1,15 @@
-import { useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { useId, useState } from 'react'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 
-import { changeStoryVisibility, type ReviewStatusResponse, type Visibility } from '../../api/endpoints/authoring'
+import {
+  appealStorySuspension,
+  changeStoryVisibility,
+  deleteStory,
+  type ReviewStatusResponse,
+  type Visibility,
+} from '../../api/endpoints/authoring'
 import { getMyStories, type MyStoryItem } from '../../api/endpoints/me'
+import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { usePagedApi } from '../../hooks/usePagedApi'
 import { myStoryPath, ROUTES, storyDetailPath } from '../../routes/routes'
 import { AiNoticeFooter } from '../library/parts'
@@ -10,6 +17,12 @@ import shared from './account.module.css'
 import { ErrorNotice } from './ErrorNotice'
 import styles from './MyStoryReviewScreen.module.css'
 import { formatRelativeTime } from './relativeTime'
+import {
+  APPEAL_REASON_MAX,
+  canSubmitAppeal,
+  STORY_APPEAL_NOTICE,
+  STORY_DELETE_NOTICE,
+} from './storyActions'
 import {
   isVisibilityReadOnly,
   narrowsExposure,
@@ -34,6 +47,7 @@ import {
  */
 export function MyStoryReviewScreen() {
   const { storyId } = useParams<{ storyId: string }>()
+  const navigate = useNavigate()
   const id = storyId ?? ''
   const page = usePagedApi<MyStoryItem>((cursor, signal) => getMyStories({ cursor, signal }), 'authored')
 
@@ -87,7 +101,19 @@ export function MyStoryReviewScreen() {
             <p className={shared.empty}>이 작품을 찾을 수 없어요.</p>
           ) : null}
           {selected === null ? null : (
-            <StoryDetail story={selected} onReviewed={setReview} />
+            <StoryDetail
+              story={selected}
+              onReviewed={setReview}
+              onDeleted={() => {
+                /*
+                 * 지운 작품은 목록에 오지 않는다 (§13-58) — 서버가 진실이므로 다시 받는다.
+                 * 화면에서 한 줄만 빼면 실패한 삭제가 성공처럼 보인다 (1i 의 세션 삭제와
+                 * 같은 판단). 지운 작품의 상세에 남아 있을 이유도 없으므로 목록으로 간다.
+                 */
+                page.reload()
+                void navigate(ROUTES.myStories, { replace: true })
+              }}
+            />
           )}
         </section>
       </div>
@@ -119,9 +145,11 @@ function merged(story: MyStoryItem, id: string, review: ReviewStatusResponse | n
 function StoryDetail({
   story,
   onReviewed,
+  onDeleted,
 }: {
   story: MyStoryItem
   onReviewed: (review: ReviewStatusResponse) => void
+  onDeleted: () => void
 }) {
   return (
     <>
@@ -140,6 +168,7 @@ function StoryDetail({
 
       <ReviewPanel story={story} />
       <VisibilityForm story={story} onReviewed={onReviewed} />
+      <DeleteSection story={story} onDeleted={onDeleted} />
     </>
   )
 }
@@ -216,25 +245,185 @@ function ReviewPanel({ story }: { story: MyStoryItem }) {
     )
   }
 
+  if (phase === 'suspended') {
+    return (
+      <section className={styles.panel}>
+        <h3 className={styles.panelTitle}>공개 정지</h3>
+        <p className={shared.body}>신고가 접수되어 공개가 중지되었습니다.</p>
+        <h4 className={styles.panelSubtitle}>현재 상태</h4>
+        {/*
+         * 새 턴이 막히는 것은 계약의 `423 STORY_SUSPENDED` 다 — 세션 시작과 턴 생성 둘 다에
+         * 걸려 있고, 기존 기록 열람은 허용된다 (R8.10). 상태 코드 숫자는 화면에 쓰지 않는다.
+         */}
+        <ul className={styles.reasons}>
+          <li>Library 노출 중단</li>
+          <li>진행 중이던 이용자는 읽기 전용 — 새 턴을 만들 수 없습니다</li>
+          <li>새로 시작할 수 없습니다</li>
+        </ul>
+        <p className={shared.body}>검토 후 복구되거나 삭제될 수 있습니다.</p>
+        {/*
+         * 3f 가 그린 [이의 제기] 가 이제 갈 곳을 갖는다 (`appealStorySuspension`, backend
+         * #290). 문의하라고 적어 놓고 문의할 곳이 없으면 안내가 아니라 방치다.
+         */}
+        <AppealForm storyId={story.storyId} />
+      </section>
+    )
+  }
+
+  /*
+   * `deleted` 는 이 화면에 오지 않는다 — 지운 작품은 `getMyStories` 가 돌려주지 않는다
+   * (§13-58). 열거형에 있는 값이라 자리를 비워 두지 않을 뿐이고, 여기서 정지 패널을 그리면
+   * 지운 작품이 정지된 것처럼 보인다.
+   */
   return (
     <section className={styles.panel}>
-      <h3 className={styles.panelTitle}>공개 정지</h3>
-      <p className={shared.body}>신고가 접수되어 공개가 중지되었습니다.</p>
-      <h4 className={styles.panelSubtitle}>현재 상태</h4>
-      {/*
-       * 새 턴이 막히는 것은 계약의 `423 STORY_SUSPENDED` 다 — 세션 시작과 턴 생성 둘 다에
-       * 걸려 있고, 기존 기록 열람은 허용된다 (R8.10). 상태 코드 숫자는 화면에 쓰지 않는다.
-       */}
+      <h3 className={styles.panelTitle}>삭제됨</h3>
+      <p className={shared.body}>이 작품은 삭제되어 더 이상 열리지 않습니다.</p>
+    </section>
+  )
+}
+
+/**
+ * 재검토 요청 (3f 의 [이의 제기], 계약 `appealStorySuspension`).
+ *
+ * **보내고 나서도 상태 패널은 "공개 정지" 그대로다.** 이 요청이 바꾸는 것은 기록과 검수
+ * 큐의 신호뿐이고 (정정본 §13-59), 화면이 "재검토 중" 으로 바꿔 그리면 작성자가 검수 결과를
+ * 되돌리는 것처럼 보인다 (I-8). 그래서 여기서 갈리는 것은 **이 폼의 자리뿐**이다 —
+ * `reviewStatus` 를 건드리는 콜백이 이 컴포넌트에 아예 없다.
+ *
+ * **보낸 사유를 다시 그리지 않는다.** 유일한 독자가 검수자이며 (S-11) 응답도 그것을 돌려주지
+ * 않는다. 관리자 전용 메모(`note`)도 이 화면이 읽지 않는다 (R8.7).
+ */
+function AppealForm({ storyId }: { storyId: string }) {
+  const fieldId = useId()
+  const [reason, setReason] = useState('')
+  const [sending, setSending] = useState(false)
+  const [sent, setSent] = useState(false)
+  const [failure, setFailure] = useState<unknown>(null)
+
+  async function submit(): Promise<void> {
+    setSending(true)
+    setFailure(null)
+    try {
+      await appealStorySuspension(storyId, reason)
+      setSent(true)
+    } catch (error) {
+      // `409 ALREADY_EXISTS` · `409 STORY_NOT_SUSPENDED` · `404` 어느 쪽이든 서버의
+      // `message` 를 그대로 낸다 (F-4). 남의 작품과 없는 작품을 구분해 말하지 않는다 (I-8).
+      setFailure(error)
+    } finally {
+      setSending(false)
+    }
+  }
+
+  return (
+    <div className={styles.appeal}>
+      <h4 className={styles.panelSubtitle}>재검토 요청</h4>
       <ul className={styles.reasons}>
-        <li>Library 노출 중단</li>
-        <li>진행 중이던 이용자는 읽기 전용 — 새 턴을 만들 수 없습니다</li>
-        <li>새로 시작할 수 없습니다</li>
+        {STORY_APPEAL_NOTICE.map((line) => (
+          <li key={line}>{line}</li>
+        ))}
       </ul>
-      <p className={shared.body}>검토 후 복구되거나 삭제될 수 있습니다.</p>
-      {/*
-       * "이의 제기" 와 "작품 삭제" 를 두지 않는다 — 둘 다 계약에 경로가 없다. `DELETE` 는
-       * 세션 · 계정 · 원고 · 관리자 블록리스트뿐이고, 이의 제기는 아예 없다.
-       */}
+
+      {sent ? (
+        <p className={shared.body} role="status">
+          요청이 접수되었습니다.
+        </p>
+      ) : (
+        <form
+          className={styles.appealForm}
+          onSubmit={(event) => {
+            event.preventDefault()
+            void submit()
+          }}
+        >
+          <label className={styles.appealLabel} htmlFor={fieldId}>
+            어떤 점이 잘못되었는지 알려 주세요
+          </label>
+          {/*
+           * 상한은 계약의 값이다 (`AppealRequest.maxLength`). 눌러 보기 전에 알려 주는
+           * 안내이며, 방어는 서버가 한다.
+           */}
+          <textarea
+            id={fieldId}
+            className={styles.appealInput}
+            rows={4}
+            maxLength={APPEAL_REASON_MAX}
+            value={reason}
+            disabled={sending}
+            onChange={(event) => setReason(event.target.value)}
+          />
+          <p className={shared.meta}>{`${reason.length} / ${APPEAL_REASON_MAX}`}</p>
+          {failure === null ? null : (
+            <p className={shared.meta} role="alert">
+              {failure instanceof Error ? failure.message : String(failure)}
+            </p>
+          )}
+          <div className={shared.actions}>
+            <button
+              type="submit"
+              className={shared.button}
+              disabled={!canSubmitAppeal(reason) || sending}
+            >
+              {sending ? '보내는 중…' : '재검토 요청'}
+            </button>
+          </div>
+        </form>
+      )}
+    </div>
+  )
+}
+
+/**
+ * 작품 삭제 (3f 의 [작품 삭제], 계약 `deleteStory`).
+ *
+ * **어느 상태에서도 있다.** 3f 는 이 버튼을 정지 화면에만 그렸지만 계약은 상태를 가리지
+ * 않는다 (§13-58 — *"삭제는 어떤 판정도 되돌리지 않는다"*). 상태마다 있고 없는 버튼을 두면
+ * 작성자는 지울 수 없는 작품이 있다고 읽고, 그 오해를 푸는 길이 화면에 없다.
+ *
+ * **판은 `ConfirmDialog` 다** (#63) — 6d 가 되돌릴 수 없는 동작을 Mobile 전체화면으로 정했고
+ * 그 근거가 *"되돌릴 수 없는 동작이라 시트로 띄우지 않는다"* 이다.
+ */
+function DeleteSection({ story, onDeleted }: { story: MyStoryItem; onDeleted: () => void }) {
+  const [confirming, setConfirming] = useState(false)
+
+  return (
+    <section className={styles.panel}>
+      <h3 className={styles.panelTitle}>작품 삭제</h3>
+      <p className={shared.meta}>지운 작품은 되돌릴 수 없습니다.</p>
+      <div className={shared.actions}>
+        <button
+          type="button"
+          className={`${shared.button} ${styles.danger}`}
+          onClick={() => setConfirming(true)}
+        >
+          작품 삭제
+        </button>
+      </div>
+
+      {confirming ? (
+        <ConfirmDialog
+          title={`“${story.title}” 을 삭제할까요?`}
+          confirmLabel="삭제합니다"
+          pendingLabel="지우는 중…"
+          cancelLabel="돌아가기"
+          onCancel={() => setConfirming(false)}
+          onConfirm={async () => {
+            await deleteStory(story.storyId)
+            onDeleted()
+          }}
+        >
+          {/*
+           * **문구가 결과를 단정하지 않는다.** 무엇이 남고 무엇이 내려가는지는 계약이 정했고
+           * (§13-58) 그 문장은 `storyActions.ts` 에 있다 — 금지어 테스트가 그것을 지킨다.
+           */}
+          <ul className={styles.deleteNotice}>
+            {STORY_DELETE_NOTICE.map((line) => (
+              <li key={line}>{line}</li>
+            ))}
+          </ul>
+        </ConfirmDialog>
+      ) : null}
     </section>
   )
 }
