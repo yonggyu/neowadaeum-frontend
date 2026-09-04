@@ -3,6 +3,7 @@ import { Navigate, Route, Routes } from 'react-router-dom'
 import type { AuthState } from '../auth/session'
 import { AccountSettingsScreen } from '../screens/account/AccountSettingsScreen'
 import { AdminAuthScreen } from '../screens/admin/AdminAuthScreen'
+import { AdminBlocklistScreen } from '../screens/admin/AdminBlocklistScreen'
 import { AdminDebugScreen } from '../screens/admin/AdminDebugScreen'
 import { AdminGuard } from '../screens/admin/AdminGuard'
 import { AdminReviewQueueScreen } from '../screens/admin/AdminReviewQueueScreen'
@@ -135,6 +136,13 @@ export function AppRoutes({ session }: { session: AuthState }) {
         <Route path={ROUTES.adminSessions} element={<AdminSessionListScreen />} />
         {/* Debug 콘솔 (1j). 위 목록에서 행을 눌러 오는 자리이며, URL 로 바로 열 수도 있다 */}
         <Route path={ROUTES.adminSessionDebug} element={<AdminDebugScreen />} />
+        {/*
+         * 블록리스트 (8차 `Blocklist`) — 문 안쪽의 셋째다 (#119).
+         *
+         * **가드 안이다** (S-4). 이 목록이 곧 우회 사전이므로 승격 없이 그리면 목록 하나가
+         * 세이프티 전체를 무르는 재료가 된다.
+         */}
+        <Route path={ROUTES.adminBlocklist} element={<AdminBlocklistScreen />} />
       </Route>
       <Route path={ROUTES.adminAuth} element={<AdminAuthScreen />} />
 

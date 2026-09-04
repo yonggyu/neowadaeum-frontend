@@ -20,6 +20,7 @@ import { formatRelativeTime } from '../account/relativeTime'
 // 따라 달라지면 검수자와 작성자가 다른 것을 말하게 된다.
 import { VISIBILITY_LABEL } from '../account/reviewStatus'
 import { useResource, type Resource } from '../library/useResource'
+import { AdminTabBar } from './AdminTabBar'
 import {
   AUTO_CHECK_VERDICT_LABEL,
   authorLabel,
@@ -154,6 +155,15 @@ export function AdminReviewQueueScreen() {
           승격 해제
         </button>
       </header>
+
+      {/*
+       * 문 안쪽의 셋을 잇는 줄 (#119). 아래의 탭 줄과 다른 층이다 — 이것은 *어느 화면인가*
+       * 이고 아래는 *이 큐의 어느 상태인가* 다. 하나로 합치면 관리자 화면 셋과 큐 상태 셋이
+       * 같은 무게로 보인다.
+       */}
+      <div className={styles.section}>
+        <AdminTabBar current="reviews" />
+      </div>
 
       <nav className={styles.tabs} aria-label="검수 큐">
         {QUEUE_TABS.map((key) => (

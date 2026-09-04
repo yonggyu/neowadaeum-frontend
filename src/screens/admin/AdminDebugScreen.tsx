@@ -1,5 +1,5 @@
 import { useCallback, useState, type ReactNode } from 'react'
-import { useParams } from 'react-router-dom'
+import { Link, useParams } from 'react-router-dom'
 
 import {
   getSessionDebug,
@@ -9,6 +9,7 @@ import {
   type AdminSessionDebug,
 } from '../../api/endpoints/admin'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
+import { ROUTES } from '../../routes/routes'
 import { useResource } from '../library/useResource'
 import {
   buildFreeInput,
@@ -58,13 +59,22 @@ export function AdminDebugScreen() {
       </header>
       {sessionId === undefined ? (
         /*
-         * 라우트가 세션 id 를 항상 주므로 여기 오지 않는다. 그래도 빈 화면으로 넘기지 않는다 —
-         * **계약에 관리자용 세션 목록 경로가 없어** 콘솔로 들어오는 길이 URL 하나뿐이고,
-         * 목록을 그리려면 없는 오퍼레이션을 상상해야 한다. 그 사실을 여기 적어 둔다.
+         * 라우트가 세션 id 를 항상 주므로 여기 오지 않는다. 그래도 빈 화면으로 넘기지 않는다.
+         *
+         * **낡은 안내를 걷어 냈다** (#115). 여기 있던 문장은 *"계약에 관리자용 세션 목록 경로가
+         * 없다"* 였는데 `#108` 이 그 목록을 세웠고, 남겨 두면 다음 사람이 백엔드에 이미 닫힌
+         * 이슈를 다시 연다 — 실제로 그렇게 열린 적이 있다.
+         *
+         * **여기서 목록을 그리지 않는다.** 고를 목록을 채우려면 세션마다 `getSessionDebug` 를
+         * 불러야 하고, 그 호출 하나하나가 열람 감사 한 줄이다 (#86, backend R12.3 · S-5).
+         * 이 자리가 주는 것은 **길 하나**다.
          */
         <p className={styles.missing}>
-          세션 id 가 경로에 없어요. 계약에 관리자용 세션 목록 경로가 없어서 고를 목록도
-          그리지 않아요.
+          세션 id 가 경로에 없어요.{' '}
+          <Link className={styles.link} to={ROUTES.adminSessions}>
+            세션 목록
+          </Link>
+          에서 열 세션을 고르세요.
         </p>
       ) : (
         // 세션이 바뀌면 고른 호출과 펼친 원문이 새로 시작해야 한다. 남겨 두면 앞 세션에서

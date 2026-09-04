@@ -3,8 +3,9 @@ import { Link, useSearchParams } from 'react-router-dom'
 
 import { listAdminSessions, type AdminSessionListItem } from '../../api/endpoints/admin'
 import { usePagedApi } from '../../hooks/usePagedApi'
-import { adminSessionDebugPath, ROUTES } from '../../routes/routes'
+import { adminSessionDebugPath } from '../../routes/routes'
 import { formatRelativeTime } from '../account/relativeTime'
+import { AdminTabBar } from './AdminTabBar'
 import {
   filterChipLabel,
   hiddenTestCount,
@@ -70,14 +71,8 @@ export function AdminSessionListScreen() {
     <main className={styles.page} data-screen="AdminSessionListScreen">
       <header className={styles.bar}>
         <h1 className={styles.title}>ADMIN / SESSIONS</h1>
-        <nav className={styles.tabs} aria-label="관리자 구역">
-          <span className={styles.tab} aria-current="page">
-            세션
-          </span>
-          <Link className={styles.tab} to={ROUTES.adminReviews}>
-            검수 큐
-          </Link>
-        </nav>
+        {/* 문 안쪽이 셋이 됐다 — 줄을 화면마다 적지 않고 나눠 쓴다 (#119) */}
+        <AdminTabBar current="sessions" />
       </header>
 
       <form
