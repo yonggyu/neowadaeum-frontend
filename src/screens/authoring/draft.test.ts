@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { ApiError } from '../../api/client'
+import type { DraftPayload } from '../../api/endpoints/authoring'
 import { ROUTES } from '../../routes/routes'
 import {
   clampStep,
@@ -33,9 +34,19 @@ describe('draftTitle — 3g "제목 없는 작품"', () => {
   })
 
   it('없거나_비었으면_지어내지_않고_같은_문구를_쓴다 — 원고는 제목 없이도 만들어진다', () => {
+    /**
+     * **형을 넓히는 이유** — 계약(#354)이 `DraftPayload.title` 을 `string` 으로 세웠지만
+     * 그것은 서버가 지키기로 한 약속이지 런타임 검증이 아니다. `request<T>()` 는
+     * `response.json()` 을 그대로 `T` 로 단언하며, `DraftPayload` 는 `additionalProperties`
+     * 가 열린 자리라 무엇이 실려 오는지 화면이 다 알 수 없다. 이 테스트가 붙잡는 성질이
+     * *"그래도 빈 값으로 읽는다"* 이므로, 계약이 금지한 형은 **와이어에서 오는 모양**
+     * (`Record<string, unknown>`)으로 만들어 그 경계를 그대로 흉내 낸다.
+     */
+    const wirePayload: Record<string, unknown> = { title: 42 }
+
     expect(draftTitle({})).toBe('제목 없는 작품')
     expect(draftTitle({ title: '   ' })).toBe('제목 없는 작품')
-    expect(draftTitle({ title: 42 })).toBe('제목 없는 작품')
+    expect(draftTitle(wirePayload as DraftPayload)).toBe('제목 없는 작품')
     expect(draftTitle(undefined)).toBe('제목 없는 작품')
   })
 })
