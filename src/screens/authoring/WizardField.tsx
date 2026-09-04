@@ -113,27 +113,3 @@ export function DraftField({
     </div>
   )
 }
-
-/**
- * 그림이 들어갈 자리 — **커버(2:3)와 초상**.
- *
- * **업로드를 만들지 않는다.** 계약에 이미지를 올리는 오퍼레이션이 없다 (`docs/openapi.yaml`
- * 의 `authoring` 태그 다섯 경로 어디에도 `multipart` 가 없고, 업로드 URL 을 주는 경로도
- * 없다). 파일 입력만 먼저 붙이면 고르는 순간 아무 데도 가지 않는 파일이 생기고, 화면은
- * 저장된 것처럼 보인다 — 비어 있는 화면이 돌아가는 것처럼 보이는 바로 그 경우다.
- *
- * 그래서 자리와 비율만 두고 **없다는 사실을 화면이 말한다.** 경로가 생기면 이 컴포넌트
- * 하나가 업로드로 바뀐다.
- */
-export function ImageSlot({ label, ratio }: { label: string; ratio: 'cover' | 'portrait' }) {
-  return (
-    <div className={css.field}>
-      <span className={css.fieldLabel}>{label}</span>
-      <div className={ratio === 'cover' ? `${css.imageSlot} ${css.cover}` : css.imageSlot}>
-        <span className={css.imageSlotNote}>
-          {ratio === 'cover' ? '2:3 권장 · 업로드 경로 없음' : '업로드 경로 없음'}
-        </span>
-      </div>
-    </div>
-  )
-}

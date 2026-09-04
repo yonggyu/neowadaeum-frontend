@@ -1,4 +1,5 @@
 import type { AuthoringGenre } from '../../api/endpoints/authoring'
+import { ImageSlotField } from './ImageSlotField'
 import {
   characterField,
   characterFieldPaths,
@@ -13,7 +14,7 @@ import {
   type StepValues,
 } from './stepFields'
 import type { PrecheckHandle } from './usePrecheck'
-import { DraftField, ImageSlot } from './WizardField'
+import { DraftField } from './WizardField'
 import css from './wizard.module.css'
 
 /**
@@ -24,9 +25,18 @@ import css from './wizard.module.css'
  * 입력 칸 두셋을 그리는 것뿐이다.
  */
 export interface StepProps {
+  /** 이미지 자리가 이 원고에 발급을 요청한다 — **키(경로)는 서버가 정한다** (§13-65) */
+  draftId: string
   values: StepValues
   onChange: (values: StepValues) => void
   precheck: PrecheckHandle
+  /**
+   * 이미지 자리 하나가 진행 중인지 마법사에 알린다.
+   *
+   * 진행 중에 단계가 넘어가면 **확정이 끝나기 전의 원고**가 저장되고, 그 자리는 언마운트되면서
+   * 업로드가 중단된다 — 사용자는 올렸다고 믿은 이미지가 없는 채로 다음 화면을 본다.
+   */
+  onImageBusy: (key: string, busy: boolean) => void
 }
 
 /**
@@ -37,9 +47,11 @@ export interface StepProps {
  * 작성자가 고를 수 있는 목록이 갈라진다 (§13-56). **순서도 서버의 것이다** (`display_order`).
  */
 export function StepBasics({
+  draftId,
   values,
   onChange,
   precheck,
+  onImageBusy,
   genres,
 }: StepProps & { genres: readonly AuthoringGenre[] }) {
   return (
@@ -87,7 +99,21 @@ export function StepBasics({
         onChange={(shortDescription) => onChange({ ...values, shortDescription })}
         precheck={precheck}
       />
-      <ImageSlot label="커버 이미지" ratio="cover" />
+      {/*
+       * 대표 이미지 (7차 `ImageUpload` · #88). **원고에 적히는 값은 객체 키다** — 응답에
+       * 이미지 주소가 없고(I-8) 화면이 주소를 조립하지 않는다.
+       */}
+      <ImageSlotField
+        draftId={draftId}
+        slot="cover"
+        label="대표 이미지"
+        hint="독자에게 보입니다"
+        note="라이브러리 카드와 작품 상세가 2:3 으로 보여 줍니다."
+        objectKey={values.coverImage}
+        onChange={(coverImage) => onChange({ ...values, coverImage })}
+        busyKey={FIELD.coverImage}
+        onBusyChange={onImageBusy}
+      />
     </>
   )
 }
@@ -137,7 +163,13 @@ export function StepWorld({ values, onChange, precheck }: StepProps) {
  * **개수 상한을 화면이 말하지 않는다** — 계약도 정정본도 값을 주지 않는다. 지어 두면 그
  * 숫자가 규칙이 된다. `persona` 의 글자 수 상한도 같은 이유로 없다.
  */
-export function StepCharacters({ values, onChange, precheck }: StepProps) {
+export function StepCharacters({
+  draftId,
+  values,
+  onChange,
+  precheck,
+  onImageBusy,
+}: StepProps) {
   /**
    * 순서가 바뀌거나 하나가 빠지면 **자리의 뜻이 달라진다** — `characters[1].name` 이 가리키는
    * 사람이 다른 사람이 된다. 옛 결과를 버리고 남은 것들을 다시 물어보는 이유가 이것이다:
@@ -159,10 +191,12 @@ export function StepCharacters({ values, onChange, precheck }: StepProps) {
       {values.characters.map((character, index) => (
         <CharacterCard
           key={index}
+          draftId={draftId}
           index={index}
           total={values.characters.length}
           character={character}
           precheck={precheck}
+          onImageBusy={onImageBusy}
           onChange={(next) =>
             onChange({
               ...values,
@@ -187,20 +221,24 @@ export function StepCharacters({ values, onChange, precheck }: StepProps) {
 }
 
 interface CharacterCardProps {
+  draftId: string
   index: number
   total: number
   character: CharacterDraft
   precheck: PrecheckHandle
+  onImageBusy: (key: string, busy: boolean) => void
   onChange: (character: CharacterDraft) => void
   onMove: (to: number) => void
   onRemove: () => void
 }
 
 function CharacterCard({
+  draftId,
   index,
   total,
   character,
   precheck,
+  onImageBusy,
   onChange,
   onMove,
   onRemove,
@@ -244,7 +282,20 @@ function CharacterCard({
         </div>
       </div>
       <div className={css.cardBody}>
-        <ImageSlot label="초상" ratio="portrait" />
+        {/*
+         * 초상도 커버와 **같은 컴포넌트**다 — 아트보드가 정한 차이는 폭 하나뿐이다.
+         * `busyKey` 는 필드 경로가 아니라 **자리를 가리는 이름**이다: 초상은 검수 대상이
+         * 아니어서 `characterField` 의 경로 목록에 들어 있지 않다.
+         */}
+        <ImageSlotField
+          draftId={draftId}
+          slot="portrait"
+          label="초상"
+          objectKey={character.portraitImage}
+          onChange={(portraitImage) => onChange({ ...character, portraitImage })}
+          busyKey={`portrait-${index}`}
+          onBusyChange={onImageBusy}
+        />
         <div className={css.cardFields}>
           <DraftField
             field={nameField}
