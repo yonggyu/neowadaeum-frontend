@@ -18,6 +18,8 @@ import {
   setDefaultEnding,
   templateBlockedReason,
   writeOutline,
+  type ChapterDraft,
+  type ConditionSources,
   type EndingDraft,
 } from './outline'
 
@@ -53,11 +55,25 @@ const TURN: ConditionTemplateSpec = {
 
 const TEMPLATES = [AFFINITY, HAS_FLAG, TURN]
 
+/** 이 원고가 선언한 이름들 — 서버의 검증도 같은 목록을 본다 (계약 `ConditionParams`). */
+const SOURCES: ConditionSources = { characters: ['유나', '민'], flags: ['봄'] }
+
 const ending = (label: string, patch: Partial<EndingDraft> = {}): EndingDraft => ({
   ...emptyEnding(),
   label,
   ...patch,
 })
+
+const chapter = (title: string, patch: Partial<ChapterDraft> = {}): ChapterDraft => ({
+  ...emptyChapter(),
+  title,
+  summarySeed: '씨앗',
+  ...patch,
+})
+
+/** 저장된 챕터·엔딩 한 줄을 그대로 본다 — 계약이 정한 자리에 무엇이 실렸는가. */
+const written = (payload: Record<string, unknown>, key: 'chapters' | 'endings') =>
+  payload[key] as Record<string, unknown>[]
 
 describe('payload 를 화면의 값으로 (Step 4)', () => {
   it('초안을_한_번도_받지_않은_원고가_기본값이다', () => {
@@ -85,20 +101,27 @@ describe('payload 를 화면의 값으로 (Step 4)', () => {
    * 안에 있으므로, 아는 키만 남기면 이 단계가 나머지를 매번 지운다.
    */
   it('모르는_키를_지우지_않는다', () => {
-    const payload = writeOutline({ title: '봄이 오기 전에', characters: [] }, { chapters: [], endings: [] })
+    const payload = writeOutline(
+      { title: '봄이 오기 전에', characters: [] },
+      { chapters: [], endings: [] },
+      TEMPLATES,
+      SOURCES,
+    )
     expect(payload['title']).toBe('봄이 오기 전에')
     expect(payload['characters']).toEqual([])
   })
 
   /** 번호의 뜻은 순서다 — 그래서 배열의 자리에서 한 번만 만든다 (계약 `OutlineChapter.chapterNo`). */
   it('chapterNo_와_endingNo_는_배열의_자리에서_매겨진다', () => {
-    const payload = writeOutline(undefined, {
-      chapters: [
-        { ...emptyChapter(), title: '돌아온 캠퍼스', summarySeed: '씨앗' },
-        { ...emptyChapter(), title: '같은 강의실', summarySeed: '씨앗' },
-      ],
-      endings: [ending('봄이 오기 전에', { isDefault: true }), ending('다른 봄')],
-    })
+    const payload = writeOutline(
+      undefined,
+      {
+        chapters: [chapter('돌아온 캠퍼스'), chapter('같은 강의실')],
+        endings: [ending('봄이 오기 전에', { isDefault: true }), ending('다른 봄')],
+      },
+      TEMPLATES,
+      SOURCES,
+    )
     expect(payload['chapters']).toEqual([
       {
         chapterNo: 1,
@@ -137,8 +160,152 @@ describe('payload 를 화면의 값으로 (Step 4)', () => {
 
   /** 계약의 `epilogueText` 는 `string | null` 이다. 빈 문자열을 "쓴 적 있음" 으로 남기지 않는다. */
   it('빈_에필로그는_null_로_나간다', () => {
-    const payload = writeOutline(undefined, { chapters: [], endings: [ending('봄')] })
-    expect((payload['endings'] as { epilogueText: unknown }[])[0]?.epilogueText).toBeNull()
+    const payload = writeOutline(
+      undefined,
+      { chapters: [], endings: [ending('봄')] },
+      TEMPLATES,
+      SOURCES,
+    )
+    expect(written(payload, 'endings')[0]?.['epilogueText']).toBeNull()
+  })
+})
+
+/**
+ * 조건은 `conditionTemplateKey` 와 `conditionParams` **형제 필드**로 나간다 (계약
+ * `DraftChapter` · `DraftEnding`, 정정본 §13-70). 한때 §13-69 가 이것을 한 겹 접었다가 물렸다.
+ */
+describe('고른 조건을 저장할 때 — 계약 DraftChapter · DraftEnding', () => {
+  it('§13-70_형제_필드로_쓴다', () => {
+    const picked = setConditionParam(
+      setConditionParam(
+        setConditionTemplate(chapter('돌아온 캠퍼스'), 'affinity_at_least'),
+        'character',
+        '유나',
+      ),
+      'threshold',
+      30,
+    )
+    const row = written(
+      writeOutline(undefined, { chapters: [picked], endings: [] }, TEMPLATES, SOURCES),
+      'chapters',
+    )[0]
+    expect(row?.['conditionTemplateKey']).toBe('affinity_at_least')
+    expect(row?.['conditionParams']).toEqual({ character: '유나', threshold: 30 })
+    // 계약이 접지 않기로 한 자리다 — 받은 모양과 보내는 모양이 같아야 한다 (§13-70).
+    expect(row).not.toHaveProperty('condition')
+  })
+
+  /**
+   * 서버는 저장 시점에 조건을 조립하고 슬롯이 비면 `400` 이다. 고르는 중인 조건을 실어
+   * 보내면 저장 자체가 막혀 작성자가 단계를 넘길 수 없다.
+   */
+  it('ConditionParams_슬롯이_덜_찬_조건은_저장에_실리지_않는다', () => {
+    const halfway = setConditionTemplate(ending('봄'), 'affinity_at_least')
+    const row = written(
+      writeOutline(undefined, { chapters: [], endings: [halfway] }, TEMPLATES, SOURCES),
+      'endings',
+    )[0]
+    expect(row?.['conditionTemplateKey']).toBeNull()
+    expect(row?.['conditionParams']).toEqual({})
+  })
+
+  /** 계약 `ConditionTemplateKey` — *"목록에 없는 키는 `400` 이다."* 보내지 않는다. */
+  it('ConditionTemplateKey_서버가_더는_선언하지_않는_키는_저장에_실리지_않는다', () => {
+    const stale = setConditionParam(setConditionTemplate(ending('봄'), 'has_flag'), 'flag', '봄')
+    const row = written(
+      writeOutline(undefined, { chapters: [], endings: [stale] }, [TURN], SOURCES),
+      'endings',
+    )[0]
+    expect(row?.['conditionTemplateKey']).toBeNull()
+  })
+
+  /** 계약 `ConditionParams` — *"정수. 문자열로 온 숫자를 받지 않는다."* */
+  it('ConditionParams_문자열로_온_숫자는_임계값으로_치지_않는다', () => {
+    const wrongType = setConditionParam(
+      setConditionTemplate(ending('봄'), 'turn_at_least'),
+      'threshold',
+      '5',
+    )
+    expect(conditionIncomplete(wrongType, TEMPLATES, SOURCES)).toBe(true)
+    const row = written(
+      writeOutline(undefined, { chapters: [], endings: [wrongType] }, TEMPLATES, SOURCES),
+      'endings',
+    )[0]
+    expect(row?.['conditionTemplateKey']).toBeNull()
+  })
+
+  /** `ConditionTemplateKey` — *"`null` 은 오류가 아니다."* 조건이 없어도 저장은 된다. */
+  it('ConditionTemplateKey_조건_없음은_오류가_아니다', () => {
+    const row = written(
+      writeOutline(undefined, { chapters: [chapter('하나')], endings: [] }, TEMPLATES, SOURCES),
+      'chapters',
+    )[0]
+    expect(row?.['conditionTemplateKey']).toBeNull()
+    expect(row?.['conditionParams']).toEqual({})
+  })
+
+  it('R7_16_§13-16_기본_엔딩은_조건을_싣지_않는다', () => {
+    const picked = setConditionParam(
+      setConditionTemplate(ending('봄'), 'turn_at_least'),
+      'threshold',
+      5,
+    )
+    const [asDefault] = setDefaultEnding([picked], 0)
+    const row = written(
+      writeOutline(undefined, { chapters: [], endings: [asDefault!] }, TEMPLATES, SOURCES),
+      'endings',
+    )[0]
+    expect(row?.['isDefault']).toBe(true)
+    expect(row?.['conditionTemplateKey']).toBeNull()
+  })
+})
+
+/**
+ * 이름은 **그 원고가 선언한 것**이어야 한다 (계약 `ConditionParams`). 인물을 지우거나 이름을
+ * 바꾸면 그 조건은 아무도 가리키지 않게 되고, 서버는 `400` 으로 거절한다 — 받아 두었다면 그
+ * 조건은 평가기에서 조용히 거짓이 되어 그 엔딩이 영원히 나오지 않는다.
+ */
+describe('인물이 사라졌을 때의 조건', () => {
+  const stale = ending('봄', {
+    conditionTemplateKey: 'affinity_at_least',
+    conditionParams: { character: '지운 사람', threshold: 30 },
+  })
+
+  it('ConditionParams_원고_밖의_이름을_가리키면_완성되지_않은_조건이다', () => {
+    expect(conditionIncomplete(stale, TEMPLATES, SOURCES)).toBe(true)
+    expect(endingsMissingCondition([stale], TEMPLATES, SOURCES)).toEqual([0])
+  })
+
+  /** **화면이 조용히 고치지 않는다.** 남은 인물로 옮겨 붙이면 고르지 않은 조건이 발행된다. */
+  it('ConditionParams_비슷한_이름으로_옮겨_붙이지_않고_저장에서_뺀다', () => {
+    const row = written(
+      writeOutline(undefined, { chapters: [], endings: [stale] }, TEMPLATES, SOURCES),
+      'endings',
+    )[0]
+    expect(row?.['conditionTemplateKey']).toBeNull()
+    expect(row?.['conditionParams']).toEqual({})
+  })
+
+  it('이름이_그대로_남아_있으면_조건도_그대로다', () => {
+    const kept = ending('봄', {
+      conditionTemplateKey: 'affinity_at_least',
+      conditionParams: { character: '유나', threshold: 30 },
+    })
+    expect(conditionIncomplete(kept, TEMPLATES, SOURCES)).toBe(false)
+    const row = written(
+      writeOutline(undefined, { chapters: [], endings: [kept] }, TEMPLATES, SOURCES),
+      'endings',
+    )[0]
+    expect(row?.['conditionParams']).toEqual({ character: '유나', threshold: 30 })
+  })
+
+  /** 플래그도 같다 — 원고가 선언하지 않은 플래그는 고를 수 없는 값이다. */
+  it('ConditionParams_원고가_선언하지_않은_플래그도_같다', () => {
+    const unknownFlag = ending('봄', {
+      conditionTemplateKey: 'has_flag',
+      conditionParams: { flag: '없는 플래그' },
+    })
+    expect(conditionIncomplete(unknownFlag, TEMPLATES, SOURCES)).toBe(true)
   })
 })
 
@@ -202,31 +369,32 @@ describe('다음으로 갈 수 있는가', () => {
       }),
       ending('조건 없음'),
     ]
-    expect(endingsMissingCondition(endings, TEMPLATES)).toEqual([2])
+    expect(endingsMissingCondition(endings, TEMPLATES, SOURCES)).toEqual([2])
   })
 
   /** 정정본 §13-56 — *"키만으로는 조건이 완성되지 않는다."* */
   it('키만_고른_엔딩은_아직_조건이_없는_것으로_센다', () => {
     const endings = [ending('임계값 없음', { conditionTemplateKey: 'turn_at_least' })]
-    expect(endingsMissingCondition(endings, TEMPLATES)).toEqual([0])
+    expect(endingsMissingCondition(endings, TEMPLATES, SOURCES)).toEqual([0])
   })
 })
 
 describe('조건 템플릿 — 정정본 §13-56 (backend #282)', () => {
   it('선언된_슬롯이_다_차야_조건이_완성된다', () => {
     const partial = { conditionTemplateKey: 'affinity_at_least', conditionParams: { character: '유나' } }
-    expect(conditionIncomplete(partial, TEMPLATES)).toBe(true)
+    expect(conditionIncomplete(partial, TEMPLATES, SOURCES)).toBe(true)
     expect(
       conditionIncomplete(
         { ...partial, conditionParams: { character: '유나', threshold: 30 } },
         TEMPLATES,
+        SOURCES,
       ),
     ).toBe(false)
   })
 
   it('목록에_없는_키는_고르지_않은_것으로_읽는다 — 라벨을_지어내지_않는다', () => {
     expect(
-      conditionIncomplete({ conditionTemplateKey: 'has_flag', conditionParams: {} }, [TURN]),
+      conditionIncomplete({ conditionTemplateKey: 'has_flag', conditionParams: {} }, [TURN], SOURCES),
     ).toBe(true)
   })
 
@@ -245,10 +413,9 @@ describe('조건 템플릿 — 정정본 §13-56 (backend #282)', () => {
   })
 
   it('선택지는_원고에서_온다 — 정수는_목록이_아니다', () => {
-    const sources = { characters: ['유나', '민'], flags: ['봄'] }
-    expect(parameterOptions(AFFINITY.parameters[0]!, sources)).toEqual(['유나', '민'])
-    expect(parameterOptions(HAS_FLAG.parameters[0]!, sources)).toEqual(['봄'])
-    expect(parameterOptions(AFFINITY.parameters[1]!, sources)).toEqual([])
+    expect(parameterOptions(AFFINITY.parameters[0]!, SOURCES)).toEqual(['유나', '민'])
+    expect(parameterOptions(HAS_FLAG.parameters[0]!, SOURCES)).toEqual(['봄'])
+    expect(parameterOptions(AFFINITY.parameters[1]!, SOURCES)).toEqual([])
   })
 
   it('템플릿을_바꾸면_고른_값을_버린다 — 슬롯_이름이_템플릿마다_다르다', () => {
