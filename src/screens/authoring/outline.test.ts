@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import type { ConditionTemplateSpec, OutlineResponse } from '../../api/endpoints/authoring'
+import type { ConditionTemplateSpec, DraftPayload, OutlineResponse } from '../../api/endpoints/authoring'
 import {
   chapterField,
   chapterFieldPaths,
@@ -65,7 +65,17 @@ describe('payload 를 화면의 값으로 (Step 4)', () => {
   })
 
   it('다른_타입이_와도_빈_값으로_읽는다', () => {
-    const values = readOutline({ chapters: 'x', endings: [42, { label: '봄' }] })
+    /**
+     * **형을 넓히는 이유** — 계약(#354)이 `chapters` · `endings` 의 형을 세웠지만 그것은
+     * 서버가 지키기로 한 약속이지 런타임 검증이 아니다. `request<T>()` 는 `response.json()`
+     * 을 그대로 `T` 로 단언하고, `DraftPayload` 는 `additionalProperties` 를 **일부러**
+     * 열어 두었다 — 다음 단계가 붙일 값을 이전 단계 화면이 지우지 않게 하려는 것이라
+     * 무엇이 실려 오는지 이 화면이 다 알 수 없다. 그래서 계약이 금지한 형은 **와이어에서
+     * 오는 모양**(`Record<string, unknown>`)으로 만들어 그 경계를 그대로 흉내 낸다.
+     */
+    const wirePayload: Record<string, unknown> = { chapters: 'x', endings: [42, { label: '봄' }] }
+
+    const values = readOutline(wirePayload as DraftPayload)
     expect(values.chapters).toEqual([])
     expect(values.endings).toEqual([emptyEnding(), ending('봄')])
   })

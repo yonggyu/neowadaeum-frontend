@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
+import type { DraftPayload } from '../../api/endpoints/authoring'
 import {
   characterField,
   characterFieldPaths,
@@ -27,7 +28,21 @@ describe('payload 를 화면의 값으로', () => {
   })
 
   it('다른_타입이_와도_빈_값으로_읽는다', () => {
-    const values = readValues({ title: 42, genres: ['romance', 7], characters: 'x' })
+    /**
+     * **형을 넓히는 이유** — 계약(#354)이 `title` · `genres` · `characters` 의 형을 세웠지만
+     * 그것은 서버가 지키기로 한 약속이지 런타임 검증이 아니다. `request<T>()` 는
+     * `response.json()` 을 그대로 `T` 로 단언하고, `DraftPayload` 는 `additionalProperties`
+     * 를 **일부러** 열어 두었다 — 다음 단계가 붙일 값을 이 화면이 지우지 않게 하려는 것이라
+     * 무엇이 실려 오는지 다 알 수 없다. 그래서 계약이 금지한 형은 **와이어에서 오는 모양**
+     * (`Record<string, unknown>`)으로 만들어 그 경계를 그대로 흉내 낸다.
+     */
+    const wirePayload: Record<string, unknown> = {
+      title: 42,
+      genres: ['romance', 7],
+      characters: 'x',
+    }
+
+    const values = readValues(wirePayload as DraftPayload)
     expect(values.title).toBe('')
     expect(values.genres).toEqual(['romance'])
     expect(values.characters).toEqual([])
