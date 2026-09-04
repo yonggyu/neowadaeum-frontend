@@ -6,6 +6,7 @@ import { AdminAuthScreen } from '../screens/admin/AdminAuthScreen'
 import { AdminDebugScreen } from '../screens/admin/AdminDebugScreen'
 import { AdminGuard } from '../screens/admin/AdminGuard'
 import { AdminReviewQueueScreen } from '../screens/admin/AdminReviewQueueScreen'
+import { AdminSessionListScreen } from '../screens/admin/AdminSessionListScreen'
 import { HistoryScreen } from '../screens/account/HistoryScreen'
 import { LoginScreen } from '../screens/account/LoginScreen'
 import { MyStoriesScreen } from '../screens/account/MyStoriesScreen'
@@ -123,9 +124,15 @@ export function AppRoutes({ session }: { session: AuthState }) {
         <Route index element={<Navigate to={ROUTES.adminReviews} replace />} />
         <Route path={ROUTES.adminReviews} element={<AdminReviewQueueScreen />} />
         {/*
-         * Debug 콘솔 (1j). **목록 라우트가 없다** — 계약에 관리자용 세션 목록 경로가 없어
-         * 고를 목록을 그릴 수 없고, 없는 오퍼레이션을 상상해 채우지 않는다.
+         * 세션 목록 (7차 A-3) — Debug 콘솔에 들어가는 문이다 (#108).
+         *
+         * 콘솔의 하위가 아니라 **그 앞**이며, 두 화면은 감사 층이 다르다 (정정본 §13-67):
+         * 목록은 식별자와 메타데이터만 주고 열람 기록을 남기지 않으며, 콘솔은 원문을 열고
+         * 읽을 때마다 기록을 남긴다. 목록을 콘솔 안으로 넣으면 열어 본 적 없는 세션이
+         * 열람 기록을 채운다.
          */}
+        <Route path={ROUTES.adminSessions} element={<AdminSessionListScreen />} />
+        {/* Debug 콘솔 (1j). 위 목록에서 행을 눌러 오는 자리이며, URL 로 바로 열 수도 있다 */}
         <Route path={ROUTES.adminSessionDebug} element={<AdminDebugScreen />} />
       </Route>
       <Route path={ROUTES.adminAuth} element={<AdminAuthScreen />} />

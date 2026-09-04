@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 
 import {
   clearAdminStepUp,
@@ -14,7 +14,7 @@ import {
   type ReviewQueueItem,
   type StoryReports,
 } from '../../api/endpoints/admin'
-import { ROUTES } from '../../routes/routes'
+import { adminSessionsPath, ROUTES } from '../../routes/routes'
 import { formatRelativeTime } from '../account/relativeTime'
 // 가시성 문구는 작성자가 고를 때 본 이름 그대로다 (`3f` · `6c`) — 같은 값의 이름이 화면에
 // 따라 달라지면 검수자와 작성자가 다른 것을 말하게 된다.
@@ -329,6 +329,20 @@ function ReviewDetail({
       <div className={styles.detailHead}>
         <h2 className={styles.detailTitle}>{item.title}</h2>
         <code className={styles.storyId}>{item.storyId}</code>
+        {/*
+         * 이 작품의 세션으로 건너가는 길 (#108, 7차 A-3).
+         *
+         * 세션 목록에는 **작품으로 좁히는 칸 하나뿐**이고, 그 id 를 손으로 옮겨 적게 두면
+         * 실제로는 아무도 쓰지 않는다 — 검수자가 이미 작품 하나를 보고 있는 자리가 그리로
+         * 가는 자연스러운 출발점이다.
+         *
+         * **여기서 세션을 미리 부르지 않는다.** 목록은 열람 감사를 남기지 않는 층이지만
+         * (정정본 §13-67), 검수 상세가 그것까지 채우면 이 화면은 고른 작품에 대해서만
+         * 호출한다는 규칙(#86)이 흐려진다. 필요할 때 사람이 건너간다.
+         */}
+        <Link className={styles.sessionsLink} to={adminSessionsPath(item.storyId)}>
+          이 작품의 세션 ›
+        </Link>
       </div>
 
       <DetailPanels item={item} />

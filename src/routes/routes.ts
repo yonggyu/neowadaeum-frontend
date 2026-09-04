@@ -25,6 +25,17 @@ export const ROUTES = {
   /** 인간 검수 큐 (3h). 계약의 `/admin/reviews` 와 같은 모양으로 둔다. */
   adminReviews: '/admin/reviews',
   /*
+   * 세션 목록 (7차 A-3). 계약의 `/admin/sessions` 와 같은 모양으로 둔다.
+   *
+   * **Debug 콘솔과 다른 층이다** — 이 경로가 부르는 `listAdminSessions` 는 식별자와
+   * 메타데이터만 주고 열람 감사를 남기지 않는다 (백엔드 R12.3 · S-5, 정정본 §13-67).
+   * 그래서 콘솔의 하위가 아니라 그 **앞의 문**이며, 경로도 나란히 둔다.
+   *
+   * 좁히는 값(`storyId`)은 경로가 아니라 쿼리다 — 계약이 쿼리 파라미터로 열었고, 좁히지
+   * 않은 목록도 같은 화면이기 때문이다.
+   */
+  adminSessions: '/admin/sessions',
+  /*
    * Debug 콘솔 (1j). 계약의 `/admin/sessions/{sessionId}/debug` 와 같은 모양으로 둔다.
    *
    * **세션 id 가 URL 에 온다.** F-6 이 막는 것은 `player_ref` 이고, 세션 식별자는 계약이
@@ -51,4 +62,19 @@ export const playPath = (sessionId: string): string => `/sessions/${sessionId}`
 export const resumePath = (sessionId: string): string => `/sessions/${sessionId}/resume`
 export const historyPath = (sessionId: string): string => `/sessions/${sessionId}/history`
 export const myStoryPath = (storyId: string): string => `/me/stories/${storyId}`
+
+/**
+ * 세션 목록. 작품을 주면 그 작품으로 좁힌 채로 연다 — 검수 상세에서 건너오는 길이다.
+ *
+ * **id 를 손으로 치는 칸만 두면 실제로는 아무도 쓰지 않는다** (7차 A-3). 그래서 이 함수가
+ * 있다: 관리자가 이미 작품 하나를 보고 있는 자리에서 그 작품의 세션으로 넘어간다.
+ */
+export const adminSessionsPath = (storyId?: string): string =>
+  storyId === undefined || storyId === ''
+    ? ROUTES.adminSessions
+    : `${ROUTES.adminSessions}?storyId=${encodeURIComponent(storyId)}`
+
+/** Debug 콘솔. 세션 id 는 서버가 준 값이므로 인코딩해서 넣는다. */
+export const adminSessionDebugPath = (sessionId: string): string =>
+  `/admin/sessions/${encodeURIComponent(sessionId)}/debug`
 export const authoringDraftPath = (draftId: string): string => `/authoring/drafts/${draftId}`

@@ -518,3 +518,27 @@
   line-height: 1.7;
   overflow-wrap: anywhere;
 }
+
+/*
+ * "이 작품의 세션" (#108).
+ *
+ * 판정 버튼들과 무게를 같게 두지 않는다 — 이것은 화면을 떠나는 링크이고, 되돌릴 수 없는
+ * 동작 옆에서 같은 크기로 서 있으면 손이 잘못 간다. 상세 머리의 식별자 줄에 붙는다.
+ */
+.sessionsLink {
+  display: inline-flex;
+  min-height: 40px;
+  align-items: center;
+  padding: 0 var(--sp-3);
+  border: 1px solid var(--border);
+  border-radius: var(--r-xl);
+  color: var(--fg-muted);
+  font-size: 0.8125rem;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.sessionsLink:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
