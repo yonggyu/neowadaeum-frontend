@@ -1,4 +1,4 @@
-import { ApiError, hasAccessToken } from '../api/client'
+import { ApiError, hasAccessToken, renewAccessToken } from '../api/client'
 import { getMe, type MeResponse } from '../api/endpoints/me'
 
 /**
@@ -18,29 +18,30 @@ export type AuthState =
 /**
  * 익명인 **이유**. 화면이 익명 하나로만 알면 세 사실이 같은 문구를 받는다.
  *
- * - `no_token` — 물어볼 토큰이 없었다. `GET /me` 를 부르지도 못했다
+ * - `no_token` — 물어볼 토큰이 없었다. 재발급도 되지 않아 `GET /me` 를 부르지도 못했다
  * - `rejected` — 물어봤고 서버가 `401` 로 거절했다
  * - `unreachable` — 물어봤으나 답을 받지 못했다. 로그인 여부는 **여전히 모른다**
  */
 export type AnonymousReason = 'no_token' | 'rejected' | 'unreachable'
 
 /**
- * 부팅 복원 (`getMe`).
+ * 부팅 복원 — **재발급 한 단계, 그다음 `getMe`.**
  *
- * **이 함수만으로 새로고침 후 로그인이 유지되지는 않는다.** 토큰을 메모리에만 두므로(F-3)
- * 탭을 새로 열거나 새로고침하면 `hasAccessToken()` 이 곧바로 `false` 이고, 결과는 언제나
- * `no_token` 이다 — 여기서 되살아나는 것은 **같은 문서가 살아 있는 동안의 상태**뿐이다.
+ * `#24` 가 남겨 둔 모양 그대로다: *"결정이 서면 이 함수는 `getMe` 앞에 재발급 한 단계가 붙는
+ * 모양으로 늘어난다 — 상태 셋은 그대로다."* 그 결정이 ADR-0008(backend #278)로 났고, 여기가
+ * 그 한 단계다. **상태 셋(`restoring` · `authenticated` · `anonymous`)도 익명의 이유 셋도
+ * 그대로 둔다** — 늘어난 것은 순서뿐이다.
  *
- * 이 한계를 코드가 숨기지 않는 이유는, 리프레시 토큰을 브라우저에 지속시킬지가 아직
- * 결정되지 않았기 때문이다. 그 결정은 쿠키를 쓰지 않기로 한 전제(B-12 — STATELESS ·
- * `Authorization` 헤더 전용 · **그래서** CSRF 면제)를 건드리므로 ADR 이 먼저다
- * (backend #278). 결정이 서면 이 함수는 `getMe` **앞에 재발급 한 단계가 붙는 모양**으로
- * 늘어난다 — 상태 셋은 그대로다.
+ * 새로고침이 액세스 토큰을 지우는 것은 여전하다 (F-3 — 메모리에만 둔다). 달라진 것은 그다음
+ * 이다: 리프레시 쿠키가 `HttpOnly` 로 남아 있으므로 **물어볼 토큰을 여기서 다시 얻을 수 있다.**
  */
 export async function restoreSession(signal?: AbortSignal): Promise<AuthState> {
-  // 토큰이 없으면 부르지 않는다. 물어봤자 401 이고, 그 401 은 "거절당했다" 로 읽혀
-  // **없는 사실을 만든다.**
-  if (!hasAccessToken()) {
+  // 토큰이 없으면 재발급을 한 번 시도한다. 그래도 없으면 `GET /me` 를 부르지 않는다 —
+  // 물어봤자 401 이고, 그 401 은 "거절당했다" 로 읽혀 **없는 사실을 만든다.**
+  //
+  // 재발급이 실패하는 길은 셋이다: 쿠키가 없거나(첫 방문) · 만료됐거나(401) · CSRF 토큰이
+  // 없다. 셋 다 지금 보낼 토큰이 없다는 같은 결론이고, 그 이상을 화면에 말하지 않는다.
+  if (!hasAccessToken() && !(await renewAccessToken())) {
     return { kind: 'anonymous', reason: 'no_token' }
   }
 

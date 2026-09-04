@@ -1,6 +1,13 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { ApiError, request, setAccessToken, toApiError } from './client'
+import {
+  ApiError,
+  hasAccessToken,
+  renewAccessToken,
+  request,
+  setAccessToken,
+  toApiError,
+} from './client'
 import { UNREACHABLE_MESSAGE } from './errors'
 
 /**
@@ -161,5 +168,157 @@ describe('toApiError', () => {
     const original = new ApiError(423, 'STORY_SUSPENDED', '공개가 중지된 작품이에요.', {})
 
     expect(toApiError(original)).toBe(original)
+  })
+})
+
+/**
+ * `401` 을 만난 자리 — 재발급 한 번, 재시도 한 번 (ADR-0008, backend #278).
+ *
+ * 여기서 못박는 것이 셋이다: **재발급 자체의 401 로 다시 재발급하지 않는다**(무한 루프) ·
+ * **동시에 여러 요청이 401 을 받아도 재발급은 한 번만 나간다** · **재발급이 안 되면 토큰을
+ * 버리고 서버가 준 401 을 그대로 올린다.**
+ */
+describe('request — 401 과 재발급', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    setAccessToken(null)
+  })
+
+  /** 서버가 CSRF 쿠키를 구워 두었다 — 재발급을 부를 수 있는 상태다. */
+  function withCsrfCookie() {
+    vi.stubGlobal('document', { cookie: 'XSRF-TOKEN=csrf-1' })
+  }
+
+  function json(status: number, body: unknown): Response {
+    return new Response(JSON.stringify(body), {
+      status,
+      headers: { 'Content-Type': 'application/json' },
+    })
+  }
+
+  function unauthenticated(): Response {
+    return json(401, { error: 'UNAUTHENTICATED', message: '로그인이 필요해요.', details: {} })
+  }
+
+  function renewed(): Response {
+    // 계약의 `TokenResponse` 는 셋이다 — `refreshToken` 이 본문에 없다 (ADR-0008).
+    return json(200, { accessToken: 'fresh', tokenType: 'Bearer', expiresIn: 1800 })
+  }
+
+  /**
+   * 경로별로 답한다. **재발급이 몇 번 나갔는지를 세는 것**이 이 테스트들의 핵심이다 —
+   * 재발급 경로의 응답은 `refresh`, 나머지는 요청 순서대로 `others` 에서 꺼내 준다.
+   */
+  type Respond = () => Response
+
+  function route(refresh: Respond, others: [Respond, ...Respond[]]) {
+    let served = 0
+    const refreshCalls = { count: 0 }
+    const fetchMock = vi.fn((url: string) => {
+      if (url.endsWith('/auth/refresh')) {
+        refreshCalls.count += 1
+        return Promise.resolve(refresh())
+      }
+      // 준비한 것보다 더 부르면 마지막 응답을 되풀이한다 — 호출 횟수 자체는 아래에서 센다.
+      const next = others.at(Math.min(served, others.length - 1)) ?? others[0]
+      served += 1
+      return Promise.resolve(next())
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    return { fetchMock, refreshCalls }
+  }
+
+  it('401_이면_재발급하고_한_번_다시_부른다 — 새로고침 뒤에도 화면이 이어진다', async () => {
+    withCsrfCookie()
+    setAccessToken('expired')
+    const { refreshCalls } = route(renewed, [unauthenticated, () => json(200, { sections: [] })])
+
+    await expect(request('/library')).resolves.toEqual({ sections: [] })
+
+    expect(refreshCalls.count).toBe(1)
+    expect(hasAccessToken()).toBe(true)
+  })
+
+  it('재발급이_안_되면_익명으로_떨어진다 — 서버가 준 401 을 그대로 올린다 (F-4)', async () => {
+    withCsrfCookie()
+    setAccessToken('expired')
+    const { refreshCalls } = route(unauthenticated, [unauthenticated])
+
+    const error = (await request('/library').catch((thrown: unknown) => thrown)) as ApiError
+
+    expect(error.status).toBe(401)
+    // 문구를 프론트가 짓지 않는다 — 재발급이 실패했다는 말을 여기서 지어내지 않는다.
+    expect(error.message).toBe('로그인이 필요해요.')
+    expect(hasAccessToken()).toBe(false)
+    expect(refreshCalls.count).toBe(1)
+  })
+
+  it('재발급_자체의_401_로_다시_재발급하지_않는다 — 그 자리가 무한 루프다', async () => {
+    withCsrfCookie()
+    const { refreshCalls } = route(unauthenticated, [unauthenticated])
+
+    await expect(renewAccessToken()).resolves.toBe(false)
+
+    expect(refreshCalls.count).toBe(1)
+  })
+
+  it('재시도도_401_이면_거기서_멈춘다 — 재발급을 두 번 부르지 않는다', async () => {
+    withCsrfCookie()
+    setAccessToken('expired')
+    const { fetchMock, refreshCalls } = route(renewed, [unauthenticated])
+
+    await expect(request('/library')).rejects.toBeInstanceOf(ApiError)
+
+    expect(refreshCalls.count).toBe(1)
+    // 원 요청 두 번 + 재발급 한 번. 여기서 더 늘면 루프가 생긴 것이다.
+    expect(fetchMock).toHaveBeenCalledTimes(3)
+    expect(hasAccessToken()).toBe(false)
+  })
+
+  it('동시에_401_을_받아도_재발급은_한_번이다 — in-flight 를 공유한다', async () => {
+    withCsrfCookie()
+    setAccessToken('expired')
+    const seen = new Map<string, number>()
+    const refreshCalls = { count: 0 }
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((url: string) => {
+        if (url.endsWith('/auth/refresh')) {
+          refreshCalls.count += 1
+          return Promise.resolve(renewed())
+        }
+        const attempt = (seen.get(url) ?? 0) + 1
+        seen.set(url, attempt)
+        // 경로마다 첫 번째만 401 이다 — 셋이 동시에 재발급을 부르는 상황이 이것이다.
+        return Promise.resolve(attempt === 1 ? unauthenticated() : json(200, { ok: true }))
+      }),
+    )
+
+    await Promise.all([request('/library'), request('/me'), request('/sessions/1')])
+
+    expect(refreshCalls.count).toBe(1)
+  })
+
+  it('CSRF_토큰이_없으면_재발급을_부르지_않는다 — 계약이 403 으로 답할 요청이다', async () => {
+    setAccessToken('expired')
+    const { fetchMock, refreshCalls } = route(unauthenticated, [unauthenticated])
+
+    await expect(request('/library')).rejects.toBeInstanceOf(ApiError)
+
+    expect(refreshCalls.count).toBe(0)
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('F3_액세스토큰은_저장소에_가지_않는다 — 재발급이 생겨도 그대로다', async () => {
+    const storage = { getItem: vi.fn(), setItem: vi.fn(), removeItem: vi.fn() }
+    vi.stubGlobal('localStorage', storage)
+    vi.stubGlobal('sessionStorage', storage)
+    withCsrfCookie()
+    route(renewed, [() => json(200, {})])
+
+    await expect(renewAccessToken()).resolves.toBe(true)
+
+    expect(storage.setItem).not.toHaveBeenCalled()
+    expect(storage.getItem).not.toHaveBeenCalled()
   })
 })
