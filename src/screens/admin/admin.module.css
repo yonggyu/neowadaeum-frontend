@@ -167,10 +167,49 @@
 /*
  * 비밀은 줄바꿈해서 전부 보인다 — 잘라서 `…` 로 끝내면 옮겨 적을 수 없고, 그때 사람은
  * 개발자 도구를 열어 값을 꺼내게 된다.
+ *
+ * 조각(네 자)을 flex 항목으로 둔다. 한 줄에 다 들어가지 않으면 **조각 사이에서만** 접히므로
+ * 옮겨 적는 사람이 자리를 잃지 않는다 — 글자 사이에서 접히면 끊어 준 의미가 없어진다.
  */
 .secretValue {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 var(--sp-3);
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 1rem;
-  letter-spacing: 0.08em;
-  overflow-wrap: anywhere;
+  letter-spacing: 0.12em;
+}
+
+/*
+ * QR 칸. 8차가 176px 정사각으로 정했다 — 390 의 컬럼(좌우 여백을 뺀 폭) 안에 그대로 들어가
+ * 어느 폭에서도 가로 스크롤이 생기지 않는다. `max-width` 로 더 좁은 경우도 막아 둔다.
+ */
+.qr {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: var(--sp-6);
+}
+
+/*
+ * 흑백을 토큰으로 두지 않는다. 다크 테마에서 명암이 뒤집히면 반전된 심볼을 읽지 못하는
+ * 리더가 있다 — 이 사각형만 언제나 검정 위 흰색이다. 테두리는 흰 바탕과 배경의 경계를
+ * 보이게 할 뿐이고, 규격이 요구하는 여백은 심볼 안쪽에 이미 4 모듈 들어 있다.
+ */
+.qrSymbol {
+  width: 176px;
+  max-width: 100%;
+  aspect-ratio: 1 / 1;
+  padding: var(--sp-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: #ffffff;
+}
+
+/* 곁말. 본문(`.body`)보다 한 단 낮다 — 읽지 않아도 화면이 성립한다 */
+.hint {
+  margin: var(--sp-2) 0 0;
+  color: var(--fg-subtle);
+  font-size: 0.75rem;
+  line-height: 1.5;
 }
