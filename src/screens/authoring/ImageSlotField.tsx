@@ -190,7 +190,12 @@ export function ImageSlotField({
       abortRef.current?.abort()
       abortRef.current = null
       replacePreview(null)
-      setState(EMPTY)
+      /*
+       * **원고가 든 값으로 되돌아간다** — 비우지 않는다. 교체를 그만둔 것이지 지운 것이
+       * 아니므로, `EMPTY` 로 두면 원고에는 그대로 있는 이미지가 화면에서만 사라진다.
+       * 처음부터 비어 있었으면 `savedImage(null)` 이 그대로 `EMPTY` 다.
+       */
+      setState(savedImage(objectKey))
       return
     }
     if (action === 'remove') {
