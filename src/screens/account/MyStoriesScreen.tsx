@@ -13,6 +13,7 @@ import { usePagedApi, type PagedApi } from '../../hooks/usePagedApi'
 import { myStoryPath, resumePath, ROUTES, storyDetailPath } from '../../routes/routes'
 import { AiNoticeFooter } from '../library/parts'
 import shared from './account.module.css'
+import { draftPathOf } from './draftLink'
 import { ErrorNotice } from './ErrorNotice'
 import styles from './MyStoriesScreen.module.css'
 import { formatRelativeTime } from './relativeTime'
@@ -131,9 +132,14 @@ function SessionsTab({ status }: { status: 'active' | 'completed' }) {
 /**
  * 내가 만든 작품.
  *
- * "상태 보기" 하나만 단다 (3g). 목적지는 `3f` · `6c` 의 공개 범위 · 검수 상태 화면이고, 그것이
- * `MyStoryReviewScreen` 이다. "이어서 작성" 은 아직 없다 — **작품 만들기 화면이 없다.** 없는
- * 화면으로 보내는 버튼은 눌러 보기 전까지 있는 것처럼 보인다.
+ * "상태 보기" 의 목적지는 `3f` · `6c` 의 공개 범위 · 검수 상태 화면이고, 그것이
+ * `MyStoryReviewScreen` 이다.
+ *
+ * **"이어서 작성" 은 줄마다 있지 않다.** 마법사는 `/authoring/drafts/:draftId` 에 서 있고
+ * 그 줄에서 원고를 가리키는 것은 `draftId` 하나인데 (backend #340, §13-66), 그 값이
+ * **`null` 인 작품이 실제로 있다** — 미리보기가 만든 임시 작품은 원고와 연결되지 않는다
+ * (§13-5 · §13-37). 그 줄에 버튼을 그리면 눌러 보기 전까지 있는 것처럼 보인다. 판정은
+ * `draftPathOf` 하나가 하고 이 화면은 그 결과만 본다.
  */
 function AuthoredTab() {
   const page = usePagedApi<MyStoryItem>((cursor, signal) => getMyStories({ cursor, signal }), 'authored')
@@ -164,11 +170,31 @@ function AuthoredTab() {
               <Link className={shared.button} to={myStoryPath(story.storyId)}>
                 상태 보기
               </Link>
+              <ContinueWriting draftId={story.draftId} />
             </div>
           </div>
         </article>
       ))}
     </PagedList>
+  )
+}
+
+/**
+ * 원고로 가는 버튼. **없으면 아무것도 그리지 않는다.**
+ *
+ * 줄마다 *"원고가 없습니다"* 를 적지 않는다 — 목록에서 그것은 안내가 아니라 소음이고,
+ * 그 사실이 필요한 자리는 작성자가 다음에 무엇을 할지 정하는 상세 화면이다
+ * (`MyStoryReviewScreen` 이 `NO_DRAFT_NOTICE` 로 적는다).
+ */
+function ContinueWriting({ draftId }: { draftId: string | null }) {
+  const path = draftPathOf(draftId)
+  if (path === null) {
+    return null
+  }
+  return (
+    <Link className={`${shared.button} ${shared.primary}`} to={path}>
+      이어서 작성
+    </Link>
   )
 }
 

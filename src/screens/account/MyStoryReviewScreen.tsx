@@ -1,10 +1,11 @@
-import { useId, useState } from 'react'
+import { useCallback, useId, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 
 import {
   appealStorySuspension,
   changeStoryVisibility,
   deleteStory,
+  getDraftReview,
   type ReviewStatusResponse,
   type Visibility,
 } from '../../api/endpoints/authoring'
@@ -13,7 +14,9 @@ import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { usePagedApi } from '../../hooks/usePagedApi'
 import { myStoryPath, ROUTES, storyDetailPath } from '../../routes/routes'
 import { AiNoticeFooter } from '../library/parts'
+import { useResource } from '../library/useResource'
 import shared from './account.module.css'
+import { draftPathOf, NO_DRAFT_NOTICE } from './draftLink'
 import { ErrorNotice } from './ErrorNotice'
 import styles from './MyStoryReviewScreen.module.css'
 import { formatRelativeTime } from './relativeTime'
@@ -41,9 +44,14 @@ import {
  * **좌 목록 / 우 상세 2열이고, 상태는 우측 패널만 교체한다** (6c) — `3f` 의 네 화면이 그 자리에
  * 그대로 들어간다. 상태마다 라우트를 나누지 않는 이유가 이것이다.
  *
- * **목록에서 상세로 갈 때 다시 받아오지 않는다.** `MyStoryItem` 이 `visibility` ·
- * `reviewStatus` · `rejectReasons` · `playCount` · `updatedAt` 를 이미 준다 — 상세가 더 갖는
- * 것이 없다. `getDraftReview` 로 갈 수도 없다: `MyStoryItem` 에 `draftId` 가 없다.
+ * **목록에서 상세로 갈 때 작품을 다시 받아오지 않는다.** `MyStoryItem` 이 `visibility` ·
+ * `reviewStatus` · `rejectReasons` · `playCount` · `updatedAt` 를 이미 준다 — 상세가 작품
+ * 쪽에서 더 갖는 것이 없다.
+ *
+ * **더 묻는 자리는 원고 쪽 하나다.** 반려 패널이 `getDraftReview` 로 원고의 검수 상태를
+ * 직접 읽는다 — 작성자가 다음에 할 일이 그 원고를 고치는 것이기 때문이다. 가는 길은
+ * `MyStoryItem.draftId` 이고 (backend #340, §13-66), 그 값이 `null` 인 작품에는 이 경로가
+ * 없다 (§13-5 · §13-37). 그때 화면은 **빈 자리를 두지 않고 없다는 사실을 적는다.**
  */
 export function MyStoryReviewScreen() {
   const { storyId } = useParams<{ storyId: string }>()
@@ -187,6 +195,7 @@ function ReviewPanel({ story }: { story: MyStoryItem }) {
       <section className={styles.panel}>
         <h3 className={styles.panelTitle}>작성 중</h3>
         <p className={shared.body}>아직 제출하지 않은 작품입니다.</p>
+        <EditDraftAction draftId={story.draftId} />
       </section>
     )
   }
@@ -227,20 +236,13 @@ function ReviewPanel({ story }: { story: MyStoryItem }) {
         {/*
          * 반려 사유는 **카테고리만** 온다 (백엔드 R8.7). 어떤 표현이 걸렸는지 추측해 덧붙이지
          * 않는다 (F-5) — 그것을 알려 주는 순간 무엇을 피하면 통과하는지를 알려 주는 것이 된다.
+         * 원고에게 직접 물어도 오는 것은 같은 카테고리다.
          */}
-        {story.rejectReasons.length > 0 ? (
-          <>
-            <h4 className={styles.panelSubtitle}>반려 사유</h4>
-            <ul className={styles.reasons}>
-              {story.rejectReasons.map((reason) => (
-                <li key={reason}>{reason}</li>
-              ))}
-            </ul>
-          </>
-        ) : null}
+        <h4 className={styles.panelSubtitle}>반려 사유</h4>
+        <RejectReasons story={story} />
         <p className={shared.meta}>어떤 부분이 문제였는지는 카테고리로만 안내합니다.</p>
         <p className={shared.body}>수정한 뒤 다시 신청할 수 있습니다. 작품과 진행 내용은 삭제되지 않습니다.</p>
-        {/* "수정하러 가기" 를 두지 않는다 — 작품 만들기 화면이 아직 없다 */}
+        <EditDraftAction draftId={story.draftId} />
       </section>
     )
   }
@@ -280,6 +282,110 @@ function ReviewPanel({ story }: { story: MyStoryItem }) {
       <h3 className={styles.panelTitle}>삭제됨</h3>
       <p className={shared.body}>이 작품은 삭제되어 더 이상 열리지 않습니다.</p>
     </section>
+  )
+}
+
+/**
+ * 반려 사유를 어디서 읽을 것인가 — **원고가 있으면 원고에게 묻는다.**
+ *
+ * 목록의 한 줄은 이 화면이 쪽을 받은 시점의 작품 값이고, `getDraftReview` 는 작성자가
+ * **지금 고칠 원고**의 검수 상태다 (§13-66). 반려 화면에서 다음 행동이 그 원고를 여는
+ * 것이므로, 그 원고가 무엇을 들고 있는지를 원고에게 묻는 편이 맞다.
+ *
+ * 원고가 없으면 (`draftId === null`) 물을 곳이 없다 — 목록이 준 값을 그대로 낸다.
+ * 어느 쪽이든 오는 것은 **카테고리뿐**이다 (R8.7, F-5).
+ */
+function RejectReasons({ story }: { story: MyStoryItem }) {
+  if (story.draftId === null) {
+    return <ReasonList reasons={story.rejectReasons} />
+  }
+  return <DraftReviewReasons draftId={story.draftId} />
+}
+
+/** 원고 쪽 검수 상태 (`getDraftReview`). 세 상태를 모두 그린다 — 빈 자리를 두지 않는다. */
+function DraftReviewReasons({ draftId }: { draftId: string }) {
+  // `useResource` 는 매 렌더 새 함수를 받으면 무한히 다시 부른다 — 원고가 바뀔 때만 고쳐 준다.
+  const load = useCallback((signal: AbortSignal) => getDraftReview(draftId, signal), [draftId])
+  const { resource, reload } = useResource(load)
+
+  if (resource.status === 'loading') {
+    return (
+      <p className={shared.meta} role="status">
+        불러오는 중…
+      </p>
+    )
+  }
+
+  if (resource.status === 'failed') {
+    return (
+      <>
+        {/*
+         * 서버가 준 `message` 를 그대로 낸다 (F-4). 남의 원고는 `404` 이고 그것이 방어이므로
+         * (I-8) 없는 원고와 구분해 말하지 않는다 — 구분하면 원고 id 를 훑어 남이 무엇을 쓰고
+         * 있는지 알 수 있다.
+         */}
+        <p className={shared.meta} role="alert">
+          {resource.error.message}
+        </p>
+        <div className={shared.actions}>
+          <button type="button" className={shared.button} onClick={reload}>
+            다시 시도
+          </button>
+        </div>
+      </>
+    )
+  }
+
+  const review = resource.data
+  return (
+    <>
+      <ReasonList reasons={review.rejectReasons} />
+      {/*
+       * 원고가 작품보다 앞서 있을 수 있다 — 재제출은 작품을 늘리지 않고 같은 작품에 새 버전을
+       * 얹는다 (R8.8). 그때 사유가 비는 것이 정상이며, 이 한 줄이 없으면 화면은 사유가 오지
+       * 않았다고만 말하고 왜 비었는지는 말하지 않는다.
+       */}
+      {reviewPhase(review.reviewStatus) === 'rejected' ? null : (
+        <p className={shared.meta}>
+          {`원고 쪽 검수 상태는 지금 “${REVIEW_STATUS_LABEL[review.reviewStatus]}” 입니다.`}
+        </p>
+      )}
+    </>
+  )
+}
+
+/** 카테고리 목록. **비어 있는 것도 상태다** — 서버가 주지 않았다는 사실을 적는다. */
+function ReasonList({ reasons }: { reasons: readonly string[] }) {
+  if (reasons.length === 0) {
+    return <p className={shared.meta}>사유 카테고리가 함께 오지 않았습니다.</p>
+  }
+  return (
+    <ul className={styles.reasons}>
+      {reasons.map((reason) => (
+        <li key={reason}>{reason}</li>
+      ))}
+    </ul>
+  )
+}
+
+/**
+ * 원고를 여는 버튼 — 없으면 **없다는 사실을 적는다.**
+ *
+ * 목록 화면은 이 자리에서 아무것도 그리지 않지만 (`MyStoriesScreen`), 반려 화면은 다르다:
+ * 여기서 작성자가 다음에 무엇을 할지 정하고, 버튼만 조용히 빠지면 자기 작품만 다르게 보이는
+ * 이유를 알 방법이 없다.
+ */
+function EditDraftAction({ draftId }: { draftId: string | null }) {
+  const path = draftPathOf(draftId)
+  if (path === null) {
+    return <p className={shared.meta}>{NO_DRAFT_NOTICE}</p>
+  }
+  return (
+    <div className={shared.actions}>
+      <Link className={`${shared.button} ${shared.primary}`} to={path}>
+        수정하러 가기
+      </Link>
+    </div>
   )
 }
 

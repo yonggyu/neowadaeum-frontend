@@ -20,6 +20,12 @@ export type MySessionsResponse = components['schemas']['MySessionsResponse']
  *
  * 지운 작품은 이 목록에서 조회되지 않는다 (정정본 §13-58). 근거와 좁히는 이유는
  * `VisibleReviewStatus` 에 적혀 있다.
+ *
+ * **`draftId` 가 이 줄을 원고로 잇는다** (backend #340, 정정본 §13-66). 화면이 여기서 얻는
+ * 것은 `/authoring/drafts/{draftId}` 로 이어서 쓰는 길과 `getDraftReview` 로 반려 사유를
+ * 자세히 보는 길 둘이다. **`null` 인 것이 사실이다** — 미리보기가 만든 임시 작품은 원고와
+ * 연결되지 않으므로 (§13-5 · §13-37) 그 줄에는 두 길이 모두 없다. 없는 곳으로 보내는 버튼을
+ * 그리지 않기 위해 화면이 이 값을 직접 본다.
  */
 export type MyStoryItem = Omit<components['schemas']['MyStoryItem'], 'reviewStatus'> & {
   reviewStatus: VisibleReviewStatus
