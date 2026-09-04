@@ -56,3 +56,26 @@ export function canSubmitCode(
 export function failureMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
 }
+
+/** 시크릿을 끊어 보여 주는 단위. 손으로 옮겨 적을 때 자리를 잃지 않는 길이다. */
+export const SECRET_GROUP_LENGTH = 4
+
+/**
+ * 한 번만 보이는 시크릿을 **네 자씩 끊는다** (8차 `AdminGate`).
+ *
+ * 스무 자 남짓한 Base32 를 한 덩어리로 두면 사람이 인증기에 옮겨 적다가 자리를 잃는다.
+ * 그런데 이 화면에는 **복사 버튼이 없다** — 클립보드는 이 값이 가는 또 하나의 자리이고, 그
+ * 자리는 화면을 떠난 뒤에도 남는다. 그래서 옮겨 적는 것이 유일한 경로이고, 끊어 주는 일은
+ * 편의가 아니라 그 결정을 성립시키는 조건이다.
+ *
+ * **값을 바꾸지 않는다** — 공백만 걷어 내고 끊는다. 대소문자를 손보거나 없는 자리를 채우면
+ * 인증기에 들어가는 것이 서버가 준 것과 달라지고, 그 어긋남은 코드가 틀리는 것으로만 보인다.
+ */
+export function groupSecret(secret: string): string[] {
+  const compact = secret.replace(/\s+/g, '')
+  const groups: string[] = []
+  for (let at = 0; at < compact.length; at += SECRET_GROUP_LENGTH) {
+    groups.push(compact.slice(at, at + SECRET_GROUP_LENGTH))
+  }
+  return groups
+}

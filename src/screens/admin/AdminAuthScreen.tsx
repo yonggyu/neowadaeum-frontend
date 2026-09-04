@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 
 import {
@@ -10,20 +10,23 @@ import {
   type TotpEnrollment,
 } from '../../api/endpoints/admin'
 import { ROUTES } from '../../routes/routes'
-import { canSubmitCode, CODE_LENGTH, failureMessage, normalizeCode } from './twoFactor'
+import { encodeQrSymbol, qrPathData } from './qrCode'
+import { canSubmitCode, CODE_LENGTH, failureMessage, groupSecret, normalizeCode } from './twoFactor'
 import styles from './admin.module.css'
 
 /**
- * 관리자 2FA — 등록과 검증, 한 화면 두 단계.
+ * 관리자 2FA — 등록과 검증, 한 화면 세 상태.
  *
- * **디자인이 없다.** 와이어프레임은 관리자 화면 둘(`3h` 검수·신고 큐 · `1j` Debug 콘솔)만
- * 그렸고 그 앞의 문은 그리지 않았다. 그래서 화면을 지어내지 않고 `1j` 가 정한 톤(감성 없는
- * Dev Tool)만 따라 골격까지 만든다.
+ * 8차 와이어프레임 `AdminGate`(1440, 등록) · `AdminGateMobile`(390, 검증)이 그렸다. 톤은
+ * `1j` 가 정한 감성 없는 Dev Tool 그대로다 — 일러스트도 브랜드도 환영 문구도 두지 않는다.
  *
- * **폭에 맞춰 벌리지 않는다.** 입력이 여섯 자리 하나뿐이라 어느 폭에서도 420px 단일 컬럼을
- * 중앙에 둔다 — CLAUDE.md 가 이 경우를 직접 다룬다. Admin 은 F-9 의 예외이지만 그것은
- * *Desktop 전용으로 만들어도 된다*는 뜻이지 *한 폭만 맞춰도 된다*는 뜻이 아니며, `1j` 자신이
- * 1024 이하를 규정했다.
+ * **세 상태를 라우트로 나누지 않는다.** 검증(기본) · 등록 · 승격 보유가 한 화면 안에서
+ * 바뀐다. 나누면 등록 화면의 주소가 생기고, 그 주소는 *이 관리자가 등록했는가*를 URL 로
+ * 답하는 자리가 된다 — 계약이 그 물음에 답하지 않기로 한 이유가 그대로 무너진다.
+ *
+ * **폭에 맞춰 벌리지 않는다.** 입력이 여섯 자리 하나뿐이라 **네 폭 전부** 420px 단일 컬럼을
+ * 중앙에 둔다 (F-9) — 8차의 1440 아트보드가 좌우를 대놓고 비워 그 사실을 그림으로 말한다.
+ * Admin 이 Desktop 기준 폭이라는 것은 한 폭만 맞춘다는 뜻이 아니다.
  */
 export function AdminAuthScreen() {
   const [promoted, setPromoted] = useState(hasAdminStepUp)
@@ -87,7 +90,7 @@ function Gate({ onPromoted }: { onPromoted: () => void }) {
   if (enrollment !== null) {
     return (
       <Console>
-        <EnrollmentSecret secret={enrollment.secret} />
+        <EnrollmentSecret secret={enrollment.secret} otpauthUri={enrollment.otpauthUri} />
         <CodeForm
           label="인증기가 보여 주는 여섯 자리"
           submitLabel="등록 확정"
@@ -123,6 +126,8 @@ function Gate({ onPromoted }: { onPromoted: () => void }) {
         >
           {enrolling ? '여는 중…' : '인증기 등록'}
         </button>
+        {/* 8차 `AdminGateMobile` — 화면이 대신 골라 주지 않는다는 것을 말로도 적는다 */}
+        <p className={styles.hint}>아직 등록하지 않았다면 여기서 시작해요.</p>
         {failure !== null ? (
           <p className={styles.failure} role="alert">
             {failure}
@@ -219,20 +224,73 @@ function CodeForm({
 }
 
 /**
- * 한 번만 나오는 비밀.
+ * 한 번만 나오는 비밀 — QR 과, 손으로 옮겨 적을 값.
  *
  * **이 값은 이 컴포넌트가 살아 있는 동안만 존재한다.** 부모의 상태로만 들고 있으므로 화면을
  * 떠나면 함께 사라진다 — 로그 · 스토리지 · URL · 오류 리포트 어느 쪽으로도 나가지 않는 것이
- * 이 이슈의 본체다. `otpauthUri` 는 그리지 않는다: 쓸모가 QR 하나인데 그릴 수단이 없고,
- * 문자열로 내면 같은 비밀이 화면에 한 번 더 실릴 뿐이다.
+ * 이 이슈의 본체다 (F-3, 보안 hard-stop).
+ *
+ * **`otpauthUri` 를 문자열로 내지 않는다.** 그것은 같은 비밀을 화면에 한 번 더 싣는 일이고,
+ * 사람이 읽을 것도 아니다. 쓸모는 QR 하나이므로 QR 로만 나간다.
  */
-function EnrollmentSecret({ secret }: { secret: string }) {
+function EnrollmentSecret({ secret, otpauthUri }: { secret: string; otpauthUri: string }) {
   return (
-    <div className={styles.secret}>
-      <p className={styles.label}>인증기에 입력할 값</p>
-      {/* 자동 선택 · 복사 버튼을 두지 않는다 — 클립보드는 이 값이 가는 또 하나의 자리다 */}
-      <code className={styles.secretValue}>{secret}</code>
-      <p className={styles.body}>지금 화면을 벗어나면 다시 볼 수 없어요.</p>
+    <>
+      <QrPanel otpauthUri={otpauthUri} />
+      <div className={styles.secret}>
+        <p className={styles.label}>인증기에 입력할 값</p>
+        {/*
+         * 자동 선택 · 복사 버튼을 두지 않는다 — 클립보드는 이 값이 가는 또 하나의 자리이고,
+         * 그 자리는 화면을 떠난 뒤에도 남는다. 대신 네 자씩 끊어 옮겨 적을 수 있게 한다.
+         */}
+        <code className={styles.secretValue}>
+          {groupSecret(secret).map((group, index) => (
+            <span key={`${String(index)}:${group}`}>{group}</span>
+          ))}
+        </code>
+        <p className={styles.body}>지금 화면을 벗어나면 다시 볼 수 없어요.</p>
+      </div>
+    </>
+  )
+}
+
+/**
+ * QR — **이 화면이 직접 그린다.**
+ *
+ * 외부 QR 이미지 서비스에 `otpauthUri` 를 넘기는 순간 **공유 시크릿이 제3자에게 간다.**
+ * 인코딩은 `qrCode.ts` 가 브라우저 안에서 하고, 여기서는 그 격자를 `<path>` 하나로 그린다 —
+ * 값이 이 오리진을 벗어나는 길이 없다.
+ *
+ * **흑백을 테마에 맡기지 않는다.** 토큰 색을 쓰면 다크 테마에서 명암이 뒤집히고, 반전된
+ * 심볼을 읽지 못하는 리더가 있다. 이 사각형만 언제나 검정 위 흰색이다.
+ *
+ * 그릴 수 없으면 **칸을 통째로 비운다** (8차가 그 경우를 정했다). 자리만 남겨 두면 QR 이
+ * 나오다 만 것처럼 보이고, 아래의 값으로 등록할 수 있다는 사실이 가려진다.
+ */
+function QrPanel({ otpauthUri }: { otpauthUri: string }) {
+  const symbol = useMemo(() => encodeQrSymbol(otpauthUri), [otpauthUri])
+
+  if (symbol === null) {
+    return null
+  }
+
+  return (
+    <div className={styles.qr}>
+      {/*
+       * `aria-label` 에 URI 를 넣지 않는다 — 보조 기술이 읽어 주는 것이 곧 시크릿을 소리로
+       * 내보내는 일이고, 그 문자열은 접근성 트리에도 남는다.
+       */}
+      <svg
+        className={styles.qrSymbol}
+        viewBox={`0 0 ${String(symbol.size)} ${String(symbol.size)}`}
+        role="img"
+        aria-label="인증기로 읽을 QR"
+        shapeRendering="crispEdges"
+      >
+        <rect width={symbol.size} height={symbol.size} fill="#ffffff" />
+        <path d={qrPathData(symbol)} fill="#000000" />
+      </svg>
+      <p className={styles.hint}>인증기로 이 QR 을 읽거나, 아래 값을 직접 입력해요.</p>
     </div>
   )
 }

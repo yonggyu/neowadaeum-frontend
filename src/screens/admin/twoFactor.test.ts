@@ -1,7 +1,14 @@
 import { describe, expect, it } from 'vitest'
 
 import { ApiError } from '../../api/client'
-import { canSubmitCode, CODE_LENGTH, failureMessage, normalizeCode } from './twoFactor'
+import {
+  canSubmitCode,
+  CODE_LENGTH,
+  failureMessage,
+  groupSecret,
+  normalizeCode,
+  SECRET_GROUP_LENGTH,
+} from './twoFactor'
 
 describe('normalizeCode', () => {
   it('계약이_받는_모양으로만_좁힌다 — TotpCodeRequest.code 는 ^[0-9]{6}$ 다', () => {
@@ -10,6 +17,33 @@ describe('normalizeCode', () => {
     expect(normalizeCode('1234567')).toBe('123456')
     expect(normalizeCode('abc')).toBe('')
     expect(normalizeCode('123456').length).toBe(CODE_LENGTH)
+  })
+})
+
+describe('groupSecret — 네 자씩 끊어 손으로 옮길 수 있게 한다', () => {
+  /**
+   * **명백한 가짜다.** Base32 알파벳이기만 할 뿐 어떤 계정에도 붙지 않는다 — 실제 등록
+   * 응답의 값을 테스트에 적으면 그 시크릿이 레포에 영구히 남는다 (S-11).
+   */
+  const FAKE_SECRET = 'AAAABBBBCCCCDDDD'
+
+  it('네_자씩_끊는다', () => {
+    expect(groupSecret(FAKE_SECRET)).toEqual(['AAAA', 'BBBB', 'CCCC', 'DDDD'])
+    expect(SECRET_GROUP_LENGTH).toBe(4)
+  })
+
+  it('마지막_조각이_짧아도_잘라_버리지_않는다', () => {
+    expect(groupSecret('AAAABB')).toEqual(['AAAA', 'BB'])
+  })
+
+  it('값을_바꾸지_않는다 — 대소문자도 채움도 손대지 않는다', () => {
+    expect(groupSecret(FAKE_SECRET).join('')).toBe(FAKE_SECRET)
+    expect(groupSecret('aaaaBBBB')).toEqual(['aaaa', 'BBBB'])
+  })
+
+  it('빈_값이면_그릴_조각이_없다', () => {
+    expect(groupSecret('')).toEqual([])
+    expect(groupSecret('  ')).toEqual([])
   })
 })
 
