@@ -5,8 +5,11 @@ import {
   clearAdminStepUp,
   confirmAdminTotp,
   enrollAdminTotp,
+  getReviewHistory,
   hasAdminStepUp,
   listReviewQueue,
+  listStoryReports,
+  readReviewManuscript,
   setAdminStepUp,
   verifyAdminTotp,
 } from './admin'
@@ -202,5 +205,78 @@ describe('setAdminStepUp', () => {
     setAdminStepUp(null)
 
     expect(hasAdminStepUp()).toBe(false)
+  })
+})
+
+/**
+ * 검수 상세 세 문 (계약 `readReviewManuscript` · `listStoryReports` · `getReviewHistory`).
+ *
+ * 픽스처의 uuid 는 전부 더미다 — `player_ref` 도 실제 식별자도 이 파일에 오지 않는다 (S-11).
+ */
+const STORY_ID = '00000000-0000-4000-8000-000000000001'
+
+function pathOf(fetchMock: ReturnType<typeof stubFetch>, call = 0): string {
+  return String(fetchMock.mock.calls[call]?.[0] ?? '')
+}
+
+describe('S4_검수_상세_세_문은_기존_승격_경로를_그대로_쓴다', () => {
+  it('세_문_모두에_X_Admin_Step_Up_이_붙는다 — 새 경로를 만들지 않는다', async () => {
+    const fetchMock = stubFetch(json(STEP_UP), json({}), json({}), json([]))
+    await verifyAdminTotp('123456')
+
+    await readReviewManuscript(STORY_ID)
+    await listStoryReports(STORY_ID)
+    await getReviewHistory(STORY_ID)
+
+    for (const call of [1, 2, 3]) {
+      expect(headersOf(fetchMock, call)['X-Admin-Step-Up']).toBe(STEP_UP.stepUpToken)
+    }
+  })
+
+  it('계약이_적은_경로_그대로_부른다', async () => {
+    const fetchMock = stubFetch(json({}), json({}), json([]))
+
+    await readReviewManuscript(STORY_ID)
+    await listStoryReports(STORY_ID)
+    await getReviewHistory(STORY_ID)
+
+    expect(pathOf(fetchMock, 0)).toContain(`/admin/reviews/${STORY_ID}`)
+    expect(pathOf(fetchMock, 1)).toContain(`/admin/reviews/${STORY_ID}/reports`)
+    expect(pathOf(fetchMock, 2)).toContain(`/admin/reviews/${STORY_ID}/history`)
+  })
+
+  it('세_문_다_읽기다 — 메서드를 바꾸지 않는다', async () => {
+    const fetchMock = stubFetch(json({}), json({}), json([]))
+
+    await readReviewManuscript(STORY_ID)
+    await listStoryReports(STORY_ID)
+    await getReviewHistory(STORY_ID)
+
+    for (const call of [0, 1, 2]) {
+      expect(fetchMock.mock.calls[call]?.[1]?.method ?? 'GET').toBe('GET')
+    }
+  })
+
+  it('작품_식별자를_경로에_넣을_때_인코딩한다', async () => {
+    const fetchMock = stubFetch(json({}))
+
+    await readReviewManuscript('a b/c')
+
+    expect(pathOf(fetchMock)).toContain('a%20b%2Fc')
+  })
+})
+
+describe('R12_3_원고를_미리_불러_두지_않는다', () => {
+  it('큐를_여는_것만으로는_원고도_신고도_부르지_않는다 — 열어 본 적 없는 작품이 열람 기록에 남지 않는다', async () => {
+    const fetchMock = stubFetch(json([{ storyId: STORY_ID }]))
+
+    await listReviewQueue()
+
+    // 큐 하나만 나간다. 목록을 그리려고 상세 세 문을 함께 부르면 그 순간 감사 기록이
+    // 큐 길이만큼 생긴다 (backend R12.3 · R14.5).
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(pathOf(fetchMock)).toContain('/admin/reviews')
+    expect(pathOf(fetchMock)).not.toContain('/reports')
+    expect(pathOf(fetchMock)).not.toContain('/history')
   })
 })
