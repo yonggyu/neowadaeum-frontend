@@ -103,6 +103,128 @@ export const AUTO_CHECK_VERDICT_LABEL: Record<AutoCheckSummary['verdict'], strin
   hold: '사람이 봐야 함',
 }
 
+// ── 미리보기 (#100, backend #332 · 정정본 §13-68) ───────────────────────
+
+/**
+ * 미리보기 한 문단. 계약이 `paragraphs` 를 *"문단 배열의 JSON 원문 (R5.1)"* 이라 적었고,
+ * R5.1 의 문단은 플레이 응답의 `Paragraph` 와 같은 규칙이다.
+ */
+export interface PreviewParagraph {
+  speakerName: string | null
+  text: string
+}
+
+/** 미리보기 한 선택지. `choiceId` 는 서버가 발급한 값이다 (I-1) — 화면은 읽기만 한다. */
+export interface PreviewChoice {
+  choiceId: string
+  text: string
+}
+
+/**
+ * 저장된 JSON 원문을 읽는다. **모양이 다르면 `null` 을 돌려준다.**
+ *
+ * `null` 은 실패가 아니라 *"이 값을 문장으로 그리지 말고 원문 그대로 보여라"* 다. Debug
+ * 콘솔이 같은 종류의 값을 파싱하지 않고 `<pre>` 로 두는 이유가 이것인데(`1j` 는 계약이
+ * 모양을 규정하지 않은 필드를 받는다), 검수는 사정이 다르다 — §13-68 이 *"검수는 독자가 볼
+ * 것을 보는 자리"* 라고 적었고 계약이 이 필드에 **R5.1 을 지목했다.** 그래서 여기서는 그
+ * 모양으로 읽어 보되, 어긋나면 조용히 아무것도 그리지 않는 대신 원문으로 되돌아간다.
+ */
+function parseArray(raw: string): unknown[] | null {
+  let value: unknown
+  try {
+    value = JSON.parse(raw)
+  } catch {
+    return null
+  }
+  return Array.isArray(value) ? value : null
+}
+
+function stringField(source: Record<string, unknown>, key: string): string | null {
+  const value = source[key]
+  return typeof value === 'string' ? value : null
+}
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null
+}
+
+/**
+ * 미리보기 본문 (계약 `ManuscriptPreviewTurn.paragraphs`).
+ *
+ * **가공하지 않는다** — 문단을 잇거나 자르지 않고, 서버가 저장한 순서 그대로다 (§13-68).
+ * 모양이 R5.1 과 다르면 `null` 이고, 그때 화면은 원문을 그린다.
+ */
+export function previewParagraphs(raw: string): PreviewParagraph[] | null {
+  const items = parseArray(raw)
+  if (items === null) {
+    return null
+  }
+  const paragraphs: PreviewParagraph[] = []
+  for (const item of items) {
+    const record = asRecord(item)
+    const text = record === null ? null : stringField(record, 'text')
+    if (record === null || text === null) {
+      return null
+    }
+    paragraphs.push({ speakerName: stringField(record, 'speakerName'), text })
+  }
+  return paragraphs
+}
+
+/**
+ * 미리보기 선택지 (계약 `ManuscriptPreviewTurn.choices`).
+ *
+ * **문구만 그린다.** `choiceId` 는 같은 턴 안에서 줄을 가리기 위한 키로만 쓴다 — 검수자가
+ * 판정하는 것은 독자가 읽는 문장이고, 식별자는 그 판단에 쓰이지 않는다. 제출하는 자리가
+ * 아니므로 F-1 이 걸리는 지점도 아니다.
+ */
+export function previewChoices(raw: string): PreviewChoice[] | null {
+  const items = parseArray(raw)
+  if (items === null) {
+    return null
+  }
+  const choices: PreviewChoice[] = []
+  for (const item of items) {
+    const record = asRecord(item)
+    const choiceId = record === null ? null : stringField(record, 'choiceId')
+    const text = record === null ? null : stringField(record, 'text')
+    if (choiceId === null || text === null) {
+      return null
+    }
+    choices.push({ choiceId, text })
+  }
+  return choices
+}
+
+/**
+ * 미리보기 턴이 없을 때 적는 문장.
+ *
+ * **비워 두지 않는다.** 빈 패널은 *이 작품은 아무 문장도 내놓지 않았다* 로 읽히고, 그것은
+ * 서버가 하지 않은 말이다 (§13-68 의 "그 침묵"). **빈 배열은 실패도 아니다** — 404 를 내지
+ * 않기로 한 이유가 그것이므로 오류처럼 적지도 않는다.
+ *
+ * 두 갈래를 `previewedAt` 이 가른다. `null` 이면 돌린 적이 없거나 기록이 파기된 것이라
+ * 어느 쪽인지 알 수 없고, 값이 있으면 돌린 것은 확실하되 턴이 남지 않은 것이다 (§13-37).
+ * 알 수 없는 쪽을 아는 것처럼 적지 않는다.
+ */
+export function previewAbsenceHint(previewedAt: string | null): string {
+  return previewedAt === null
+    ? '미리보기 기록이 없어요 — 돌린 적이 없거나 보관 기간이 지났어요.'
+    : '남은 미리보기 턴이 없어요 — 보관 기간이 지나 파기됐어요.'
+}
+
+/**
+ * 미리보기가 있을 때 함께 적는 사실.
+ *
+ * 계약이 `previewedAt` 을 준 이유를 그대로 적는다 — *"오래된 미리보기는 지금 원고와 다른
+ * 문장을 보여 줄 수 있다"* (§13-68). 얼마나 오래돼야 오래된 것인지 화면이 정하지 않는다.
+ * 시각을 말하고 판단은 검수자에게 남긴다.
+ */
+export const PREVIEW_STALENESS_HINT =
+  '작성자가 마지막으로 확인한 상태예요. 그 뒤에 원고를 고쳤다면 지금 원고와 달라요.'
+
 // ── 신고 ───────────────────────────────────────────────────────────────
 
 type ReportReason = ReasonCount['reason']

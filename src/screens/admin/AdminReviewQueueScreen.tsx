@@ -8,6 +8,7 @@ import {
   listReviewQueue,
   listStoryReports,
   readReviewManuscript,
+  type ManuscriptPreviewTurn,
   type ReviewHistoryEntry,
   type ReviewManuscript,
   type ReviewQueueItem,
@@ -31,6 +32,10 @@ import {
   HISTORY_VERDICT_LABEL,
   panelInStatus,
   panelsFor,
+  PREVIEW_STALENESS_HINT,
+  previewAbsenceHint,
+  previewChoices,
+  previewParagraphs,
   reasonCountsForDisplay,
   REPORT_REASON_LABEL,
   REPORT_STATUS_LABEL,
@@ -71,8 +76,10 @@ import styles from './adminQueue.module.css'
  * 미리 부르지 않는다 — 열어 본 적 없는 작품이 열람 기록에 남으면 그 기록은 "누가 무엇을
  * 봤는가" 를 더는 답하지 못한다.
  *
- * **미리보기 3턴 자리를 만들지 않는다.** `3h` 가 그렸지만 검수 대상 작품에서 그 턴으로 가는
- * 길이 계약에 없다 (정정본 §13-5 · §13-61). 있는 척하는 빈 상자를 두지 않는다.
+ * **미리보기 3턴 자리가 채워졌다** (#100, backend #332 · 정정본 §13-68). `3h` 가 그린 자리를
+ * `#86` 이 비워 둔 이유는 *검수 대상 작품에서 그 턴으로 가는 길이 계약에 없다* 였는데, 원고가
+ * 마지막 미리보기를 기억하게 되면서 그 길이 생겼다. **호출은 늘지 않는다** — 턴이 원고 응답
+ * (`readReviewManuscript`)에 함께 실려 오므로 미리 부를 것도, 더 부를 것도 없다.
  *
  * **작성자를 그리지 않는다.** `3h` 는 "@yeonwoo · 작품 2 · 반려 1" 을 그렸지만 계약의
  * `ReviewQueueItem` 은 작성자를 담지 않는다 — *"누가 썼는지가 함께 오면 그것이 판정에
@@ -612,7 +619,105 @@ function Manuscript({ manuscript }: { manuscript: ReviewManuscript }) {
           </div>
         ))}
       </section>
+
+      <PreviewTurns
+        turns={manuscript.previewTurns}
+        previewedAt={manuscript.previewedAt}
+        now={now}
+      />
     </div>
+  )
+}
+
+/**
+ * 미리보기 (계약 `ReviewManuscript.previewTurns`) — `3h` 우측 패널의 마지막 자리.
+ *
+ * **없으면 없다고 적는다.** 빈 상자를 두면 검수자는 원고가 깨끗해서 아무것도 나오지 않은
+ * 줄로 읽는다 — §13-68 이 파기 유예를 만든 이유가 그 침묵이다. **빈 배열은 실패가 아니므로**
+ * 오류처럼 그리지도 않는다.
+ *
+ * **`previewedAt` 을 함께 적는다.** 오래된 미리보기는 지금 원고와 다른 문장을 보여 줄 수
+ * 있고, 그 사실을 숨기면 검수자는 자기가 보고 있는 것이 무엇인지 모른 채 판정한다.
+ */
+function PreviewTurns({
+  turns,
+  previewedAt,
+  now,
+}: {
+  turns: readonly ManuscriptPreviewTurn[]
+  previewedAt: string | null
+  now: number
+}) {
+  return (
+    <section className={styles.block} aria-label="미리보기">
+      {/* 0턴을 "미리보기 0턴" 으로 적지 않는다 — 숫자로 세면 그것이 결함처럼 읽힌다 */}
+      <p className={styles.blockHead}>
+        {turns.length === 0 ? '미리보기' : `미리보기 ${turns.length}턴`}
+        {previewedAt === null ? null : ` · ${formatRelativeTime(previewedAt, now)}`}
+      </p>
+      {turns.length === 0 ? (
+        <p className={styles.hint}>{previewAbsenceHint(previewedAt)}</p>
+      ) : (
+        <>
+          <p className={styles.hint}>{PREVIEW_STALENESS_HINT}</p>
+          {turns.map((turn) => (
+            <PreviewTurn key={`${turn.chapterNo}-${turn.turnNo}`} turn={turn} />
+          ))}
+        </>
+      )}
+    </section>
+  )
+}
+
+/**
+ * 턴 하나. 본문과 선택지는 **저장된 JSON 원문**이다 (계약).
+ *
+ * 계약이 이 필드에 R5.1 을 지목했으므로 그 모양으로 읽어 문장으로 그린다 — 검수는 *독자가
+ * 볼 것*을 보는 자리다. 모양이 어긋나면 지어내지 않고 **원문 그대로** 보여 준다: 조용히
+ * 아무것도 그리지 않으면 검수자는 미리보기가 없는 작품과 구분하지 못한다.
+ */
+function PreviewTurn({ turn }: { turn: ManuscriptPreviewTurn }) {
+  const paragraphs = previewParagraphs(turn.paragraphs)
+  const choices = previewChoices(turn.choices)
+
+  return (
+    <div className={styles.entry}>
+      <p className={styles.entryHead}>
+        {turn.chapterNo}장 {turn.turnNo}턴
+        {turn.speakerName === null ? '' : ` · ${turn.speakerName}`}
+      </p>
+
+      {paragraphs === null ? (
+        <PreviewRaw label="본문 원문" value={turn.paragraphs} />
+      ) : (
+        paragraphs.map((paragraph, index) => (
+          <p key={index} className={styles.prose}>
+            {paragraph.speakerName === null ? '' : `${paragraph.speakerName}: `}
+            {paragraph.text}
+          </p>
+        ))
+      )}
+
+      {choices === null ? (
+        <PreviewRaw label="선택지 원문" value={turn.choices} />
+      ) : (
+        <ul className={styles.choices}>
+          {choices.map((choice) => (
+            <li key={choice.choiceId}>{choice.text}</li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )
+}
+
+/** 계약이 지목한 모양으로 읽히지 않은 값. 원문을 그대로 두고 그렇다고 적는다. */
+function PreviewRaw({ label, value }: { label: string; value: string }) {
+  return (
+    <>
+      <p className={styles.hint}>{label} — 저장된 모양이 달라서 원문 그대로 보여 줘요.</p>
+      <pre className={styles.raw}>{value}</pre>
+    </>
   )
 }
 

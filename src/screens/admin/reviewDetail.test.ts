@@ -13,6 +13,10 @@ import {
   HISTORY_VERDICT_LABEL,
   panelInStatus,
   panelsFor,
+  PREVIEW_STALENESS_HINT,
+  previewAbsenceHint,
+  previewChoices,
+  previewParagraphs,
   reasonCountsForDisplay,
   REPORT_REASON_LABEL,
   REPORT_STATUS_LABEL,
@@ -173,5 +177,66 @@ describe('엔딩 표식', () => {
       '숨은 엔딩',
       '기본 엔딩',
     ])
+  })
+})
+
+describe('§13-68_미리보기는_저장된_원문을_읽는다', () => {
+  it('R5_1_모양이면_문단으로_읽는다 — 검수는 독자가 볼 것을 보는 자리다', () => {
+    const raw = JSON.stringify([
+      { type: 'narration', speakerName: null, text: '더미 나레이션' },
+      { type: 'dialogue', speakerName: '더미 화자', text: '더미 대사' },
+    ])
+
+    expect(previewParagraphs(raw)).toEqual([
+      { speakerName: null, text: '더미 나레이션' },
+      { speakerName: '더미 화자', text: '더미 대사' },
+    ])
+  })
+
+  it('모양이_어긋나면_null_이다 — 조용히 아무것도 그리지 않는 대신 원문으로 되돌아간다', () => {
+    expect(previewParagraphs('문단 배열이 아닌 문자열')).toBeNull()
+    expect(previewParagraphs('{"type":"narration"}')).toBeNull()
+    expect(previewParagraphs(JSON.stringify([{ speakerName: null }]))).toBeNull()
+    expect(previewParagraphs(JSON.stringify(['문단이 객체가 아니다']))).toBeNull()
+  })
+
+  it('I1_선택지는_서버가_발급한_choiceId_와_문구를_그대로_읽는다', () => {
+    const raw = JSON.stringify([
+      { choiceId: 'dummy-choice-1', order: 1, text: '더미 선택지 하나', disabled: false },
+      { choiceId: 'dummy-choice-2', order: 2, text: '더미 선택지 둘', disabled: false },
+    ])
+
+    expect(previewChoices(raw)).toEqual([
+      { choiceId: 'dummy-choice-1', text: '더미 선택지 하나' },
+      { choiceId: 'dummy-choice-2', text: '더미 선택지 둘' },
+    ])
+  })
+
+  it('choiceId_가_없는_모양은_null_이다 — 키를 화면이 지어내지 않는다', () => {
+    expect(previewChoices(JSON.stringify([{ text: '더미 선택지' }]))).toBeNull()
+    expect(previewChoices('선택지 배열이 아닌 문자열')).toBeNull()
+  })
+
+  it('빈_배열은_빈_결과지_실패가_아니다', () => {
+    expect(previewParagraphs('[]')).toEqual([])
+    expect(previewChoices('[]')).toEqual([])
+  })
+})
+
+describe('§13-68_미리보기가_없으면_없다고_적는다', () => {
+  it('previewedAt_이_null_이면_어느_쪽인지_아는_것처럼_적지_않는다', () => {
+    expect(previewAbsenceHint(null)).toBe(
+      '미리보기 기록이 없어요 — 돌린 적이 없거나 보관 기간이 지났어요.',
+    )
+  })
+
+  it('previewedAt_이_있으면_돌린_것은_확실하다 — 남은 턴이 없다고 적는다', () => {
+    expect(previewAbsenceHint('2026-09-01T00:00:00Z')).toBe(
+      '남은 미리보기 턴이 없어요 — 보관 기간이 지나 파기됐어요.',
+    )
+  })
+
+  it('있을_때는_시각을_말하고_판단은_검수자에게_남긴다 — 오래된 미리보기는 지금 원고와 다르다', () => {
+    expect(PREVIEW_STALENESS_HINT).toContain('마지막으로 확인한 상태')
   })
 })
