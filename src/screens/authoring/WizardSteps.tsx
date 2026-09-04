@@ -1,9 +1,9 @@
+import type { AuthoringGenre } from '../../api/endpoints/authoring'
 import {
   characterField,
   characterFieldPaths,
   emptyCharacter,
   FIELD,
-  GENRES,
   moveCharacter,
   SETTING_DETAIL_MAX,
   SHORT_DESCRIPTION_MAX,
@@ -29,8 +29,19 @@ export interface StepProps {
   precheck: PrecheckHandle
 }
 
-/** Step 1 — 기본 정보 (3d). */
-export function StepBasics({ values, onChange, precheck }: StepProps) {
+/**
+ * Step 1 — 기본 정보 (3d).
+ *
+ * **장르 목록을 이 파일이 들고 있지 않다.** `getAuthoringMetadata` 가 주고 (backend #282 ·
+ * #315), 정본은 `catalog` 의 `genre` 표다 — 코드에 다섯을 적으면 라이브러리가 여는 섹션과
+ * 작성자가 고를 수 있는 목록이 갈라진다 (§13-56). **순서도 서버의 것이다** (`display_order`).
+ */
+export function StepBasics({
+  values,
+  onChange,
+  precheck,
+  genres,
+}: StepProps & { genres: readonly AuthoringGenre[] }) {
   return (
     <>
       <h1 className={css.pageTitle}>어떤 이야기인가요?</h1>
@@ -50,15 +61,15 @@ export function StepBasics({ values, onChange, precheck }: StepProps) {
       <fieldset className={css.field}>
         <legend className={css.fieldLabel}>장르 · 다중 선택</legend>
         <div className={css.chips}>
-          {GENRES.map((genre) => {
-            const on = values.genres.includes(genre.value)
+          {genres.map((genre) => {
+            const on = values.genres.includes(genre.key)
             return (
               <button
-                key={genre.value}
+                key={genre.key}
                 type="button"
                 aria-pressed={on}
                 className={on ? `${css.chip} ${css.chipOn}` : css.chip}
-                onClick={() => onChange({ ...values, genres: toggleGenre(values.genres, genre.value) })}
+                onClick={() => onChange({ ...values, genres: toggleGenre(values.genres, genre.key) })}
               >
                 {genre.label}
               </button>

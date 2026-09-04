@@ -617,6 +617,22 @@
 
 /* 기본 엔딩 — 라디오. 터치 대상은 행 전체이고 높이는 3d 의 설정 행과 같은 48px 이다 */
 
+/*
+ * 템플릿이 선언한 칸들 (§13-56).
+ *
+ * **어느 폭에서도 세로 한 줄이다.** 칸의 개수는 서버가 정하므로(`parameters[]`) 열 수를
+ * 화면이 미리 정할 수 없고, 390 에서 두 칸을 가로로 놓으면 인물 이름이 잘린다. 왼쪽 선은
+ * 이 칸들이 위의 조건에 딸린 것임을 말한다 — 들여쓰기만으로는 1440 에서 읽히지 않는다.
+ */
+.conditionParams {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  margin-top: var(--sp-2);
+  padding-left: var(--sp-3);
+  border-left: 2px solid var(--border);
+}
+
 .radioRow {
   display: flex;
   gap: var(--sp-3);

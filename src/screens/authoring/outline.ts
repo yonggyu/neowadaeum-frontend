@@ -1,4 +1,6 @@
 import type {
+  ConditionTemplateParameter,
+  ConditionTemplateSpec,
   DraftPayload,
   OutlineChapter,
   OutlineEnding,
@@ -56,25 +58,55 @@ export function endingFieldPaths(count: number): string[] {
 }
 
 /**
+ * 조건 템플릿이 요구하는 값들 — `슬롯 이름 → 고른 값`.
+ *
+ * **슬롯 이름을 화면이 짓지 않는다.** `ConditionTemplateParameter.name` 이 그 이름이고
+ * (`character` · `threshold` · `flag`), 계약이 템플릿마다 무엇이 필요한지를 선언한다
+ * (정정본 §13-56) — *"키만으로는 조건이 완성되지 않는다."*
+ *
+ * **담는 그릇의 이름(`conditionParams`)만 우리 것이다.** 계약에 그 자리가 아직 없기 때문이며,
+ * §13-56 이 그 사실을 적어 두었다: *"작성한 조건을 저장하는 경로는 여기 없다 — 이 경로는
+ * 무엇을 고를 수 있는가만 답한다."* 그렇다고 작성자가 고른 값을 버리면 단계를 넘길 때마다
+ * 사라지므로, `payload` 가 열려 있는 자리에 둔다 (`stepFields.ts` 가 이름을 고른 것과 같은
+ * 판단이다). 조립된 조건식을 만드는 것은 **서버의 몫**이다 (I-1 과 같은 이유).
+ */
+export type ConditionParams = Readonly<Record<string, string | number>>
+
+/**
+ * `character` · `flag` 의 선택지가 오는 곳.
+ *
+ * **이 목록을 서버가 주지 않는다** — 계약이 그렇게 적었다: *"인물은 작성 중인 원고의 캐릭터
+ * 목록에서 오고, 플래그는 그 원고가 선언한 것에서 온다 — 원고마다 다르므로 서버가 전역
+ * 목록으로 줄 수 있는 값이 아니다."*
+ */
+export interface ConditionSources {
+  readonly characters: readonly string[]
+  readonly flags: readonly string[]
+}
+
+/** 조건을 가진 값 — 챕터와 엔딩이 같은 두 자리를 갖는다. */
+export interface Conditioned {
+  readonly conditionTemplateKey: string | null
+  readonly conditionParams: ConditionParams
+}
+
+/**
  * 화면이 실제로 쓰는 모양. **`chapterNo` · `endingNo` 를 들고 있지 않는다.**
  *
  * 번호는 순서다 — 배열의 자리가 곧 그 값이므로 둘을 함께 들면 순서 변경·삭제마다 두 곳을
  * 맞춰야 하고, 어긋나는 날 서버는 번호를 믿고 화면은 순서를 믿는다. 번호는 저장할 때
  * `writeOutline` 이 한 곳에서 매긴다.
  */
-export interface ChapterDraft {
+export interface ChapterDraft extends Conditioned {
   readonly title: string
   readonly summarySeed: string
-  /** 전환 조건. **템플릿 키 문자열 하나뿐이다** (R7.16) — 대상·임계값을 고르는 자리가 없다 */
-  readonly conditionTemplateKey: string | null
 }
 
-export interface EndingDraft {
+export interface EndingDraft extends Conditioned {
   readonly label: string
   readonly epilogueText: string
   /** 엔딩 하나에만 켜진다 (3e — 라디오). 그 불변을 지키는 것은 `setDefaultEnding` 이다 */
   readonly isDefault: boolean
-  readonly conditionTemplateKey: string | null
 }
 
 export interface OutlineValues {
@@ -107,6 +139,7 @@ function readChapter(raw: unknown): ChapterDraft {
     title: text(value['title']),
     summarySeed: text(value['summarySeed']),
     conditionTemplateKey: nullableText(value['conditionTemplateKey']),
+    conditionParams: readParams(value['conditionParams']),
   }
 }
 
@@ -117,7 +150,20 @@ function readEnding(raw: unknown): EndingDraft {
     epilogueText: text(value['epilogueText']),
     isDefault: value['isDefault'] === true,
     conditionTemplateKey: nullableText(value['conditionTemplateKey']),
+    conditionParams: readParams(value['conditionParams']),
   }
+}
+
+/** 문자열과 정수만 남긴다 — 다른 타입이 들어 있으면 고르지 않은 것으로 읽는다. */
+function readParams(raw: unknown): ConditionParams {
+  if (typeof raw !== 'object' || raw === null) return {}
+  const params: Record<string, string | number> = {}
+  for (const [name, value] of Object.entries(raw as Record<string, unknown>)) {
+    if (typeof value === 'string' || typeof value === 'number') {
+      params[name] = value
+    }
+  }
+  return params
 }
 
 /**
@@ -130,19 +176,27 @@ export function writeOutline(
   payload: DraftPayload,
   values: OutlineValues,
 ): Record<string, unknown> {
-  const chapters: OutlineChapter[] = values.chapters.map((chapter, index) => ({
-    chapterNo: index + 1,
-    title: chapter.title,
-    summarySeed: chapter.summarySeed,
-    conditionTemplateKey: chapter.conditionTemplateKey,
-  }))
-  const endings: OutlineEnding[] = values.endings.map((ending, index) => ({
-    endingNo: index + 1,
-    label: ending.label,
-    epilogueText: ending.epilogueText === '' ? null : ending.epilogueText,
-    isDefault: ending.isDefault,
-    conditionTemplateKey: ending.conditionTemplateKey,
-  }))
+  // 계약의 모양(`OutlineChapter` · `OutlineEnding`)에 **고른 값 하나를 더해** 저장한다.
+  // 계약에 그 자리가 아직 없어 타입이 넓어지는 것이고, `payload` 는 열려 있다 (§13-56).
+  const chapters: (OutlineChapter & { conditionParams: ConditionParams })[] = values.chapters.map(
+    (chapter, index) => ({
+      chapterNo: index + 1,
+      title: chapter.title,
+      summarySeed: chapter.summarySeed,
+      conditionTemplateKey: chapter.conditionTemplateKey,
+      conditionParams: chapter.conditionParams,
+    }),
+  )
+  const endings: (OutlineEnding & { conditionParams: ConditionParams })[] = values.endings.map(
+    (ending, index) => ({
+      endingNo: index + 1,
+      label: ending.label,
+      epilogueText: ending.epilogueText === '' ? null : ending.epilogueText,
+      isDefault: ending.isDefault,
+      conditionTemplateKey: ending.conditionTemplateKey,
+      conditionParams: ending.conditionParams,
+    }),
+  )
   return {
     ...(payload ?? {}),
     [OUTLINE_FIELD.chapters]: chapters,
@@ -158,16 +212,19 @@ export function writeOutline(
  */
 export function fromOutlineResponse(response: OutlineResponse): OutlineValues {
   return {
+    // 초안 응답은 **키만** 준다 — 대상·임계는 접혀 있지 않으므로(§13-56) 빈 채로 온다.
     chapters: response.chapters.map((chapter) => ({
       title: chapter.title,
       summarySeed: chapter.summarySeed,
       conditionTemplateKey: chapter.conditionTemplateKey ?? null,
+      conditionParams: {},
     })),
     endings: response.endings.map((ending) => ({
       label: ending.label,
       epilogueText: ending.epilogueText ?? '',
       isDefault: ending.isDefault,
       conditionTemplateKey: ending.conditionTemplateKey ?? null,
+      conditionParams: {},
     })),
   }
 }
@@ -176,6 +233,7 @@ export const emptyChapter = (): ChapterDraft => ({
   title: '',
   summarySeed: '',
   conditionTemplateKey: null,
+  conditionParams: {},
 })
 
 export const emptyEnding = (): EndingDraft => ({
@@ -183,6 +241,7 @@ export const emptyEnding = (): EndingDraft => ({
   epilogueText: '',
   isDefault: false,
   conditionTemplateKey: null,
+  conditionParams: {},
 })
 
 /**
@@ -198,7 +257,7 @@ export const emptyEnding = (): EndingDraft => ({
 export function setDefaultEnding(endings: readonly EndingDraft[], index: number): EndingDraft[] {
   return endings.map((ending, i) =>
     i === index
-      ? { ...ending, isDefault: true, conditionTemplateKey: null }
+      ? { ...ending, isDefault: true, conditionTemplateKey: null, conditionParams: {} }
       : { ...ending, isDefault: false },
   )
 }
@@ -215,14 +274,110 @@ export function chaptersMissingSeed(chapters: readonly ChapterDraft[]): number[]
 }
 
 /**
+ * 고른 템플릿의 선언 — 없으면 `null`.
+ *
+ * **키가 목록에 없을 수 있다.** 원고에 옛 키가 남아 있고 서버가 목록을 바꾼 경우이며, 그때
+ * 화면은 라벨을 지어내지 않고 고르지 않은 것으로 다룬다 (F-4 와 같은 이유).
+ */
+export function findTemplate(
+  templates: readonly ConditionTemplateSpec[],
+  key: string | null,
+): ConditionTemplateSpec | null {
+  if (key === null) return null
+  return templates.find((template) => template.key === key) ?? null
+}
+
+/**
+ * 이 템플릿을 지금 이 원고에서 고를 수 없는 이유 — 고를 수 있으면 `null`.
+ *
+ * **선택지가 없는 컨트롤을 그리지 않는다.** `character` 와 `flag` 의 후보는 서버가 주지 않고
+ * 원고에서 온다 (§13-56). 후보가 하나도 없는 템플릿을 고르게 두면 작성자는 조건을 끝까지
+ * 채울 수 없는 자리에 갇히고, 그 상태를 푸는 길이 화면에 없다 —
+ * `visibilityBlockedReason`(3f) 과 같은 판단이다.
+ *
+ * **플래그는 지금 언제나 비어 있다.** 원고가 플래그를 선언하는 자리가 아직 없기 때문이며,
+ * 그 자리를 여기서 지어내지 않는다 (CLAUDE.md — 디자인이 없으면 화면을 지어내지 않는다).
+ * 그래서 `has_flag` · `lacks_flag` 는 이유와 함께 잠긴 채로 보인다: 조용히 비어 있는 것보다
+ * 왜 못 고르는지가 보이는 쪽이다.
+ */
+export function templateBlockedReason(
+  template: ConditionTemplateSpec,
+  sources: ConditionSources,
+): string | null {
+  for (const parameter of template.parameters) {
+    if (parameter.type === 'character' && sources.characters.length === 0) {
+      return '3단계에서 인물을 먼저 만들면 고를 수 있습니다.'
+    }
+    if (parameter.type === 'flag' && sources.flags.length === 0) {
+      return '이 원고에는 아직 플래그를 선언하는 자리가 없습니다.'
+    }
+  }
+  return null
+}
+
+/** `character` · `flag` 파라미터가 고를 수 있는 값. `integer` 는 목록이 아니다. */
+export function parameterOptions(
+  parameter: ConditionTemplateParameter,
+  sources: ConditionSources,
+): readonly string[] {
+  if (parameter.type === 'character') return sources.characters
+  if (parameter.type === 'flag') return sources.flags
+  return []
+}
+
+/**
+ * 조건이 아직 완성되지 않았는가 — **키만으로는 완성되지 않는다** (§13-56).
+ *
+ * 템플릿을 고르지 않았거나, 골랐는데 선언된 슬롯 하나가 비어 있으면 참이다.
+ */
+export function conditionIncomplete(
+  value: Conditioned,
+  templates: readonly ConditionTemplateSpec[],
+): boolean {
+  const template = findTemplate(templates, value.conditionTemplateKey)
+  if (template === null) return true
+  return template.parameters.some((parameter) => value.conditionParams[parameter.name] === undefined)
+}
+
+/**
+ * 템플릿을 바꾼다 — **고른 값을 함께 버린다.**
+ *
+ * 슬롯 이름이 템플릿마다 다르므로 남겨 두면 다른 템플릿의 값이 새 템플릿에 붙는다. 그 값은
+ * 화면 어디에도 보이지 않으면서 `payload` 에 남는다.
+ */
+export function setConditionTemplate<T extends Conditioned>(value: T, key: string | null): T {
+  return { ...value, conditionTemplateKey: key, conditionParams: {} }
+}
+
+/** 슬롯 하나를 채운다. 빈 값이면 다시 비운다 — 고르지 않은 것과 같은 상태로 되돌린다. */
+export function setConditionParam<T extends Conditioned>(
+  value: T,
+  name: string,
+  param: string | number | null,
+): T {
+  const params: Record<string, string | number> = { ...value.conditionParams }
+  if (param === null || param === '') {
+    delete params[name]
+  } else {
+    params[name] = param
+  }
+  return { ...value, conditionParams: params }
+}
+
+/**
  * 일반 엔딩(기본이 아닌 것) 중 조건이 비어 있는 자리 (R2.11).
  *
- * **다음 단계를 막지 않는다.** 3e 가 조건을 필수로 그리지 않았고, 조건 템플릿의 표시 문구조차
- * 아직 정해지지 않았다 (계약 `conditionTemplates` 의 설명, 백엔드 #282). 막아 두면 고를 수
- * 없는 값 때문에 진행이 서고, 그 상태를 푸는 길이 화면에 없다 — 그래서 말하기만 한다.
+ * **다음 단계를 막지 않는다.** 3e 가 조건을 필수로 그리지 않았고, 계약도 조건을 조립해
+ * 저장하는 경로를 아직 열지 않았다 (§13-56) — 막아 두면 진행이 서고 그 상태를 푸는 길이
+ * 화면에 없다. 그래서 말하기만 한다.
+ *
+ * **키가 있어도 슬롯이 비면 비어 있는 것으로 센다.** 키 하나로는 조건이 완성되지 않는다.
  */
-export function endingsMissingCondition(endings: readonly EndingDraft[]): number[] {
+export function endingsMissingCondition(
+  endings: readonly EndingDraft[],
+  templates: readonly ConditionTemplateSpec[],
+): number[] {
   return endings.flatMap((ending, index) =>
-    !ending.isDefault && ending.conditionTemplateKey === null ? [index] : [],
+    !ending.isDefault && conditionIncomplete(ending, templates) ? [index] : [],
   )
 }

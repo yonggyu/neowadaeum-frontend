@@ -61,22 +61,15 @@ export function isNearLimit(length: number, max: number): boolean {
 }
 
 /**
- * 장르 다섯 (정정본 13-25 — *"`romance` · `school` · `fantasy` · `action` · `mystery` 다섯"*).
+ * 장르는 **여기 없다.** 목록을 `getAuthoringMetadata` 가 준다 (backend #282 · #315, §13-56).
  *
- * **계약에 장르 목록을 주는 경로가 없다.** 라이브러리의 섹션 키가 `genre:<key>` 이므로 값은
- * 그 키여야 하고, 그 다섯을 정한 것은 정정본이다. 3d 의 칩(로맨스 · 청춘 · 판타지 · 미스터리 ·
- * 일상)과 두 개가 다르다 — 와이어프레임이 아니라 **정정본을 따른다**: 여기서 3d 를 따르면
- * 작성자가 고른 장르로는 열리지 않는 섹션이 생긴다. 어긋남은 이슈 후보로 보고한다.
+ * 이 자리에는 다섯 개의 상수가 있었다 — 계약에 목록을 주는 경로가 없어서였다. 그 경로가
+ * 열렸으므로 상수를 지운다: **정본은 `catalog` 의 `genre` 표**이고, 코드에 다섯을 적으면
+ * 라이브러리가 보여 주는 목록과 작성자가 고를 수 있는 목록이 서로 다른 정본을 갖게 된다.
+ * 갈라지는 날 *작성자가 고른 장르로는 열리지 않는 섹션*이 생긴다.
  *
- * 라벨은 화면의 것이다. 서버로 나가는 값은 언제나 키다.
+ * 라벨도 서버의 것이다. 서버로 나가는 값은 언제나 `AuthoringGenre.key` 다.
  */
-export const GENRES: readonly { value: string; label: string }[] = [
-  { value: 'romance', label: '로맨스' },
-  { value: 'school', label: '학원' },
-  { value: 'fantasy', label: '판타지' },
-  { value: 'action', label: '액션' },
-  { value: 'mystery', label: '미스터리' },
-]
 
 /** Step 3 의 등장인물 하나. 초상은 계약에 올릴 길이 없어 언제나 `null` 이다 (아래 주석). */
 export interface CharacterDraft {

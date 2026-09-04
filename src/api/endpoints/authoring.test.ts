@@ -2,9 +2,9 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { ApiError } from '../client'
 import {
-  CONDITION_TEMPLATE_KEYS,
   createDraft,
   deleteDraft,
+  getAuthoringMetadata,
   getDraft,
   listDrafts,
   outlineDraft,
@@ -154,17 +154,55 @@ describe('원고 경로', () => {
   })
 })
 
-describe('CONDITION_TEMPLATE_KEYS — 정정본 §13-35', () => {
-  it('채택된_넷이다 — 목록을 주는 경로가 없어 상수로 든다 (백엔드 #282)', () => {
-    expect([...CONDITION_TEMPLATE_KEYS]).toEqual([
-      'affinity_at_least',
-      'has_flag',
-      'lacks_flag',
-      'turn_at_least',
-    ])
+describe('getAuthoringMetadata — 백엔드 #282 · #315, 정정본 §13-56', () => {
+  it('F2_장르를_코드에_적지_않는다 — 응답이 준 순서 그대로 흘린다', async () => {
+    const fetchMock = stubFetch(
+      json(
+        {
+          genres: [
+            { key: 'romance', label: '로맨스' },
+            { key: 'fantasy', label: '판타지' },
+          ],
+          conditionTemplates: [],
+        },
+        200,
+      ),
+    )
+
+    const metadata = await getAuthoringMetadata()
+
+    expect(String(fetchMock.mock.calls[0]?.[0])).toMatch(/\/api\/v1\/authoring\/metadata$/)
+    // `display_order` 가 순서다 — 여기서 다시 정렬하면 라이브러리와 다른 순서를 보여 준다.
+    expect(metadata.genres.map((genre) => genre.key)).toEqual(['romance', 'fantasy'])
   })
 
-  it('조건_DSL_전체를_노출하지_않는다 — 넷을 넘지 않는다 (§13-35)', () => {
-    expect(CONDITION_TEMPLATE_KEYS).toHaveLength(4)
+  it('조건_템플릿의_라벨과_입력_선언을_그대로_전한다 — 키를 옮겨 적지 않는다', async () => {
+    stubFetch(
+      json(
+        {
+          genres: [],
+          conditionTemplates: [
+            {
+              key: 'affinity_at_least',
+              label: '호감도 이상',
+              description: '대상 인물의 호감도가 임계값 이상일 때 참입니다.',
+              parameters: [
+                { name: 'character', type: 'character', label: '인물' },
+                { name: 'threshold', type: 'integer', label: '임계값' },
+              ],
+            },
+          ],
+        },
+        200,
+      ),
+    )
+
+    const [template] = (await getAuthoringMetadata()).conditionTemplates
+
+    expect(template?.label).toBe('호감도 이상')
+    expect(template?.parameters.map((parameter) => parameter.type)).toEqual([
+      'character',
+      'integer',
+    ])
   })
 })

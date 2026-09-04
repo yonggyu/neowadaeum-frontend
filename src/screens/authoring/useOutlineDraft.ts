@@ -3,8 +3,8 @@ import { useEffect, useRef, useState } from 'react'
 import { toApiError, type ApiError } from '../../api/client'
 import {
   outlineDraft,
-  CONDITION_TEMPLATE_KEYS,
   type ConditionTemplateKey,
+  type ConditionTemplateSpec,
 } from '../../api/endpoints/authoring'
 import { emptyChapter, emptyEnding, fromOutlineResponse, type OutlineValues } from './outline'
 
@@ -28,13 +28,17 @@ export type OutlineJob =
 export interface OutlineDraftHandle {
   readonly job: OutlineJob
   /**
-   * 조건 템플릿의 키 목록.
+   * 이 원고에서 고를 수 있는 조건 템플릿 — **선언까지 갖춘 것**.
    *
-   * **서버가 준다** (`OutlineResponse.conditionTemplates`) — 계약이 그 자리에 *"클라이언트가
-   * 이 목록을 소스에 적지 않는다"* 고 적었다. 초안을 받기 전에는 폴백 상수이며, 그 길은
-   * "직접 작성하기" 하나다.
+   * 두 응답이 각자 다른 것을 말한다. `getAuthoringMetadata` 는 *템플릿이 무엇이고 무엇을
+   * 요구하는가*(라벨 · 설명 · `parameters`)를 주고, `outlineDraft` 는 *이 원고에서 고를 수
+   * 있는 키*를 준다 (§13-56). 그래서 초안을 받은 뒤에는 키로 좁힌다 — 좁히지 않으면 서버가
+   * 이 원고에서 빼 둔 템플릿을 화면이 계속 보여 준다.
+   *
+   * 초안을 받기 전에는 좁힐 근거가 없으므로 메타데이터의 것을 그대로 쓴다. **폴백 상수는
+   * 없다** — 목록을 소스에 적지 않는다.
    */
-  readonly templates: readonly ConditionTemplateKey[]
+  readonly templates: readonly ConditionTemplateSpec[]
   /** 초안을 받는다. `ConfirmDialog` 가 `Promise` 를 요구하므로 그대로 돌려준다 */
   generate: () => Promise<void>
   /** 3e — "직접 작성하기". 기다리던 요청을 접고 빈 칸 하나씩으로 시작한다 */
@@ -45,14 +49,14 @@ export function useOutlineDraft(
   draftId: string,
   values: OutlineValues,
   onChange: (values: OutlineValues) => void,
+  templates: readonly ConditionTemplateSpec[],
 ): OutlineDraftHandle {
   // 이미 챕터나 엔딩이 있으면 편집부터 시작한다 — 초안을 받았거나, 앞서 직접 쓴 원고다.
   const [job, setJob] = useState<OutlineJob>(() =>
     values.chapters.length > 0 || values.endings.length > 0 ? { kind: 'editing' } : { kind: 'start' },
   )
-  const [templates, setTemplates] = useState<readonly ConditionTemplateKey[]>(
-    CONDITION_TEMPLATE_KEYS,
-  )
+  // 초안 응답이 준 키. `null` 은 **아직 받지 않았다**이지 "고를 것이 없다" 가 아니다.
+  const [allowed, setAllowed] = useState<readonly ConditionTemplateKey[] | null>(null)
   const inFlight = useRef<AbortController | null>(null)
 
   // 화면을 떠난 뒤에 응답이 도착해 값을 덮지 않게 한다.
@@ -72,7 +76,7 @@ export function useOutlineDraft(
     return outlineDraft(draftId, controller.signal).then(
       (response) => {
         if (controller.signal.aborted) return
-        setTemplates(response.conditionTemplates)
+        setAllowed(response.conditionTemplates)
         onChange(fromOutlineResponse(response))
         setJob({ kind: 'editing' })
       },
@@ -94,5 +98,8 @@ export function useOutlineDraft(
     setJob({ kind: 'editing' })
   }
 
-  return { job, templates, generate, writeManually }
+  const available =
+    allowed === null ? templates : templates.filter((template) => allowed.includes(template.key))
+
+  return { job, templates: available, generate, writeManually }
 }
