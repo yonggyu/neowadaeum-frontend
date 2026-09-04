@@ -3,10 +3,14 @@ import type { ConsentTerm, ConsentType } from '../../api/endpoints/auth'
 /**
  * 계정 설정에서 화면이 아니라 **말**인 부분 (와이어프레임 5b · 6d).
  *
- * 이 화면은 지운 것이 절반이다. 여기 없는 것이 규칙이라는 뜻이므로 적어 둔다 — 닉네임 ·
- * 알림 · 내 데이터 내려받기 · 진행 기록 전체 삭제, 그리고 상단 사용자 정보 블록. 마지막
- * 것은 취향이 아니라 **읽을 경로가 없어서**다: `MeResponse` 는 `displayName` · `role` ·
+ * 이 화면은 지운 것이 절반이다. 여기 없는 것이 규칙이라는 뜻이므로 적어 둔다 — 알림 ·
+ * 내 데이터 내려받기 · 진행 기록 전체 삭제, 그리고 상단 사용자 정보 블록. 마지막 것은
+ * 취향이 아니라 **읽을 경로가 없어서**다: `MeResponse` 는 `displayName` · `role` ·
  * `status` 셋뿐이고 `playerRef` · 이메일 · 소셜 식별자 · 생년월일은 오지 않는다 (F-6, §13-7).
+ *
+ * **표시명은 되돌아왔다** (backend #271, 정정본 §13-55). 5차가 닉네임 변경을 철거한 근거는
+ * *"읽을 경로가 없어서"* 였고, `PATCH /api/v1/me` 가 열리면서 그 근거가 사라졌다 — 오히려
+ * 지금은 **쓰는 경로가 여기 하나뿐**이다. ADR 은 이슈 #87 에 있다.
  *
  * 진행 기록 삭제는 사라진 것이 아니라 **개별 세션 삭제로 옮겨 갔다** — My Stories 세션
  * 카드의 확인 Modal 이 그 자리다 (3g · 1i).
@@ -86,4 +90,35 @@ export const WITHDRAW_NOTICE: readonly WithdrawNoticeLine[] = [
 /** 한 줄을 이어 붙인 문장. 강조가 어디든 **읽히는 말은 하나**라는 것을 테스트가 붙잡는다. */
 export function withdrawNoticeText(line: WithdrawNoticeLine): string {
   return `${line.before}${line.emphasis ?? ''}${line.after ?? ''}`
+}
+
+/**
+ * 화면에 보이는 표시명 — `@연우`. 없으면 `null` 이고 그때 화면이 "설정하기" 로 그린다.
+ *
+ * **`@` 는 값에 없다** (backend #287). 화면이 붙이는 표기이고, 값에 두면 `yeonwoo` 와
+ * `@yeonwoo` 가 서로 다른 값이면서 같게 보인다 — 계약이 그 이유로 `@` 로 시작하는 값을
+ * 거절한다.
+ *
+ * `screens/library/author.ts` 의 `authorHandle` 이 같은 표기 규칙을 쓴다. **합치지 않았다** —
+ * 저쪽이 답하는 질문은 *이 작품의 작성자를 무엇으로 부르는가*(`authorType` 이 함께 걸린다)
+ * 이고 이쪽은 *내가 정한 이름이 무엇인가*다. 두 줄짜리 문자열 규칙을 위해 슬라이스를 가로지르는
+ * 공용 모듈을 만들면 그것이 잘못된 추상화다.
+ */
+export function displayNameHandle(displayName: string | null): string | null {
+  const name = displayName?.trim() ?? ''
+  return name === '' ? null : `@${name}`
+}
+
+/**
+ * 지금 보낼 수 있는 값인가 — **빈 것만 막는다.**
+ *
+ * **길이·허용 문자를 화면이 판정하지 않는다.** 규칙의 정본은 서버 도메인이고 계약이 그 자리에
+ * 적었다: *"화면 검증은 편의이지 계약이 아니다."* 여기에 2~12자를 옮겨 적으면 정본이 둘이 되고,
+ * 갈라지는 날 한쪽이 통과시킨 이름을 다른 쪽이 거절한다. 거절은 `400` 으로 오고 화면은 서버의
+ * `message` 를 그대로 낸다 (F-4).
+ *
+ * 빈 값만 막는 이유는 다르다 — 보낼 것이 없는 요청이라 서버에 물어볼 필요가 없다.
+ */
+export function canSubmitDisplayName(input: string): boolean {
+  return input.trim() !== ''
 }

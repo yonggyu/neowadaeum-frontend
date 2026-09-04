@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest'
 
 import type { ConsentTerm } from '../../api/endpoints/auth'
-import { policyLinks, WITHDRAW_NOTICE, withdrawNoticeText } from './accountSettings'
+import {
+  canSubmitDisplayName,
+  displayNameHandle,
+  policyLinks,
+  WITHDRAW_NOTICE,
+  withdrawNoticeText,
+} from './accountSettings'
 
 /** `GET /consents` 가 돌려주는 모양. 순서는 `tos → privacy → ai_notice → age` 다. */
 const SERVER_TERMS: ConsentTerm[] = [
@@ -70,5 +76,31 @@ describe('탈퇴 확인 문구 (5b · 6d) — 결과를 단정하지 않는다',
     for (const line of WITHDRAW_NOTICE) {
       expect(JSON.stringify(line)).not.toMatch(/@|ref|Ref/)
     }
+  })
+})
+
+describe('표시명 (backend #271 · #287, 정정본 §13-55)', () => {
+  it('설정하지_않은_것과_빈_값을_구분하지_않는다 — 둘_다_아직_이름이_없다', () => {
+    expect(displayNameHandle(null)).toBeNull()
+    expect(displayNameHandle('   ')).toBeNull()
+  })
+
+  /** `@` 는 값에 없다 — 화면이 붙이는 표기다 (#287). 계약이 `@` 로 시작하는 값을 거절한다. */
+  it('앳은_화면이_붙인다', () => {
+    expect(displayNameHandle('연우')).toBe('@연우')
+  })
+
+  /**
+   * 규칙의 정본은 서버 도메인이다 — 계약: *"화면 검증은 편의이지 계약이 아니다."*
+   * 길이·허용 문자를 여기 옮겨 적으면 정본이 둘이 되고, 한쪽이 통과시킨 이름을 다른 쪽이
+   * 거절하는 날이 온다. 그래서 이 함수는 **빈 것만** 막는다.
+   */
+  it('F4_길이와_허용_문자를_화면이_판정하지_않는다', () => {
+    expect(canSubmitDisplayName('')).toBe(false)
+    expect(canSubmitDisplayName('   ')).toBe(false)
+    // 한 글자도, 열세 글자도, `@` 로 시작하는 값도 서버가 답한다.
+    expect(canSubmitDisplayName('연')).toBe(true)
+    expect(canSubmitDisplayName('열세글자짜리이름입니다다')).toBe(true)
+    expect(canSubmitDisplayName('@연우')).toBe(true)
   })
 })
