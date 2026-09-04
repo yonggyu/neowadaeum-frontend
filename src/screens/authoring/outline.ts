@@ -111,11 +111,17 @@ export interface ChapterDraft extends Conditioned {
   readonly summarySeed: string
 }
 
+/**
+ * **`isDefault` 가 없다** (#103).
+ *
+ * 계약이 `DraftEnding` 에 직접 적었다 — *"`isDefault` 를 서버가 받아들이지 않는다 (§13-16,
+ * I-10). 기본 엔딩은 서버가 따로 하나를 더해 만든다."* 그러므로 **작성자가 쓴 엔딩은 모두
+ * 조건을 갖는다.** 그 자리를 화면의 값 모형에 남겨 두면 화면은 계속 그것으로 무언가를
+ * 결정하게 되고, 서버는 그 결정을 읽지 않는다 — 두 곳이 서로 다른 규칙을 갖는 상태다.
+ */
 export interface EndingDraft extends Conditioned {
   readonly label: string
   readonly epilogueText: string
-  /** 엔딩 하나에만 켜진다 (3e — 라디오). 그 불변을 지키는 것은 `setDefaultEnding` 이다 */
-  readonly isDefault: boolean
 }
 
 export interface OutlineValues {
@@ -157,7 +163,8 @@ function readEnding(raw: unknown): EndingDraft {
   return {
     label: text(value['label']),
     epilogueText: text(value['epilogueText']),
-    isDefault: value['isDefault'] === true,
+    // `isDefault` 를 읽지 않는다 (#103). 이미 저장된 원고에 남아 있어도 화면은 그것으로
+    // 아무것도 결정하지 않는다 — 계약이 *"참고만 한다"* 라고 적은 값이다 (§13-16).
     conditionTemplateKey: nullableText(value['conditionTemplateKey']),
     conditionParams: readParams(value['conditionParams']),
   }
@@ -177,6 +184,10 @@ function readParams(raw: unknown): ConditionParams {
 
 /**
  * 화면의 값을 다시 `payload` 로 되돌린다 — **모르는 키를 지우지 않는다** (`writeValues` 와 같다).
+ *
+ * 그 보존은 **payload 의 최상위 키**에 대한 것이다. 챕터·엔딩 한 줄은 여기서 새로 만들어지므로,
+ * 옛 원고의 엔딩에 남아 있던 `isDefault` 는 다음 저장에서 사라진다 (#103). 해롭지 않다 —
+ * 계약이 그 값을 *"참고만 한다"* 라고 적었고 판정은 서버가 갖는다 (§13-16).
  *
  * 번호를 여기서 매긴다. 계약이 `chapterNo` · `endingNo` 를 필수로 받고 그 값의 뜻은 순서이므로,
  * 배열의 자리에서 한 번만 만든다.
@@ -207,15 +218,16 @@ export function writeOutline(
       ...writableCondition(chapter, templates, sources),
     }),
   )
-  const endings: (OutlineEnding & { conditionParams: ConditionParams })[] = values.endings.map(
-    (ending, index) => ({
+  // **`isDefault` 를 싣지 않는다** (#103) — 계약이 그것을 받지 않는다고 `DraftEnding` 에
+  // 직접 적었다 (§13-16, I-10). `Omit` 인 것은 이 자리의 나머지 이름이 여전히 계약의 것이기
+  // 때문이다: 빼는 것은 한 자리뿐이고, 그 사실이 형에 남는다.
+  const endings: (Omit<OutlineEnding, 'isDefault'> & { conditionParams: ConditionParams })[] =
+    values.endings.map((ending, index) => ({
       endingNo: index + 1,
       label: ending.label,
       epilogueText: ending.epilogueText === '' ? null : ending.epilogueText,
-      isDefault: ending.isDefault,
       ...writableCondition(ending, templates, sources),
-    }),
-  )
+    }))
   return {
     ...(payload ?? {}),
     [OUTLINE_FIELD.chapters]: chapters,
@@ -253,10 +265,11 @@ export function fromOutlineResponse(response: OutlineResponse): OutlineValues {
       conditionTemplateKey: chapter.conditionTemplateKey ?? null,
       conditionParams: {},
     })),
+    // 초안 응답은 `isDefault` 를 **필수로 준다** (계약 `OutlineEnding.required`). 받는 것과
+    // 쓰는 것은 다른 문제다 — 화면은 그 값을 옮겨 담지 않는다 (#103).
     endings: response.endings.map((ending) => ({
       label: ending.label,
       epilogueText: ending.epilogueText ?? '',
-      isDefault: ending.isDefault,
       conditionTemplateKey: ending.conditionTemplateKey ?? null,
       conditionParams: {},
     })),
@@ -273,28 +286,9 @@ export const emptyChapter = (): ChapterDraft => ({
 export const emptyEnding = (): EndingDraft => ({
   label: '',
   epilogueText: '',
-  isDefault: false,
   conditionTemplateKey: null,
   conditionParams: {},
 })
-
-/**
- * 기본 엔딩을 하나로 정한다 (3e — *"`isDefault` 는 엔딩 하나에만 켜진다(라디오)"*).
- *
- * **불변이 이 함수 하나에 있다.** 카드마다 자기 값을 뒤집게 두면 두 엔딩이 동시에 기본이 되는
- * 상태가 만들어지고, 그것을 막는 조건이 곧 두 번째 규칙이 된다.
- *
- * 함께 조건을 비운다 — 계약이 `isDefault` 의 설명에 그 규칙을 적어 두었다: *"기본 엔딩은
- * 조건을 갖지 않고, 일반 엔딩은 조건을 반드시 갖는다"* (R2.11, 정정본 §13-16). 조건을 단 채로
- * 기본이 되면 그 조건은 아무 데서도 읽히지 않으면서 화면에는 남는다.
- */
-export function setDefaultEnding(endings: readonly EndingDraft[], index: number): EndingDraft[] {
-  return endings.map((ending, i) =>
-    i === index
-      ? { ...ending, isDefault: true, conditionTemplateKey: null, conditionParams: {} }
-      : { ...ending, isDefault: false },
-  )
-}
 
 /**
  * 줄거리 씨앗이 빈 챕터의 자리 (3e — `summarySeed` **필수**).
@@ -426,14 +420,20 @@ export function setConditionParam<T extends Conditioned>(
 }
 
 /**
- * 일반 엔딩(기본이 아닌 것) 중 조건이 비어 있는 자리 (R2.11).
+ * 조건이 비어 있는 엔딩의 자리 — **엔딩 전부를 센다** (#103).
+ *
+ * 예외였던 기본 엔딩이 없어졌다. 계약이 `DraftEnding` 에 *"기본 엔딩은 서버가 따로 하나를
+ * 더해 만든다"* 라고 적었으므로 **작성자가 쓴 엔딩은 모두 조건을 갖는 편이 맞다** — 조건 없는
+ * 엔딩을 하나 남겨 두면 서버의 폴백과 그 엔딩이 같은 자리를 두고 겹치고, 어느 쪽이 나올지는
+ * 화면이 말할 수 없다.
  *
  * **다음 단계를 막지 않는다.** 3e 가 조건을 필수로 그리지 않았다 — 막아 두면 진행이 서고 그
  * 상태를 푸는 길이 화면에 없다. 그래서 말하기만 한다.
  *
  * **키가 있어도 슬롯이 비거나 그 값이 원고 밖을 가리키면 비어 있는 것으로 센다.** 그런 조건은
  * 저장될 때 키가 비워져 나가므로(`writeOutline`), 여기서 세지 않으면 작성자는 자기 조건이
- * 저장되지 않은 사실을 어디서도 알 수 없다 — 두 자리가 **같은 판정**을 봐야 하는 이유다.
+ * 저장되지 않은 사실을 어디서도 알 수 없다 — 두 자리가 **같은 판정**(`conditionIncomplete`)을
+ * 봐야 하는 이유다 (#98).
  */
 export function endingsMissingCondition(
   endings: readonly EndingDraft[],
@@ -441,6 +441,6 @@ export function endingsMissingCondition(
   sources: ConditionSources,
 ): number[] {
   return endings.flatMap((ending, index) =>
-    !ending.isDefault && conditionIncomplete(ending, templates, sources) ? [index] : [],
+    conditionIncomplete(ending, templates, sources) ? [index] : [],
   )
 }
