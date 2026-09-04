@@ -227,3 +227,83 @@
 .optionLabel {
   line-height: 1.4;
 }
+
+/*
+ * 재검토 요청 (3f 의 [이의 제기] — `appealStorySuspension`).
+ *
+ * 정지 패널 **안에** 있다. 이 요청이 뜻을 갖는 자리가 거기 하나이고, 따로 떼면 작성자는
+ * 상태와 무관한 별개의 문의 창구로 읽는다. 위쪽에 선을 두어 안내와 입력을 가른다.
+ */
+.appeal {
+  margin-top: var(--sp-4);
+  padding-top: var(--sp-4);
+  border-top: 1px solid var(--border);
+}
+
+.appealForm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  margin-top: var(--sp-3);
+}
+
+.appealLabel {
+  color: var(--fg-muted);
+  font-size: 0.8125rem;
+}
+
+/*
+ * 사유 입력.
+ *
+ * **높이를 px 로 박지 않는다** — `rows` 로 최소 줄 수만 주고 세로로만 늘린다. 390 에서 폭이
+ * 좁아 같은 글이 더 여러 줄이 되므로, 고정 높이를 두면 그 폭에서만 스크롤이 생긴다 (F-9).
+ */
+.appealInput {
+  width: 100%;
+  padding: var(--sp-3);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--bg);
+  color: var(--fg);
+  font: inherit;
+  line-height: 1.6;
+  resize: vertical;
+}
+
+.appealInput:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+
+/*
+ * 되돌릴 수 없는 동작의 버튼.
+ *
+ * `--danger` 는 **되돌릴 수 없는 동작에만** 쓴다 (tokens.css) — 회원 탈퇴 · 세션 삭제 ·
+ * 원고 삭제와 같은 자리다. 공개 범위 변경이 이 색을 쓰지 않는 이유이기도 하다: 그쪽은
+ * 되돌릴 수 있다.
+ */
+.danger {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+/*
+ * 삭제 확인 판이 그리는 다섯 줄.
+ *
+ * **판 자체는 여기 없다** — Mobile 전체화면 / Desktop 420px 모달은 `components/confirm.module.css`
+ * 가 그린다 (#63, 6d). 이 화면에 남는 것은 그 안에 들어가는 내용뿐이다. `.notice` 라는
+ * 이름은 이 파일에서 이미 AI 고지 Footer 의 자리를 뜻하므로 쓰지 않는다.
+ */
+.deleteNotice {
+  margin: 0;
+  padding: var(--sp-3);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  color: var(--fg);
+  line-height: 1.55;
+  list-style: none;
+}
+
+.deleteNotice > li::before {
+  content: "· ";
+}

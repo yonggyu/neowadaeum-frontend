@@ -35,6 +35,8 @@ export type ReviewStatusResponse = Omit<
   'reviewStatus'
 > & { reviewStatus: VisibleReviewStatus }
 
+export type AppealRequest = components['schemas']['AppealRequest']
+
 export type Draft = components['schemas']['DraftResponse']
 export type DraftPatchRequest = components['schemas']['DraftPatchRequest']
 export type SafetyState = components['schemas']['SafetyState']
@@ -226,6 +228,60 @@ export function changeStoryVisibility(
   return request<ReviewStatusResponse>(`/stories/${encodeURIComponent(storyId)}/visibility`, {
     method: 'PATCH',
     body: { visibility },
+    signal,
+  })
+}
+
+/**
+ * 작품 삭제 (`deleteStory`, backend #290). `204` · 본문 없음.
+ *
+ * **작성자 본인만이다.** 공식 작품(`authorType = official`)은 작성자가 없어 어떤 요청자와도
+ * 일치하지 않으므로 이 경로로 지워지지 않는다 (정정본 §13-58). 상태는 가리지 않는다 —
+ * 정지된 작품을 지우는 것은 정지를 푸는 일이 아니라 더 내리는 일이다.
+ *
+ * **되돌릴 수 없다.** 복구 경로가 계약에 없다 — 사용자에게 '삭제' 라고 말한 이상 되돌리는
+ * 문을 함께 두는 쪽이 거짓말이라는 것이 그 결정의 근거다.
+ *
+ * **화면이 결과를 단정하면 안 되는 자리가 여기다.** 지워지는 것은 목록 · 상세 · 이어하기이고,
+ * 세션 · 턴 · GameState 스냅샷 · 엔딩 도달률 · 신고 · 검수 이력은 **남는다** — 그것은
+ * 플레이한 사람들과 검수의 기록이지 작성자의 것이 아니다. 진행 중이던 세션은 없어진 작품과
+ * 같은 답을 받는다(다음 턴은 `423`, `resume` 은 `storySuspended`). 그래서 확인 문구가
+ * "완전히 삭제됩니다" 라고 말하면 계약과 어긋난다 (`screens/account/storyActions.ts`).
+ *
+ * **이미 지운 작품을 다시 지우면 `404` 다.** 없는 작품 · 남의 작품과 구분하지 않으므로
+ * 화면도 구분해 알리지 않는다 (I-8).
+ */
+export function deleteStory(storyId: string, signal?: AbortSignal): Promise<void> {
+  return request<void>(`/stories/${encodeURIComponent(storyId)}`, { method: 'DELETE', signal })
+}
+
+/**
+ * 정지된 작품의 재검토 요청 (`appealStorySuspension`, backend #290). `202` · 본문 없음.
+ *
+ * **이 요청은 작품의 상태를 바꾸지 않는다** (I-8, 정정본 §13-59). 정지된 작품은 **이미**
+ * 인간 검수 큐에 있다 — 여기서 `reviewStatus` 를 움직이면 작성자가 검수 결과를 되돌리는
+ * 길이 된다. 바뀌는 것은 둘이다: **기록**(작성자가 다투었다는 사실과 사유)과 **신호**(검수
+ * 큐의 `appealed`). 그래서 화면이 "재검토 중" 으로 상태를 바꿔 그리지 않는다.
+ *
+ * **순서도 바꾸지 않는다.** 요청은 공짜이므로 앞세우면 줄을 사는 길이 된다.
+ *
+ * **사유는 필수이고 검수자만 읽는다** (S-11). 응답에도, 검수 큐의 한 줄에도, 다른 사용자가
+ * 보는 어떤 화면에도 실리지 않는다 — 그래서 이 함수는 보낸 사유를 돌려주지 않으며 화면도
+ * 그것을 다시 그리지 않는다.
+ *
+ * **정지 건마다 한 번이다.** 답을 받기 전 두 번째 요청은 `409 ALREADY_EXISTS` 이고,
+ * 내려가지 않은 작품은 `409 STORY_NOT_SUSPENDED` 다. 남의 작품은 `404` 다. 셋 다 화면이
+ * 문구를 짓지 않고 서버의 `message` 를 그대로 낸다 (F-4).
+ */
+export function appealStorySuspension(
+  storyId: string,
+  reason: string,
+  signal?: AbortSignal,
+): Promise<void> {
+  const body: AppealRequest = { reason }
+  return request<void>(`/stories/${encodeURIComponent(storyId)}/appeal`, {
+    method: 'POST',
+    body,
     signal,
   })
 }

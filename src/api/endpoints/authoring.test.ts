@@ -2,8 +2,10 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { ApiError } from '../client'
 import {
+  appealStorySuspension,
   createDraft,
   deleteDraft,
+  deleteStory,
   getAuthoringMetadata,
   getDraft,
   listDrafts,
@@ -151,6 +153,65 @@ describe('원고 경로', () => {
     const preview = await previewDraft(DRAFT_ID)
 
     expect(preview.turnLimit).toBe(3)
+  })
+})
+
+describe('deleteStory — backend #290, 정정본 §13-58', () => {
+  const STORY_ID = '00000000-0000-4000-8000-0000000000ff'
+
+  it('204_에는_본문이_없다 — 파싱하지_않는다', async () => {
+    const fetchMock = stubFetch(new Response(null, { status: 204 }))
+
+    await expect(deleteStory(STORY_ID)).resolves.toBeUndefined()
+    expect(String(fetchMock.mock.calls[0]?.[0])).toMatch(/\/api\/v1\/stories\/[^/]+$/)
+    expect(fetchMock.mock.calls[0]?.[1]?.method).toBe('DELETE')
+  })
+
+  /** 이미 지운 작품 · 없는 작품 · 남의 작품이 같은 답을 받는다 (I-8). 화면도 구분하지 않는다. */
+  it('I8_404_를_그대로_올린다 — 없는_작품과_남의_작품을_구분하지_않는다', async () => {
+    stubFetch(json({ error: 'NOT_FOUND', message: '작품을 찾을 수 없어요.', details: {} }, 404))
+
+    await expect(deleteStory(STORY_ID)).rejects.toMatchObject({
+      status: 404,
+      errorCode: 'NOT_FOUND',
+      message: '작품을 찾을 수 없어요.',
+    })
+  })
+})
+
+describe('appealStorySuspension — backend #290, 정정본 §13-59', () => {
+  const STORY_ID = '00000000-0000-4000-8000-0000000000ff'
+
+  it('사유_하나만_보낸다 — 202_에는_본문이_없다', async () => {
+    const fetchMock = stubFetch(new Response(null, { status: 202 }))
+
+    await expect(appealStorySuspension(STORY_ID, '오해가 있었습니다')).resolves.toBeUndefined()
+    expect(String(fetchMock.mock.calls[0]?.[0])).toMatch(/\/appeal$/)
+    expect(fetchMock.mock.calls[0]?.[1]?.method).toBe('POST')
+    expect(fetchMock.mock.calls[0]?.[1]?.body).toBe(JSON.stringify({ reason: '오해가 있었습니다' }))
+  })
+
+  /**
+   * `409` 는 둘이고 **화면이 문구를 짓지 않는다** (F-4) — 이미 요청했는가와 정지 상태가
+   * 아닌가는 다른 사실이지만, 둘 다 서버가 그 말을 한다.
+   */
+  it('F4_409_의_error_와_message_를_그대로_올린다', async () => {
+    stubFetch(json({ error: 'ALREADY_EXISTS', message: '이미 요청하셨어요.', details: {} }, 409))
+
+    await expect(appealStorySuspension(STORY_ID, '한 줄')).rejects.toMatchObject({
+      status: 409,
+      errorCode: 'ALREADY_EXISTS',
+      message: '이미 요청하셨어요.',
+    })
+  })
+
+  it('R6_2_Idempotency_Key_를_붙이지_않는다 — 계약이_선언한_자리가_아니다', async () => {
+    const fetchMock = stubFetch(new Response(null, { status: 202 }))
+
+    await appealStorySuspension(STORY_ID, '한 줄')
+
+    const headers = (fetchMock.mock.calls[0]?.[1]?.headers ?? {}) as Record<string, string>
+    expect(headers['Idempotency-Key']).toBeUndefined()
   })
 })
 
