@@ -1,0 +1,383 @@
+/*
+ * 블록리스트 (8차 아트보드 `Blocklist` 1440 · `BlocklistMobile` 390).
+ *
+ * 값을 새로 정하지 않는다 — 간격 · 반지름 · 색은 `tokens.css` 의 변수다. 브레이크포인트만
+ * 숫자다 (미디어 쿼리가 var() 를 읽지 못한다).
+ *
+ * **접는 자리는 1024 다** (F-9). 위에서는 목록과 폼이 나란히 서고, 아래에서는 행이 카드가
+ * 되며 폼은 접힌다 — 세로로 쌓으면 목록이 화면 밖으로 밀려 "무엇이 이미 있는지" 를 못 보고
+ * 넣게 된다고 390 판이 적었다.
+ */
+
+.page {
+  min-height: 100dvh;
+  padding: var(--sp-6);
+  background: var(--bg-sunken);
+}
+
+.bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-4);
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: var(--sp-4);
+  border-bottom: 1px solid var(--border);
+}
+
+/* 관리자 크롬은 2FA 문에서 한 번 정의했다 — 두 번 정의하지 않는다 */
+.title {
+  composes: title from './admin.module.css';
+}
+
+.notice {
+  margin: var(--sp-4) 0 0;
+  color: var(--fg-muted);
+  font-size: 0.8125rem;
+  line-height: 1.7;
+}
+
+.heading {
+  margin: 0 0 var(--sp-3);
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+/* 실패 · 로딩 · 빈 목록. `--danger` 를 쓰지 않는다 — 그 색은 되돌릴 수 없는 동작의 것이다 */
+.state,
+.failure {
+  margin: 0;
+  padding: var(--sp-4) 0;
+  color: var(--fg-muted);
+  font-size: 0.875rem;
+  line-height: 1.6;
+}
+
+.split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 380px;
+  gap: var(--sp-6);
+  align-items: start;
+  margin-top: var(--sp-4);
+}
+
+/* ── 목록 ────────────────────────────────────────────────────────────── */
+
+.rows {
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  overflow: hidden;
+  list-style: none;
+}
+
+.head,
+.row {
+  display: grid;
+  /* 값만 늘어난다. [지우기] 자리는 펼친 줄에만 채워지므로 폭을 늘 비워 둔다 */
+  grid-template-columns: 110px minmax(0, 1fr) 150px 160px 88px;
+  gap: var(--sp-3);
+  align-items: center;
+  padding: var(--sp-2) var(--sp-4);
+  border-bottom: 1px solid var(--border);
+}
+
+.head {
+  background: var(--bg-sunken);
+  color: var(--fg-muted);
+  font-size: 0.75rem;
+}
+
+.row:last-child {
+  border-bottom: none;
+}
+
+.row[data-open='true'] {
+  background: var(--bg-sunken);
+}
+
+/*
+ * 칸 셋을 담은 겹. 1024 이상에서는 겹이 사라져 표의 칸이 되고, 그 아래에서는 카드의 메타
+ * 한 줄이다. `order` 가 아트보드의 칸 순서(종류 → 값 → 심각도 → 출처)를 지킨다.
+ */
+.meta {
+  display: contents;
+}
+
+.kind,
+.severity,
+.source {
+  color: var(--fg-muted);
+  font-size: 0.8125rem;
+}
+
+.kind {
+  order: 1;
+}
+
+.severity {
+  order: 3;
+}
+
+/* 출처는 한 줄이다. 늘어나면 행 높이가 행마다 달라진다 */
+.source {
+  order: 4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/*
+ * 값이 곧 펼치는 자리다. 가려져 있어도 그 자리가 값의 자리라는 것이 보여야 어디를 누를지
+ * 안다. 왼쪽 정렬인 것은 가린 점과 펼친 값이 같은 자리에서 시작해야 하기 때문이다.
+ */
+.value {
+  display: flex;
+  order: 2;
+  min-height: 44px;
+  align-items: center;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--fg);
+  font: inherit;
+  font-size: 0.9375rem;
+  text-align: left;
+  word-break: break-all;
+  cursor: pointer;
+}
+
+.value:focus-visible,
+.remove:focus-visible,
+.toggle:focus-visible,
+.submit:focus-visible,
+.input:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/* 되돌릴 수 없는 동작이라 `--danger` 다 — tokens.css 가 그 색을 그 자리에만 두었다 */
+.remove {
+  order: 5;
+  min-height: 44px;
+  padding: 0 var(--sp-3);
+  border: 1px solid var(--danger);
+  border-radius: var(--r-sm);
+  background: var(--bg);
+  color: var(--danger);
+  font: inherit;
+  font-size: 0.8125rem;
+  cursor: pointer;
+}
+
+/* 정규화 값이 없다는 사실을 적는 자리. 점선인 것은 그것이 칸이 아니기 때문이다 */
+.absent {
+  margin: var(--sp-4) 0 0;
+  padding: var(--sp-3);
+  border: 1px dashed var(--border);
+  border-radius: var(--r-sm);
+  color: var(--fg-muted);
+  font-size: 0.75rem;
+  line-height: 1.7;
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* ── 항목 추가 ───────────────────────────────────────────────────────── */
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  padding: var(--sp-4);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--bg);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  margin: 0;
+  padding: 0;
+  border: none;
+}
+
+.label {
+  padding: 0;
+  color: var(--fg-muted);
+  font-size: 0.8125rem;
+}
+
+.choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-3);
+}
+
+.choice {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  gap: var(--sp-2);
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+
+.input {
+  min-height: 48px;
+  padding: var(--sp-3);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--bg);
+  color: var(--fg);
+  font: inherit;
+}
+
+.counter {
+  align-self: flex-end;
+  color: var(--fg-subtle);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+}
+
+/* `warn` 은 고르는 자리에 서는 문장이라 도움말보다 진하다 — 읽히지 않으면 없는 것과 같다 */
+.help,
+.warn {
+  font-size: 0.75rem;
+  line-height: 1.6;
+}
+
+.help {
+  color: var(--fg-subtle);
+}
+
+.warn {
+  color: var(--fg-muted);
+}
+
+/* 한 번짜리 동작이라 56px 이다 (8차가 정한 값) */
+.submit {
+  min-height: 56px;
+  border: 1px solid var(--fg);
+  border-radius: var(--r-sm);
+  background: var(--fg);
+  color: var(--bg);
+  font: inherit;
+  cursor: pointer;
+}
+
+.submit:disabled {
+  border-color: var(--border);
+  background: var(--bg-sunken);
+  color: var(--fg-subtle);
+  cursor: default;
+}
+
+/* 폼을 여는 버튼. 1024 이상에서는 폼이 늘 서 있으므로 자리를 차지하지 않는다 */
+.toggle {
+  display: none;
+}
+
+/* 확인 판 안. 값은 이미 펼친 줄의 것이라 판이 새로 드러내는 것이 없다 */
+.confirmMeta {
+  margin: 0 0 var(--sp-2);
+  color: var(--fg-muted);
+  font-size: 0.8125rem;
+}
+
+.confirmValue {
+  margin: 0 0 var(--sp-3);
+  font-size: 1rem;
+  word-break: break-all;
+}
+
+/*
+ * ~1023 — 행이 카드가 되고 폼이 접힌다. 표를 가로로 미는 대신 카드로 바꾸는 것이 390 판이
+ * 정한 방식이며, 가로 스크롤은 [지우기]를 화면 밖에 둔다.
+ */
+@media (max-width: 1023px) {
+  .page {
+    padding: var(--sp-4);
+  }
+
+  .bar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .toggle {
+    display: flex;
+    width: 100%;
+    min-height: 48px;
+    align-items: center;
+    justify-content: center;
+    margin-top: var(--sp-4);
+    border: 1px solid var(--border);
+    border-radius: var(--r-sm);
+    background: var(--bg);
+    color: var(--fg);
+    font: inherit;
+    cursor: pointer;
+  }
+
+  /* 접힌 폼. 열면 목록 위에 선다 — 무엇이 있는지 보고 나서 여는 순서다 */
+  .form[data-open='false'] {
+    display: none;
+  }
+
+  .split {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .rows {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-2);
+    border: none;
+    border-radius: 0;
+    overflow: visible;
+  }
+
+  /* 칸 이름은 카드에 쓸모가 없다 — 카드 안의 값이 스스로 무엇인지 말한다 */
+  .head {
+    display: none;
+  }
+
+  .row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--sp-1);
+    padding: var(--sp-3) var(--sp-4);
+    border: 1px solid var(--border);
+    border-radius: var(--r-md);
+    background: var(--bg);
+  }
+
+  /* 값이 카드의 제목이고, 나머지 셋이 그 아래 메타 한 줄이 된다 */
+  .value {
+    order: 1;
+  }
+
+  .meta {
+    display: flex;
+    flex-wrap: wrap;
+    order: 2;
+    gap: var(--sp-1) var(--sp-3);
+  }
+
+  .remove {
+    order: 3;
+    margin-top: var(--sp-2);
+    justify-self: start;
+  }
+}

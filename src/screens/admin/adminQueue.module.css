@@ -37,6 +37,11 @@
   composes: title from './admin.module.css';
 }
 
+/* 관리자 구역 탭 줄이 서는 자리. 줄 자체는 `adminTabs.module.css` 가 들고 있다 (#119) */
+.section {
+  margin-top: var(--sp-4);
+}
+
 .tabs {
   display: flex;
   flex-wrap: wrap;

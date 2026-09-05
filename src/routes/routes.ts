@@ -36,6 +36,14 @@ export const ROUTES = {
    */
   adminSessions: '/admin/sessions',
   /*
+   * 블록리스트 (8차 `Blocklist`). 계약의 `/admin/blocklist` 와 같은 모양으로 둔다.
+   *
+   * **항목 id 는 경로에 오지 않는다.** 계약이 삭제에만 `{entryId}` 를 쓰고 화면은 그 값을
+   * 그리지 않는다 — 사람이 읽을 것이 없고, 그것은 지우는 열쇠다. URL 에 두면 스크린샷과
+   * 브라우저 기록으로 함께 흘러 나간다 (S-11).
+   */
+  adminBlocklist: '/admin/blocklist',
+  /*
    * Debug 콘솔 (1j). 계약의 `/admin/sessions/{sessionId}/debug` 와 같은 모양으로 둔다.
    *
    * **세션 id 가 URL 에 온다.** F-6 이 막는 것은 `player_ref` 이고, 세션 식별자는 계약이

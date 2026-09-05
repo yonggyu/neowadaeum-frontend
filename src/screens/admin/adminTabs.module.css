@@ -1,0 +1,47 @@
+/*
+ * 관리자 구역의 공통 탭 줄.
+ *
+ * 값을 새로 정하지 않는다 — 간격 · 반지름 · 색은 `tokens.css` 의 변수다. 높이 48px 은 목록
+ * 행동의 무게이며 세션 목록이 이미 쓰던 값이라 그대로 옮겨 왔다 (거기서는 지운다).
+ */
+
+.tabs {
+  display: flex;
+  gap: var(--sp-2);
+}
+
+.tab {
+  display: flex;
+  min-height: 48px;
+  align-items: center;
+  justify-content: center;
+  padding: 0 var(--sp-4);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--bg);
+  color: var(--fg-muted);
+  font: inherit;
+  text-decoration: none;
+}
+
+.tab[aria-current='page'] {
+  border-color: var(--fg);
+  color: var(--fg);
+}
+
+.tab:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/*
+ * ~1023 — 셋이 줄을 고르게 나눈다 (`BlocklistMobile`). 390 에서 내용 폭으로 두면 "블록리스트"
+ * 하나가 줄을 넘겨 탭 줄이 두 줄이 된다.
+ */
+@media (max-width: 1023px) {
+  .tab {
+    flex: 1 1 0;
+    padding: 0 var(--sp-2);
+    font-size: 0.875rem;
+  }
+}
