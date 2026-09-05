@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 
 import {
@@ -14,11 +14,15 @@ import { ErrorNotice } from '../account/ErrorNotice'
 import { useResource } from '../library/useResource'
 import css from './wizard.module.css'
 import { clampStep, isBlocked, savedAtLabel, STEP_COUNT, STEP_LABELS } from './draft'
+import { flagJumpField } from './flagsView'
 import {
   chaptersMissingSeed,
+  clearFlagConditions,
+  flagReferences,
   readOutline,
   writeOutline,
   type ConditionSources,
+  type FlagReference,
   type OutlineValues,
 } from './outline'
 import { StepOutline } from './StepOutline'
@@ -134,8 +138,17 @@ function Wizard({ draft: loaded, metadata }: { draft: Draft; metadata: Authoring
    * 않으므로 다른 단계에서 이 훅이 하는 일은 없다.
    */
   const preview = usePreviewSession(draft.draftId)
+  /** 단계가 바뀐 뒤에 초점을 줄 필드 경로 (`goToReference`). 주고 나면 다시 `null` 이다 */
+  const [pendingFocus, setPendingFocus] = useState<string | null>(null)
 
   const step = clampStep(draft.step)
+
+  useEffect(() => {
+    if (pendingFocus === null || step !== 4) return
+    document.getElementById(pendingFocus)?.focus()
+    setPendingFocus(null)
+  }, [pendingFocus, step])
+
   /*
    * 진행을 막는 이유는 둘이다 — 검수(6a)와 계약이 필수로 받는 값(`summarySeed`, 3e).
    *
@@ -150,6 +163,43 @@ function Wizard({ draft: loaded, metadata }: { draft: Draft; metadata: Authoring
   function edit(next: StepValues): void {
     setValues(next)
     setDirty(true)
+  }
+
+  /**
+   * 플래그 하나를 지운다 — **값과 개요를 함께 옮긴다** (#125, 7차 `A-1` D-5).
+   *
+   * 두 상태가 따로 있어서(`values` · `outline`) 이 일은 마법사의 몫이다. 값에서만 빼면 그
+   * 조건은 화면에 남은 채 저장 시점에 조용히 비워지고(`writableCondition`, #98), 작성자는
+   * Step 4 에서 "도달 조건이 필요합니다" 를 다시 보면서 **왜** 비었는지 알지 못한다. 판이
+   * 미리 말한 것을 여기서 실제로 한다.
+   *
+   * **같은 이름이 남으면 조건을 건드리지 않는다.** 같은 이름을 두 번 적는 것을 계약이 막지
+   * 않으므로 둘 중 하나를 지워도 이름은 원고에 남아 있고, 그것을 가리키던 조건도 멀쩡하다.
+   */
+  function removeFlag(index: number): void {
+    const removed = values.flags[index]
+    if (removed === undefined) return
+    const flags = values.flags.filter((_, i) => i !== index)
+    setValues({ ...values, flags })
+    if (!flags.includes(removed)) {
+      setOutline(clearFlagConditions(outline, metadata.conditionTemplates, removed))
+    }
+    setDirty(true)
+  }
+
+  /**
+   * D-5 의 *[엔딩 3 으로]* — **Step 4 로 옮긴 뒤** 그 필드에 초점을 준다.
+   *
+   * 새 장치를 만들지 않는다. 이 레포는 이미 `getElementById(<필드 경로>)?.focus()` 로 "해당
+   * 필드로 이동" 을 하고, 우측 검수 패널이 쓰는 것과 같은 길이다 (`SidePanel`).
+   *
+   * **순서를 효과에 맡긴다.** 단계가 바뀐 **뒤에** 그 칸의 DOM 이 서므로, 여기서 바로
+   * `focus()` 를 부르면 아직 없는 자리를 찾다가 조용히 아무 일도 하지 않는다 — 실패가 보이지
+   * 않는 종류라 더 나쁘다.
+   */
+  function goToReference(reference: FlagReference): void {
+    setPendingFocus(flagJumpField(reference))
+    void moveTo(4)
   }
 
   async function moveTo(next: number): Promise<void> {
@@ -226,6 +276,13 @@ function Wizard({ draft: loaded, metadata }: { draft: Draft; metadata: Authoring
               onChange={edit}
               precheck={precheck}
               onImageBusy={onImageBusy}
+              templates={metadata.conditionTemplates}
+              sources={conditionSources(values)}
+              referencesTo={(flag) =>
+                flagReferences(outline, metadata.conditionTemplates, flag)
+              }
+              onRemoveFlag={removeFlag}
+              onGoToReference={goToReference}
             />
           ) : null}
           {step === 4 ? (
@@ -287,6 +344,7 @@ function Wizard({ draft: loaded, metadata }: { draft: Draft; metadata: Authoring
           genres={metadata.genres}
           values={values}
           outline={outline}
+          sources={conditionSources(values)}
           precheck={precheck}
           preview={preview}
           onEdit={() => void moveTo(4)}
@@ -310,6 +368,7 @@ function SidePanel({
   genres: catalog,
   values,
   outline,
+  sources,
   precheck,
   preview,
   onEdit,
@@ -318,33 +377,52 @@ function SidePanel({
   genres: readonly AuthoringGenre[]
   values: StepValues
   outline: OutlineValues
+  /** D-8 이 한 자리에 모아 보여 주는 둘 — 조건이 실제로 고를 수 있는 이름 그대로다 */
+  sources: ConditionSources
   precheck: PrecheckHandle
   preview: PreviewHandle
   onEdit: () => void
 }) {
   if (step === 3) {
     return (
-      <aside className={css.side} aria-label="검수">
-        <h2 className={css.sideTitle}>검수 · 이 단계에서 걸린 것</h2>
-        {precheck.findings.length === 0 ? (
-          <p className={css.meta}>지금까지 걸린 곳이 없습니다.</p>
-        ) : (
-          <ul className={css.findings}>
-            {precheck.findings.map((finding, index) => (
-              <li key={index} className={css.finding}>
-                {/* 서버가 준 `message` 그대로 (F-4). 무엇에 걸렸는지는 덧붙이지 않는다 (F-5) */}
-                <span className={css.body}>{finding.message}</span>
-                <button
-                  type="button"
-                  className={css.jump}
-                  onClick={() => document.getElementById(finding.field)?.focus()}
-                >
-                  해당 필드로 이동 →
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
+      <aside className={css.side} aria-label="검수 · 이 원고가 선언한 이름">
+        <section className={css.sideBlock}>
+          <h2 className={css.sideTitle}>검수 · 이 단계에서 걸린 것</h2>
+          {precheck.findings.length === 0 ? (
+            <p className={css.meta}>지금까지 걸린 곳이 없습니다.</p>
+          ) : (
+            <ul className={css.findings}>
+              {precheck.findings.map((finding, index) => (
+                <li key={index} className={css.finding}>
+                  {/* 서버가 준 `message` 그대로 (F-4). 무엇에 걸렸는지는 덧붙이지 않는다 (F-5) */}
+                  <span className={css.body}>{finding.message}</span>
+                  <button
+                    type="button"
+                    className={css.jump}
+                    onClick={() => document.getElementById(finding.field)?.focus()}
+                  >
+                    해당 필드로 이동 →
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+        {/*
+         * 7차 `A-1` D-8 — 인물과 플래그를 **한 자리에** 모은다.
+         *
+         * 두 목록이 이 단계 안에서 위아래로 떨어져 있어, 조건이 가리킬 수 있는 이름이 모두
+         * 몇인지는 스크롤해야 보인다. 그런데 그 둘이 정확히 같은 하나의 일을 한다 — Step 4 의
+         * 조건이 가리킬 수 있는 이름을 만든다. 그 사실이 보이는 자리가 여기다.
+         */}
+        <section className={css.sideBlock}>
+          <h2 className={css.sideTitle}>이 원고가 선언한 이름</h2>
+          <DeclaredNames label="인물" names={sources.characters} />
+          <DeclaredNames label="플래그" names={sources.flags} />
+          <p className={css.meta}>
+            조건이 가리킬 수 있는 이름은 이 둘뿐입니다. 목록 밖의 이름은 서버가 거절합니다
+          </p>
+        </section>
       </aside>
     )
   }
@@ -421,6 +499,23 @@ function SidePanel({
 }
 
 /**
+ * 선언한 이름 한 줄 (D-8).
+ *
+ * **아직 없는 쪽도 자리를 지킨다.** 둘 중 하나가 사라지면 "이 둘뿐입니다" 라는 아래 문장이
+ * 무엇을 가리키는지 알 수 없고, 비어 있다는 사실 자체가 Step 4 에서 무엇이 잠기는지를 말한다.
+ */
+function DeclaredNames({ label, names }: { label: string; names: readonly string[] }) {
+  return (
+    <div className={css.declaredRow}>
+      <span className={css.fieldLabel}>{`${label} · ${names.length}`}</span>
+      <span className={css.declaredNames}>
+        {names.length === 0 ? '아직 없습니다' : names.join(' · ')}
+      </span>
+    </div>
+  )
+}
+
+/**
  * 임시 저장 표시 (6a — Header 우측, 저장 버튼 없음).
  *
  * 실패를 조용히 넘기지 않는다. 저장 버튼이 없다는 것은 **사용자가 다시 누를 수단이 없다**는
@@ -461,16 +556,24 @@ function SaveIndicator({
  * 계약도 그 사실을 적었다. 이름이 비어 있는 인물은 고를 수 없다: 빈 문자열을 조건에 담으면
  * 아무도 가리키지 않는 조건이 된다.
  *
- * **플래그는 지금 언제나 비어 있다.** 원고가 플래그를 *선언하는* 자리가 3d~3e 어디에도 없고,
- * 없는 화면을 여기서 지어내지 않는다 (CLAUDE.md 4번). 그래서 `has_flag` · `lacks_flag` 는
- * `templateBlockedReason` 이 이유와 함께 잠근다 — 조용히 빈 드롭다운을 그리는 것보다 낫다.
- * 플래그 선언 화면은 **별도 이슈**다.
+ * **플래그도 이제 Step 3 에서 온다** (#125). 이 자리에는 `flags: []` 한 줄이 있었고, 그것이
+ * `has_flag` · `lacks_flag` 를 잠그던 **실제 원인**이었다 — 판정도 저장도 이미 플래그를
+ * 인물과 똑같이 다루고 있었고 없던 것은 선언하는 입구뿐이었다 (7차 `A-1`, 백엔드 #362).
+ *
+ * **여기서 `trim()` 하지 않는다** — 인물 쪽과 다르다. 원고에 저장되는 것은 작성자가 친 그대로의
+ * 문자열이고(`writeValues`, §13-73), 조건은 **저장된 이름과 글자 하나까지 같아야** 가리킬 수
+ * 있다 (계약 `ConditionParams` — 원고 밖을 가리키면 `400`). 여기서 몰래 다듬으면 목록에는
+ * 다듬은 이름이 보이고 원고에는 다듬지 않은 이름이 들어가, 작성자가 고른 조건이 *없는 이름을
+ * 가리킨다*는 이유로 거절된다.
+ *
+ * 빈 문자열만 뺀다 — 서버가 빈 항목을 건너뛰므로 그것은 선언되지 않은 이름이고, "추가" 를
+ * 누른 직후의 빈 줄이 드롭다운에 빈 칸으로 서지도 않는다.
  */
 function conditionSources(values: StepValues): ConditionSources {
   return {
     characters: values.characters
       .map((character) => character.name.trim())
       .filter((name) => name !== ''),
-    flags: [],
+    flags: values.flags.filter((flag) => flag !== ''),
   }
 }
