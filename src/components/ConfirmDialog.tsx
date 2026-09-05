@@ -12,6 +12,18 @@ interface ConfirmDialogProps {
   pendingLabel: string
   cancelLabel: string
   /**
+   * 확인·취소 말고 **그 자리를 보러 가는 길** 하나 — 7차 `A-1` D-5 의 *[엔딩 3 으로]* (#125).
+   *
+   * 그 판이 묻는 것은 *"지우면 저 조건이 비워집니다"* 이고, 작성자가 그때 하고 싶은 셋째
+   * 일은 **결정하기 전에 그 조건을 보는 것**이다. 그 길이 없으면 판을 닫고 Step 4 를 직접
+   * 찾아 들어갔다가 돌아와야 하며, 그 왕복 중에 무엇을 물었는지가 사라진다.
+   *
+   * **boolean 이 아니라 그 버튼 자체를 받는다.** `hasDetour` 같은 깃발을 두면 라벨과 동작이
+   * 이 파일 안으로 들어와 판이 두 책임을 갖는다 — 없으면 지금까지처럼 버튼 둘이고, 다른
+   * 화면들은 이 자리를 몰라도 된다.
+   */
+  detour?: { label: string; onSelect: () => void }
+  /**
    * 되돌릴 수 없는 그 요청.
    *
    * **성공 뒤의 일은 부른 화면이 한다** — 닫거나(세션·원고) 목록을 다시 받거나 떠난다(탈퇴).
@@ -44,6 +56,7 @@ export function ConfirmDialog({
   confirmLabel,
   pendingLabel,
   cancelLabel,
+  detour,
   onConfirm,
   onCancel,
 }: ConfirmDialogProps) {
@@ -105,8 +118,22 @@ export function ConfirmDialog({
          * DOM 순서는 **취소 먼저**다. 6d 의 Desktop 행 순서(돌아가기 좌 · 탈퇴합니다 우)와
          * 같고, 되돌릴 수 없는 쪽이 키보드 첫 초점이 되지 않는다. Mobile 은 5b 처럼 확인이
          * 위에 오도록 CSS 가 뒤집는다.
+         *
+         * **셋째 버튼은 취소보다도 앞이다.** 그래야 뒤집힌 Mobile 에서 아트보드가 그린
+         * 순서(확인 · 그만두기 · 보러 가기)가 되고, Desktop 행에서는 되돌릴 수 없는 쪽이
+         * 여전히 맨 오른쪽에 남는다 — 어느 폭에서도 위험한 버튼의 자리가 바뀌지 않는다.
          */}
         <div className={css.actions}>
+          {detour === undefined ? null : (
+            <button
+              type="button"
+              className={css.button}
+              onClick={detour.onSelect}
+              disabled={submitting}
+            >
+              {detour.label}
+            </button>
+          )}
           <button type="button" className={css.button} onClick={onCancel} disabled={submitting}>
             {cancelLabel}
           </button>
