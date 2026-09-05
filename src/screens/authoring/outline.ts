@@ -325,10 +325,11 @@ export function findTemplate(
  * 채울 수 없는 자리에 갇히고, 그 상태를 푸는 길이 화면에 없다 —
  * `visibilityBlockedReason`(3f) 과 같은 판단이다.
  *
- * **플래그는 지금 언제나 비어 있다.** 원고가 플래그를 선언하는 자리가 아직 없기 때문이며,
- * 그 자리를 여기서 지어내지 않는다 (CLAUDE.md — 디자인이 없으면 화면을 지어내지 않는다).
- * 그래서 `has_flag` · `lacks_flag` 는 이유와 함께 잠긴 채로 보인다: 조용히 비어 있는 것보다
- * 왜 못 고르는지가 보이는 쪽이다.
+ * **두 문구가 같은 모양인 것은 두 자리가 같은 자리이기 때문이다** (#125). 플래그의 이유는
+ * 한동안 *"이 원고에는 아직 플래그를 선언하는 자리가 없습니다"* 였다 — 그때는 참이었지만
+ * 계약이 `DraftPayload.flags` 를 세우고 (#362, §13-73) Step 3 이 그 자리를 열면서 **거짓말이
+ * 되었다.** 화면이 계약의 상태를 스스로 설명해 둔 문장은 계약이 움직여도 아무도 갱신해
+ * 주지 않는다. 지금 두 이유가 말하는 것은 하나다: **후보를 만드는 자리는 Step 3 이다.**
  */
 export function templateBlockedReason(
   template: ConditionTemplateSpec,
@@ -339,7 +340,7 @@ export function templateBlockedReason(
       return '3단계에서 인물을 먼저 만들면 고를 수 있습니다.'
     }
     if (parameter.type === 'flag' && sources.flags.length === 0) {
-      return '이 원고에는 아직 플래그를 선언하는 자리가 없습니다.'
+      return '3단계에서 플래그를 먼저 선언하면 고를 수 있습니다.'
     }
   }
   return null
@@ -443,4 +444,101 @@ export function endingsMissingCondition(
   return endings.flatMap((ending, index) =>
     conditionIncomplete(ending, templates, sources) ? [index] : [],
   )
+}
+
+/**
+ * 이 플래그 이름을 가리키는 조건 하나의 자리 (#125, 7차 `A-1` D-4 · D-5).
+ *
+ * **번호가 아니라 자리(`index`)를 준다** — 화면이 보여 주는 *엔딩 2* 는 `index + 1` 이고,
+ * 그 계산은 `writeOutline` 이 번호를 매기는 규칙과 같다 (번호의 뜻은 순서다). 번호를 여기서
+ * 미리 만들어 넘기면 같은 규칙이 두 곳에 생긴다.
+ */
+export interface FlagReference {
+  readonly kind: 'chapter' | 'ending'
+  readonly index: number
+}
+
+/**
+ * 어느 챕터·엔딩의 조건이 이 플래그 이름을 가리키는가 (#125).
+ *
+ * ## 왜 이 판정이 필요한가
+ *
+ * **지금은 플래그를 지우면 그 조건이 저장 시점에 조용히 비워진다** — `writableCondition` 이
+ * 원고 밖을 가리키는 조건을 *고르지 않은 것과 같은 모양*으로 내보내기 때문이다 (#98). 그것은
+ * 옳다: 남은 이름으로 옮겨 붙이면 작성자가 고르지 않은 조건이 그의 작품에 발행되고, 그대로
+ * 실어 보내면 서버가 `400` 으로 저장 자체를 막는다 (계약 `ConditionParams`).
+ *
+ * **말해 주지 않는 것이 문제다.** 화면은 Step 4 에서 "도달 조건이 필요합니다" 를 다시 띄울
+ * 뿐 *왜* 비었는지 말하지 않고, 작성자는 자기가 무엇을 잃었는지 알지 못한다. 7차 아트보드는
+ * 그것을 **지우기 직전에** 판으로 말하도록 그렸다 (D-5) — *"엔딩 3 의 조건이 이 이름을
+ * 가리킵니다. 지우면 그 조건이 비워집니다."* 이 함수가 그 문장의 재료다.
+ *
+ * ## 무엇을 세는가
+ *
+ * **템플릿 명세가 `flag` 라고 선언한 슬롯만 본다.** 슬롯 이름을 문자열로 추측하지 않는다 —
+ * 이름은 `ConditionTemplateParameter.name` 의 것이고 (§13-56), 서버가 슬롯을 하나 더하거나
+ * 이름을 바꾸는 날 추측한 쪽만 조용히 빗나간다. 그래서 같은 이름이 `character` 슬롯에 들어
+ * 있으면 **세지 않는다**: 그것은 인물을 가리키는 조건이고, 플래그를 지워도 멀쩡하다.
+ *
+ * **키가 목록에 없으면 세지 않는다.** 슬롯의 형을 알 길이 없고, 그런 조건은 이미 고르지 않은
+ * 것으로 읽혀 저장에도 실리지 않는다 (`findTemplate` · `writableCondition`).
+ *
+ * **슬롯이 덜 찬 조건도 센다.** 이름을 가리키는 것과 조건이 완성된 것은 다른 문제이고,
+ * 지우면 비워지는 것은 어느 쪽이나 같다.
+ *
+ * 챕터를 먼저, 그다음 엔딩을 각각 배열 순서로 돌려준다.
+ */
+export function flagReferences(
+  values: OutlineValues,
+  templates: readonly ConditionTemplateSpec[],
+  flag: string,
+): FlagReference[] {
+  return [
+    ...values.chapters.flatMap<FlagReference>((chapter, index) =>
+      referencesFlag(chapter, templates, flag) ? [{ kind: 'chapter', index }] : [],
+    ),
+    ...values.endings.flatMap<FlagReference>((ending, index) =>
+      referencesFlag(ending, templates, flag) ? [{ kind: 'ending', index }] : [],
+    ),
+  ]
+}
+
+function referencesFlag(
+  value: Conditioned,
+  templates: readonly ConditionTemplateSpec[],
+  flag: string,
+): boolean {
+  const template = findTemplate(templates, value.conditionTemplateKey)
+  if (template === null) return false
+  return template.parameters.some(
+    (parameter) => parameter.type === 'flag' && value.conditionParams[parameter.name] === flag,
+  )
+}
+
+/**
+ * 이 플래그를 가리키던 조건을 **비운 새 개요**를 돌려준다 (#125, D-5 의 *[지우고 조건 비우기]*).
+ *
+ * **`setConditionTemplate(value, null)` 을 쓴다** — 그것이 키와 슬롯 값을 함께 버린다. 키만
+ * 지우고 값을 남기면 화면 어디에도 보이지 않는 값이 `payload` 에 남고, 작성자가 다음에 고른
+ * 템플릿에 그 값이 붙는다.
+ *
+ * **남은 플래그로 옮겨 붙이지 않는다.** #98 이 인물에 대해 세운 규칙과 같다 — 화면이 조용히
+ * 고르면 작성자가 고르지 않은 조건이 그의 작품에 발행된다. 비워 두면 Step 4 가 "도달 조건이
+ * 필요합니다" 로 다시 묻고, 고르는 것은 작성자다.
+ *
+ * **가리키지 않던 조건은 그대로 둔다** — 같은 템플릿을 쓰더라도 다른 이름을 가리키면 남는다.
+ */
+export function clearFlagConditions(
+  values: OutlineValues,
+  templates: readonly ConditionTemplateSpec[],
+  flag: string,
+): OutlineValues {
+  return {
+    chapters: values.chapters.map((chapter) =>
+      referencesFlag(chapter, templates, flag) ? setConditionTemplate(chapter, null) : chapter,
+    ),
+    endings: values.endings.map((ending) =>
+      referencesFlag(ending, templates, flag) ? setConditionTemplate(ending, null) : ending,
+    ),
+  }
 }

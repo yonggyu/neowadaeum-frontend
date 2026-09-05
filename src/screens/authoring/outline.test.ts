@@ -5,11 +5,13 @@ import {
   chapterField,
   chapterFieldPaths,
   chaptersMissingSeed,
+  clearFlagConditions,
   conditionIncomplete,
   emptyChapter,
   emptyEnding,
   endingField,
   endingsMissingCondition,
+  flagReferences,
   fromOutlineResponse,
   parameterOptions,
   readOutline,
@@ -443,8 +445,17 @@ describe('조건 템플릿 — 정정본 §13-56 (backend #282)', () => {
     expect(templateBlockedReason(AFFINITY, { characters: ['유나'], flags: [] })).toBeNull()
   })
 
-  it('플래그를_선언할_자리가_없어_플래그_템플릿은_잠긴다', () => {
+  /**
+   * **잠금은 "자리가 없다" 가 아니라 "후보가 없다" 다** (#125).
+   *
+   * 한동안 이유가 *"이 원고에는 아직 플래그를 선언하는 자리가 없습니다"* 였다 — 계약에
+   * `DraftPayload.flags` 가 없던 때는 참이었지만, #362(§13-73)가 그 자리를 세우고 Step 3 이
+   * 선언 UI 를 열면서 **거짓말이 되었다.** 화면이 계약의 상태를 스스로 설명해 둔 문장은
+   * 계약이 움직여도 아무도 갱신해 주지 않는다.
+   */
+  it('G5_선언한_플래그가_하나라도_있으면_잠금이_풀린다', () => {
     expect(templateBlockedReason(HAS_FLAG, { characters: ['유나'], flags: [] })).not.toBeNull()
+    expect(templateBlockedReason(HAS_FLAG, { characters: [], flags: ['첫번째표시'] })).toBeNull()
   })
 
   it('임계값_템플릿은_원고와_무관하게_고를_수_있다', () => {
@@ -487,5 +498,111 @@ describe('검수 필드 경로', () => {
       'chapters[1].summarySeed',
     ])
     expect(chapterFieldPaths(-1)).toEqual([])
+  })
+})
+
+/**
+ * 플래그를 지우기 **전에** 무엇을 잃는지 말한다 (#125, 7차 `A-1` D-4 · D-5).
+ *
+ * 지금까지는 저장 시점에 조용히 비워졌다 (`writableCondition`) — 그 동작은 옳지만
+ * (#98: 남은 이름으로 옮겨 붙이면 작성자가 고르지 않은 조건이 발행된다), 화면은 Step 4 에서
+ * "도달 조건이 필요합니다" 를 다시 띄울 뿐 **왜 비었는지 말하지 않았다.**
+ *
+ * 픽스처의 이름은 **명백한 가짜**로 둔다 (S-11).
+ */
+describe('플래그를 지우면 무엇이 비는가', () => {
+  const flaggedChapter = chapter('첫 장', {
+    conditionTemplateKey: 'has_flag',
+    conditionParams: { flag: '첫번째표시' },
+  })
+  const flaggedEnding = ending('첫 끝', {
+    conditionTemplateKey: 'has_flag',
+    conditionParams: { flag: '첫번째표시' },
+  })
+
+  it('가리키는_챕터와_엔딩의_자리를_돌려준다', () => {
+    const values = {
+      chapters: [chapter('조건 없음'), flaggedChapter],
+      endings: [flaggedEnding],
+    }
+    expect(flagReferences(values, TEMPLATES, '첫번째표시')).toEqual([
+      { kind: 'chapter', index: 1 },
+      { kind: 'ending', index: 0 },
+    ])
+  })
+
+  it('가리키지_않는_이름에는_아무것도_돌려주지_않는다', () => {
+    const values = { chapters: [flaggedChapter], endings: [] }
+    expect(flagReferences(values, TEMPLATES, '두번째표시')).toEqual([])
+  })
+
+  /**
+   * **슬롯 이름을 문자열로 추측하지 않는다** — 템플릿 명세가 `flag` 라고 선언한 슬롯만 본다
+   * (§13-56). 같은 이름이 `character` 슬롯에 있으면 그것은 인물을 가리키는 조건이고,
+   * 플래그를 지워도 멀쩡하다.
+   */
+  it('같은_이름이_character_슬롯에_있으면_세지_않는다', () => {
+    const characterCondition = chapter('호감도', {
+      conditionTemplateKey: 'affinity_at_least',
+      conditionParams: { character: '유나', threshold: 30 },
+    })
+    expect(flagReferences({ chapters: [characterCondition], endings: [] }, TEMPLATES, '유나')).toEqual([])
+  })
+
+  /** 서버가 더는 선언하지 않는 키는 슬롯의 형을 알 길이 없고, 저장에도 실리지 않는다. */
+  it('목록에_없는_키의_조건은_세지_않는다', () => {
+    expect(flagReferences({ chapters: [flaggedChapter], endings: [] }, [TURN], '첫번째표시')).toEqual(
+      [],
+    )
+  })
+
+  it('D5_가리키던_조건만_비우고_나머지는_그대로_둔다', () => {
+    const keptEnding = ending('턴으로 끝', {
+      conditionTemplateKey: 'turn_at_least',
+      conditionParams: { threshold: 5 },
+    })
+    const next = clearFlagConditions(
+      { chapters: [flaggedChapter], endings: [flaggedEnding, keptEnding] },
+      TEMPLATES,
+      '첫번째표시',
+    )
+    expect(next.chapters[0]?.conditionTemplateKey).toBeNull()
+    // 키만이 아니라 슬롯 값도 함께 버린다 — 남으면 다음에 고른 템플릿에 붙는다.
+    expect(next.chapters[0]?.conditionParams).toEqual({})
+    expect(next.endings[0]?.conditionTemplateKey).toBeNull()
+    expect(next.endings[1]).toEqual(keptEnding)
+    // 조건 말고는 아무것도 건드리지 않는다.
+    expect(next.chapters[0]?.title).toBe('첫 장')
+  })
+
+  /**
+   * **남은 플래그로 옮겨 붙이지 않는다** — #98 이 인물에 대해 세운 규칙과 같다. 화면이 조용히
+   * 고르면 작성자가 고르지 않은 조건이 그의 작품에 발행된다.
+   */
+  it('98_남은_플래그로_옮겨_붙이지_않는다', () => {
+    const next = clearFlagConditions(
+      { chapters: [], endings: [flaggedEnding] },
+      TEMPLATES,
+      '첫번째표시',
+    )
+    expect(next.endings[0]?.conditionParams).toEqual({})
+    // 비워진 뒤에는 "도달 조건이 필요합니다" 의 대상이다 — 고르는 것은 작성자다.
+    expect(
+      endingsMissingCondition(next.endings, TEMPLATES, { characters: [], flags: ['두번째표시'] }),
+    ).toEqual([0])
+  })
+
+  it('다른_이름을_가리키는_같은_템플릿의_조건은_남는다', () => {
+    const otherFlagEnding = ending('다른 끝', {
+      conditionTemplateKey: 'has_flag',
+      conditionParams: { flag: '두번째표시' },
+    })
+    const next = clearFlagConditions(
+      { chapters: [], endings: [flaggedEnding, otherFlagEnding] },
+      TEMPLATES,
+      '첫번째표시',
+    )
+    expect(next.endings[0]?.conditionTemplateKey).toBeNull()
+    expect(next.endings[1]).toEqual(otherFlagEnding)
   })
 })
