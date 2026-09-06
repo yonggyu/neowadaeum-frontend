@@ -33,13 +33,13 @@
 .notice {
   margin: var(--sp-4) 0 0;
   color: var(--fg-muted);
-  font-size: 0.8125rem;
+  font-size: var(--fs-sm);
   line-height: 1.7;
 }
 
 .heading {
   margin: 0 0 var(--sp-3);
-  font-size: 0.875rem;
+  font-size: var(--fs-base);
   font-weight: 600;
 }
 
@@ -49,7 +49,7 @@
   margin: 0;
   padding: var(--sp-4) 0;
   color: var(--fg-muted);
-  font-size: 0.875rem;
+  font-size: var(--fs-base);
   line-height: 1.6;
 }
 
@@ -86,7 +86,7 @@
 .head {
   background: var(--bg-sunken);
   color: var(--fg-muted);
-  font-size: 0.75rem;
+  font-size: var(--fs-xs);
 }
 
 .row:last-child {
@@ -109,7 +109,7 @@
 .severity,
 .source {
   color: var(--fg-muted);
-  font-size: 0.8125rem;
+  font-size: var(--fs-sm);
 }
 
 .kind {
@@ -142,7 +142,7 @@
   background: none;
   color: var(--fg);
   font: inherit;
-  font-size: 0.9375rem;
+  font-size: var(--fs-md);
   text-align: left;
   word-break: break-all;
   cursor: pointer;
@@ -167,7 +167,7 @@
   background: var(--bg);
   color: var(--danger);
   font: inherit;
-  font-size: 0.8125rem;
+  font-size: var(--fs-sm);
   cursor: pointer;
 }
 
@@ -178,7 +178,7 @@
   border: 1px dashed var(--border);
   border-radius: var(--r-sm);
   color: var(--fg-muted);
-  font-size: 0.75rem;
+  font-size: var(--fs-xs);
   line-height: 1.7;
 }
 
@@ -215,7 +215,7 @@
 .label {
   padding: 0;
   color: var(--fg-muted);
-  font-size: 0.8125rem;
+  font-size: var(--fs-sm);
 }
 
 .choices {
@@ -229,7 +229,7 @@
   min-height: 44px;
   align-items: center;
   gap: var(--sp-2);
-  font-size: 0.875rem;
+  font-size: var(--fs-base);
   cursor: pointer;
 }
 
@@ -243,26 +243,30 @@
   font: inherit;
 }
 
+/* 남은 글자 수. 넣기 전에 확인하는 값이라 읽는 글자다 (#159) */
 .counter {
   align-self: flex-end;
-  color: var(--fg-subtle);
-  font-size: 0.75rem;
+  color: var(--fg-muted);
+  font-size: var(--fs-xs);
   font-variant-numeric: tabular-nums;
 }
 
-/* `warn` 은 고르는 자리에 서는 문장이라 도움말보다 진하다 — 읽히지 않으면 없는 것과 같다 */
+/*
+ * 도움말과 경고. **둘이 같은 색이 됐다** (#159).
+ *
+ * `help` 가 `--fg-subtle` 이었고 `warn` 만 한 단 진했다 — 고르는 자리에 서는 문장은
+ * 읽히지 않으면 없는 것과 같다는 이유였다. 그런데 `help` 도 *무엇을 넣는 칸인가* 를
+ * 말하는 문장이고, 그것을 못 읽으면 잘못된 값이 블록리스트에 들어간다. 둘 다 읽는
+ * 글자라서 둘 다 `--fg-muted` 다.
+ *
+ * **두 이름을 합치지 않는다.** 지금 값이 같다는 것과 두 자리가 같은 것은 다르고,
+ * 경고가 다시 진해질 자리는 여기 그대로 남아 있다.
+ */
 .help,
 .warn {
-  font-size: 0.75rem;
-  line-height: 1.6;
-}
-
-.help {
-  color: var(--fg-subtle);
-}
-
-.warn {
   color: var(--fg-muted);
+  font-size: var(--fs-xs);
+  line-height: 1.6;
 }
 
 /* 한 번짜리 동작이라 56px 이다 (8차가 정한 값) */
@@ -292,12 +296,12 @@
 .confirmMeta {
   margin: 0 0 var(--sp-2);
   color: var(--fg-muted);
-  font-size: 0.8125rem;
+  font-size: var(--fs-sm);
 }
 
 .confirmValue {
   margin: 0 0 var(--sp-3);
-  font-size: 1rem;
+  font-size: var(--fs-lg);
   word-break: break-all;
 }
 

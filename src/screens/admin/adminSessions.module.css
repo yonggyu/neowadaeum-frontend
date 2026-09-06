@@ -75,7 +75,7 @@
   background: var(--bg);
   color: var(--fg-muted);
   font: inherit;
-  font-size: 0.8125rem;
+  font-size: var(--fs-sm);
   cursor: pointer;
 }
 
@@ -84,10 +84,11 @@
   color: var(--fg);
 }
 
+/* 몇 건을 불러왔는지. 개수는 읽는 값이다 (#159) */
 .count {
   margin-left: auto;
-  color: var(--fg-subtle);
-  font-size: 0.8125rem;
+  color: var(--fg-muted);
+  font-size: var(--fs-sm);
   font-variant-numeric: tabular-nums;
 }
 
@@ -95,7 +96,7 @@
 .notice {
   margin: var(--sp-4) 0 0;
   color: var(--fg-muted);
-  font-size: 0.8125rem;
+  font-size: var(--fs-sm);
   line-height: 1.5;
 }
 
@@ -106,13 +107,21 @@
 .failure {
   margin: var(--sp-4) 0 0;
   color: var(--fg-muted);
-  font-size: 0.875rem;
+  font-size: var(--fs-base);
   line-height: 1.6;
 }
 
+/*
+ * "테스트 세션 N건을 접어 뒀어요."
+ *
+ * **색으로 낮추지 않는다** (#159). 목록에서 무엇이 빠져 있는지를 말하는 유일한 줄이고,
+ * 이것을 못 읽으면 관리자는 자기가 전부를 보고 있다고 여긴다. `--fg-subtle` 이었다.
+ *
+ * 그래서 지금 `failure` 와 같아 보인다. 이름을 남겨 두는 것은 두 줄이 서로 다른 일을
+ * 말하기 때문이고, 값이 같아진 것과 자리가 하나가 된 것은 다르다.
+ */
 .folded {
   composes: failure;
-  color: var(--fg-subtle);
 }
 
 /* ── 목록 ────────────────────────────────────────────────────────────── */
@@ -138,7 +147,7 @@
 .head {
   background: var(--bg-sunken);
   color: var(--fg-muted);
-  font-size: 0.75rem;
+  font-size: var(--fs-xs);
 }
 
 .row {
@@ -164,37 +173,42 @@
   display: contents;
 }
 
+/* 마지막 갱신 시각. 어느 세션이 최근인지를 가르는 값이라 읽는 글자다 (#159) */
 .updated {
   order: 1;
-  color: var(--fg-subtle);
-  font-size: 0.8125rem;
+  color: var(--fg-muted);
+  font-size: var(--fs-sm);
   font-variant-numeric: tabular-nums;
 }
 
 .chevron {
   order: 2;
   color: var(--fg-subtle);
-  font-size: 1.25rem;
+  font-size: var(--fs-xl);
   text-align: center;
 }
 
 /* 이름은 한 줄이다. 줄이 늘면 표의 행 높이가 행마다 달라진다 */
 .story {
   overflow: hidden;
-  font-size: 0.9375rem;
+  font-size: var(--fs-md);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-/* 제목이 없는 자리. 이름이 아니라는 것이 색으로도 보여야 한다 */
+/*
+ * 제목이 없는 자리. 이름이 아니라는 것이 색으로도 보여야 한다 — 다만 **읽히는 채로**
+ * 그렇다 (#159). 어느 행에 제목이 없는지는 목록을 훑을 때 세는 값이고, 그 구분은
+ * 본문색(`--fg`)과 `--fg-muted` 사이에서도 그대로 선다.
+ */
 .muted {
-  color: var(--fg-subtle);
+  color: var(--fg-muted);
 }
 
 .status,
 .turns {
   color: var(--fg-muted);
-  font-size: 0.8125rem;
+  font-size: var(--fs-sm);
   font-variant-numeric: tabular-nums;
 }
 
@@ -212,7 +226,7 @@
   border: 1px solid var(--border);
   border-radius: var(--r-xl);
   color: var(--fg-muted);
-  font-size: 0.75rem;
+  font-size: var(--fs-xs);
   white-space: nowrap;
 }
 
@@ -293,7 +307,7 @@
     grid-column: 1 / -1;
     gap: var(--sp-1) var(--sp-3);
     color: var(--fg-muted);
-    font-size: 0.8125rem;
+    font-size: var(--fs-sm);
   }
 
   .badges {

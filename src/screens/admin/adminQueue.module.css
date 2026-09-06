@@ -77,7 +77,7 @@
 .hint {
   margin: var(--sp-3) 0 0;
   color: var(--fg-muted);
-  font-size: 0.875rem;
+  font-size: var(--fs-base);
   line-height: 1.7;
 }
 
@@ -90,7 +90,7 @@
 .failure {
   margin: var(--sp-4) 0 0;
   color: var(--fg-muted);
-  font-size: 0.875rem;
+  font-size: var(--fs-base);
   line-height: 1.6;
 }
 
@@ -142,13 +142,14 @@
   overflow: hidden;
 }
 
+/* 목록이 무엇으로 정렬돼 있는지를 말하는 줄. 읽는 글자다 (#159) */
 .listHead {
   margin: 0;
   padding: var(--sp-3) var(--sp-4);
   border-bottom: 1px solid var(--border);
-  color: var(--fg-subtle);
+  color: var(--fg-muted);
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 0.75rem;
+  font-size: var(--fs-xs);
   letter-spacing: 0.06em;
 }
 
@@ -180,13 +181,13 @@
 }
 
 .rowTitle {
-  font-size: 0.9375rem;
+  font-size: var(--fs-md);
   overflow-wrap: anywhere;
 }
 
 .rowMeta {
   color: var(--fg-muted);
-  font-size: 0.8125rem;
+  font-size: var(--fs-sm);
 }
 
 .detail {
@@ -205,17 +206,31 @@
   justify-content: space-between;
 }
 
+/*
+ * 판정의 대상이 되는 작품 이름. 상세 한 면의 머리이므로 **구역 제목**(`--fs-xl`)이다.
+ *
+ * `1.125rem` 이었다 — 스케일 아홉이 지운 다섯 중 하나다 (#136). 한 단 내리면 `--fs-lg`
+ * (1rem)인데, 그러면 왼쪽 목록의 한 줄(`.rowTitle`, `--fs-md`)과 1px 차이가 되어 *고른
+ * 것*과 *고르는 것*의 위계가 사라진다. 이 화면에서 가장 큰 글자가 되는 것을 받아들이고
+ * 위로 올렸다 — 관리자 크롬(`.title`)이 작은 것은 그쪽이 일부러 배경으로 물러난 것이지
+ * 판정 대상보다 무겁기 때문이 아니다.
+ */
 .detailTitle {
   margin: 0;
-  font-size: 1.125rem;
+  font-size: var(--fs-xl);
   overflow-wrap: anywhere;
 }
 
-/* `storyId` 는 작품 식별자다 — `player_ref` 가 아니므로 F-6 의 대상이 아니다 */
+/*
+ * `storyId` 는 작품 식별자다 — `player_ref` 가 아니므로 F-6 의 대상이 아니다.
+ *
+ * **검수자가 옮겨 적는 값이라 읽는 글자다** (#159). 세션 목록에서 이 작품으로 좁힐 때
+ * 손으로 들고 가는 것이 이 조각이고, 흐려서 한 글자를 잘못 읽으면 다른 작품을 본다.
+ */
 .storyId {
-  color: var(--fg-subtle);
+  color: var(--fg-muted);
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 0.75rem;
+  font-size: var(--fs-xs);
   overflow-wrap: anywhere;
 }
 
@@ -287,7 +302,7 @@
 .blockHead {
   margin: 0;
   color: var(--fg-muted);
-  font-size: 0.8125rem;
+  font-size: var(--fs-sm);
   font-weight: 600;
 }
 
@@ -301,7 +316,7 @@
 .prose {
   margin: 0;
   max-width: var(--read-width);
-  font-size: 0.9375rem;
+  font-size: var(--fs-md);
   line-height: 1.7;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
@@ -319,7 +334,7 @@
 
 .entryHead {
   margin: 0;
-  font-size: 0.9375rem;
+  font-size: var(--fs-md);
   overflow-wrap: anywhere;
 }
 
@@ -340,7 +355,7 @@
   padding-left: var(--sp-6);
   max-width: var(--read-width);
   color: var(--fg-muted);
-  font-size: 0.9375rem;
+  font-size: var(--fs-md);
   line-height: 1.6;
   overflow-wrap: anywhere;
 }
@@ -357,7 +372,7 @@
   overflow-x: auto;
   color: var(--fg-muted);
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 0.8125rem;
+  font-size: var(--fs-sm);
   line-height: 1.6;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
@@ -376,13 +391,13 @@
   flex-wrap: wrap;
   gap: var(--sp-1) var(--sp-3);
   align-items: baseline;
-  font-size: 0.9375rem;
+  font-size: var(--fs-md);
 }
 
 .factRow dt {
   min-width: 88px;
   color: var(--fg-muted);
-  font-size: 0.8125rem;
+  font-size: var(--fs-sm);
 }
 
 .factRow dd {
@@ -409,7 +424,7 @@
   border: 1px solid var(--border);
   border-radius: var(--r-sm);
   color: var(--fg-muted);
-  font-size: 0.8125rem;
+  font-size: var(--fs-sm);
 }
 
 .reasons {
@@ -425,7 +440,7 @@
 .legend {
   padding: 0;
   color: var(--fg-muted);
-  font-size: 0.875rem;
+  font-size: var(--fs-base);
 }
 
 /* 체크박스 한 줄도 48px 이다 — 잘못 누르면 작성자에게 다른 사유가 간다 */
@@ -519,7 +534,7 @@
 
 .confirmText {
   margin: 0;
-  font-size: 0.9375rem;
+  font-size: var(--fs-md);
   line-height: 1.7;
   overflow-wrap: anywhere;
 }
@@ -538,7 +553,7 @@
   border: 1px solid var(--border);
   border-radius: var(--r-xl);
   color: var(--fg-muted);
-  font-size: 0.8125rem;
+  font-size: var(--fs-sm);
   text-decoration: none;
   white-space: nowrap;
 }
