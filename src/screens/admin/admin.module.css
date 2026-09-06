@@ -35,7 +35,7 @@
   margin: 0 0 var(--sp-6);
   color: var(--fg-muted);
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 0.875rem;
+  font-size: var(--fs-base);
   font-weight: 600;
   letter-spacing: 0.08em;
 }
@@ -49,13 +49,13 @@
 .label {
   margin: 0;
   color: var(--fg-muted);
-  font-size: 0.875rem;
+  font-size: var(--fs-base);
 }
 
 .body {
   margin: 0;
   color: var(--fg-muted);
-  font-size: 0.875rem;
+  font-size: var(--fs-base);
   line-height: 1.7;
 }
 
@@ -74,7 +74,7 @@
   background: var(--bg);
   color: var(--fg);
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 1.25rem;
+  font-size: var(--fs-xl);
   letter-spacing: 0.35em;
   text-align: center;
 }
@@ -149,7 +149,7 @@
 .failure {
   margin: var(--sp-3) 0 0;
   color: var(--fg-muted);
-  font-size: 0.875rem;
+  font-size: var(--fs-base);
   line-height: 1.6;
 }
 
@@ -176,7 +176,7 @@
   flex-wrap: wrap;
   gap: 0 var(--sp-3);
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 1rem;
+  font-size: var(--fs-lg);
   letter-spacing: 0.12em;
 }
 
@@ -206,10 +206,15 @@
   background: #ffffff;
 }
 
-/* 곁말. 본문(`.body`)보다 한 단 낮다 — 읽지 않아도 화면이 성립한다 */
+/*
+ * 곁말. 본문(`.body`)보다 한 단 아래이고, **그 한 단을 크기로만 말한다** (#159).
+ *
+ * 색이 `--fg-subtle` 이었다. 두 줄 다 *인증기를 어떻게 쓰는가* 를 알려 주는 문장이라
+ * 읽지 않으면 사람이 다음 칸을 채우지 못한다 — 읽어야 하는 글자에 그 단계를 쓰지 않는다.
+ */
 .hint {
   margin: var(--sp-2) 0 0;
-  color: var(--fg-subtle);
-  font-size: 0.75rem;
+  color: var(--fg-muted);
+  font-size: var(--fs-xs);
   line-height: 1.5;
 }
