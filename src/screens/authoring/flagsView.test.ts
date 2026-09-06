@@ -8,6 +8,7 @@ import {
   flagReferenceNote,
   flagRemovalWarning,
   flagRemovedEntirely,
+  jumpFocusField,
 } from './flagsView'
 
 const chapter = (index: number): FlagReference => ({ kind: 'chapter', index })
@@ -87,5 +88,27 @@ describe('flagJumpLabel', () => {
 
   it('십은_받침이_있다', () => {
     expect(flagJumpLabel(chapter(9))).toBe('챕터 10 으로')
+  })
+})
+
+/**
+ * #133 — 예약이 **실패한 저장 뒤에도 남았다.** 예약을 걸고 단계를 옮기던 순서였는데 그 이동은
+ * 저장을 지나므로 실패할 수 있고, 실패하면 단계가 그대로여서 예약을 비우는 효과도 돌지
+ * 않았다. 남은 예약은 나중에 다른 이유로 그 단계에 들어가는 순간 **아무도 요청하지 않은 초점
+ * 이동**이 되었다.
+ *
+ * **여기서 지키는 것은 판정이다.** `focus()` 호출과 예약이 실제로 소진되는지는 이 러너에
+ * DOM 이 없어(vitest 기본 환경 · jsdom 미설치) 확인할 수 없고, 그 사실은 PR 본문에 적는다 —
+ * `dialogKeyAction`(`useDialogChrome`) 과 같은 자리다.
+ */
+describe('jumpFocusField — #133', () => {
+  it('F133_옮겨졌을_때만_초점을_예약한다', () => {
+    expect(jumpFocusField(true, ending(2))).toBe(flagJumpField(ending(2)))
+    expect(jumpFocusField(true, chapter(0))).toBe(flagJumpField(chapter(0)))
+  })
+
+  it('F133_저장이_실패해_옮겨지지_않았으면_예약하지_않는다', () => {
+    expect(jumpFocusField(false, ending(2))).toBeNull()
+    expect(jumpFocusField(false, chapter(0))).toBeNull()
   })
 })

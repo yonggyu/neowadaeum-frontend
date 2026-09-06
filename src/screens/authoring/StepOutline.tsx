@@ -532,8 +532,21 @@ function ConditionParamField({
         onChange={(event) => onChange(event.target.value === '' ? null : event.target.value)}
       >
         <option value="">선택 안 함</option>
-        {options.map((option) => (
-          <option key={option} value={option}>
+        {/*
+         * **`key` 가 자리(index)다** (#132). 이름을 그대로 키로 쓰면 **같은 이름이 둘일 때**
+         * 겹친다 — 계약도 화면도 인물·플래그 이름의 중복을 막지 않고, 그 사실을 #125 의
+         * `flagRemovedEntirely` 가 이미 명시적으로 다뤘다. 겹친 키는 경고 하나로 끝나지
+         * 않는다: 목록이 바뀔 때 React 가 어느 노드를 재사용할지 판단을 잃는다.
+         *
+         * **여기서는 인덱스가 안전하다** — 일반 규칙의 예외인 이유를 적어 둔다. 이 목록은
+         * 정렬도 필터도 없고, 원고의 이름 목록이 바뀌면 통째로 다시 만들어진다. 즉 자리와
+         * 항목이 어긋난 채로 재사용될 창이 없다.
+         *
+         * **`value` 는 이름 그대로다.** 계약이 받는 것은 이름이고 (`ConditionParams`),
+         * 중복 자체를 화면이 막지도 않는다 — 막으면 계약이 허용하는 원고를 화면이 거절한다.
+         */}
+        {options.map((option, index) => (
+          <option key={index} value={option}>
             {option}
           </option>
         ))}

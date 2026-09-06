@@ -1,4 +1,5 @@
 import type { DraftPayload } from '../../api/endpoints/authoring'
+import type { ConditionSources } from './outline'
 
 /**
  * Step 1~3 이 `payload` 안에서 읽고 쓰는 자리 (와이어프레임 3d).
@@ -303,3 +304,43 @@ export function setFlag(flags: readonly string[], index: number, name: string): 
 export function removeFlag(flags: readonly string[], index: number): string[] {
   return flags.filter((_, i) => i !== index)
 }
+
+/**
+ * 조건이 고를 수 있는 값이 **어디서 오는가** (§13-56).
+ *
+ * 인물은 Step 3 에서 작성자가 만든 사람들이다 — 서버가 줄 수 없는 값이고(원고마다 다르다)
+ * 계약도 그 사실을 적었다. **플래그도 Step 3 에서 온다** (#125): 이 자리에는 `flags: []` 한
+ * 줄이 있었고 그것이 `has_flag` · `lacks_flag` 를 잠그던 실제 원인이었다 (7차 `A-1`).
+ *
+ * **`writeValues` 옆에 둔다** (#131). 이 함수가 지켜야 하는 것은 하나뿐이다 — 여기서 내는
+ * 후보는 `writeValues` 가 `payload` 에 싣는 이름과 **글자 하나까지 같아야 한다.** 두 함수가
+ * 다른 파일에 있는 동안 인물 쪽만 `trim()` 이 걸려 있었고, 그 차이는 조건이 조용히 사라질
+ * 때까지 보이지 않았다.
+ *
+ * **여기서 `trim()` 하지 않는다.** 원고에 저장되는 것은 작성자가 친 그대로의 문자열이고
+ * (`writeValues`, §13-73 · S-7), 조건은 **저장된 이름과 같아야** 가리킬 수 있다 (계약
+ * `ConditionParams` — 원고 밖을 가리키면 `400`). 몰래 다듬으면 목록에는 다듬은 이름이 보이고
+ * 원고에는 다듬지 않은 이름이 들어가, 작성자가 고른 조건이 *없는 이름을 가리킨다*는 이유로
+ * 거절된다 — 그것도 저장 실패가 아니라 **조용한 사라짐**으로 나타난다(`writableCondition`,
+ * #98)는 것이 #131 이 걷어 낸 것이다. 저장하는 쪽을 다듬어 맞추는 길도 있었지만 그것은
+ * 작성자가 친 것을 화면이 고치는 것이고, §13-73(S-7)이 문자 집합을 좁히지 않기로 한 판단과
+ * 어긋난다.
+ */
+export function conditionSources(values: StepValues): ConditionSources {
+  return {
+    characters: values.characters.map((character) => character.name).filter(isDeclared),
+    flags: values.flags.filter(isDeclared),
+  }
+}
+
+/**
+ * 이 이름이 **원고의 선언으로 남는가.**
+ *
+ * 빈 항목은 서버가 건너뛴다 (§13-71 *"이름이 빈 항목은 인물이 아니다"* · §13-73 #4) — 건너뛴
+ * 이름은 선언되지 않았으므로 조건이 가리킬 수 없고, "추가" 를 누른 직후의 빈 줄이 드롭다운에
+ * 빈 칸으로 서지도 않는다. **공백뿐인 이름도 같은 자리다**: 서버가 세는 것은 비어 있지 않은
+ * 이름이므로, 후보에만 세우면 고르는 순간 다시 원고 밖을 가리키게 된다.
+ *
+ * 다듬는 것과 세지 않는 것은 다르다 — 남는 이름은 **그대로** 남는다.
+ */
+const isDeclared = (name: string): boolean => name.trim() !== ''

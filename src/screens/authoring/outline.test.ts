@@ -468,6 +468,22 @@ describe('조건 템플릿 — 정정본 §13-56 (backend #282)', () => {
     expect(parameterOptions(AFFINITY.parameters[1]!, SOURCES)).toEqual([])
   })
 
+  /**
+   * #132 — **후보 목록에 같은 이름이 둘 설 수 있다.** 계약도 화면도 인물·플래그 이름의 중복을
+   * 막지 않고(#125 의 `flagRemovedEntirely` 가 그 사실을 명시적으로 다뤘다), 여기서 화면이
+   * 몰래 중복을 지우지도 않는다 — 지우면 계약이 허용하는 원고를 화면이 거절하는 셈이고,
+   * 어느 쪽을 지울지 · 이미 저장된 원고를 어떻게 다룰지가 따라온다.
+   *
+   * 그래서 드롭다운의 `<option key>` 로 **이름을 쓸 수 없다.** 그 자리는 자리(index)이며,
+   * 이유는 `StepOutline` 의 주석에 있다. **`key` 자체는 여기서 지키지 못한다** — 이 러너에는
+   * DOM 이 없다(jsdom 미설치). 여기서 못박는 것은 그 결정의 **전제**다.
+   */
+  it('F132_같은_이름이_둘이면_후보도_둘이다_화면이_중복을_지우지_않는다', () => {
+    const duplicated: ConditionSources = { characters: ['유나', '유나'], flags: ['봄', '봄'] }
+    expect(parameterOptions(AFFINITY.parameters[0]!, duplicated)).toEqual(['유나', '유나'])
+    expect(parameterOptions(HAS_FLAG.parameters[0]!, duplicated)).toEqual(['봄', '봄'])
+  })
+
   it('템플릿을_바꾸면_고른_값을_버린다 — 슬롯_이름이_템플릿마다_다르다', () => {
     const filled = setConditionParam(
       setConditionTemplate(emptyChapter(), 'affinity_at_least'),

@@ -14,7 +14,7 @@ import { ErrorNotice } from '../account/ErrorNotice'
 import { useResource } from '../library/useResource'
 import css from './wizard.module.css'
 import { clampStep, isBlocked, savedAtLabel, STEP_COUNT, STEP_LABELS } from './draft'
-import { flagJumpField } from './flagsView'
+import { jumpFocusField } from './flagsView'
 import {
   chaptersMissingSeed,
   clearFlagConditions,
@@ -27,7 +27,7 @@ import {
 } from './outline'
 import { StepOutline } from './StepOutline'
 import { PreviewPanel, StepPublish } from './StepPreview'
-import { readValues, writeValues, type StepValues } from './stepFields'
+import { conditionSources, readValues, writeValues, type StepValues } from './stepFields'
 import { usePrecheck, type PrecheckHandle } from './usePrecheck'
 import { usePreviewSession, type PreviewHandle } from './usePreviewSession'
 import { StepBasics, StepCharacters, StepWorld } from './WizardSteps'
@@ -143,11 +143,19 @@ function Wizard({ draft: loaded, metadata }: { draft: Draft; metadata: Authoring
 
   const step = clampStep(draft.step)
 
+  /*
+   * 예약된 초점은 **한 번 쓰고 버린다** (#133).
+   *
+   * 여기에 `step !== 4` 가 있었다. 예약을 걸어 두고 단계를 옮기던 때의 기다림인데, 그 단계에
+   * 닿지 못하면(저장 실패) 예약이 남아 **나중에 다른 이유로 그 단계에 들어가는 순간** 아무도
+   * 요청하지 않은 초점 이동이 되었다. 이제 예약은 단계가 실제로 옮겨진 뒤에만 걸리므로
+   * (`goToReference`) 기다릴 것이 없고, 걸린 예약은 다음 커밋에서 반드시 소진된다.
+   */
   useEffect(() => {
-    if (pendingFocus === null || step !== 4) return
+    if (pendingFocus === null) return
     document.getElementById(pendingFocus)?.focus()
     setPendingFocus(null)
-  }, [pendingFocus, step])
+  }, [pendingFocus])
 
   /*
    * 진행을 막는 이유는 둘이다 — 검수(6a)와 계약이 필수로 받는 값(`summarySeed`, 3e).
@@ -196,13 +204,24 @@ function Wizard({ draft: loaded, metadata }: { draft: Draft; metadata: Authoring
    * **순서를 효과에 맡긴다.** 단계가 바뀐 **뒤에** 그 칸의 DOM 이 서므로, 여기서 바로
    * `focus()` 를 부르면 아직 없는 자리를 찾다가 조용히 아무 일도 하지 않는다 — 실패가 보이지
    * 않는 종류라 더 나쁘다.
+   *
+   * **옮겨지지 않았으면 예약하지 않는다** (#133). `moveTo` 는 저장을 지나므로 실패할 수 있고,
+   * 실패하면 단계가 그대로다 — 예약을 먼저 걸어 두면 그 예약이 남아 나중에 되살아난다.
+   * 실패한 뒤에 비우는 길도 있었지만, 비우는 쪽에는 *예약이 남아 있는 창*이 여전히 있다:
+   * 걸지 않는 쪽에는 그 창이 없다. 판정은 `jumpFocusField` 가 들고 있다.
    */
-  function goToReference(reference: FlagReference): void {
-    setPendingFocus(flagJumpField(reference))
-    void moveTo(4)
+  async function goToReference(reference: FlagReference): Promise<void> {
+    setPendingFocus(jumpFocusField(await moveTo(4), reference))
   }
 
-  async function moveTo(next: number): Promise<void> {
+  /**
+   * 단계를 옮긴다 — **옮겨졌는지를 돌려준다** (#133).
+   *
+   * 오류는 그대로 `save` 상태로 삼킨다(저장 버튼이 없는 화면이라 그 표시가 유일한 안내다,
+   * `SaveIndicator`). 달라진 것은 **부르는 쪽이 결과를 볼 수 있다**는 것뿐이며, 결과를 보지
+   * 않는 호출자(이전 · 다음 · Step 5 의 [고치기])의 동작은 그대로다.
+   */
+  async function moveTo(next: number): Promise<boolean> {
     setSave({ kind: 'saving' })
     try {
       // 아는 키만 남기지 않는다 — 두 함수 모두 원문을 펼친 뒤 자기 자리만 덮는다. Step 5 의
@@ -219,8 +238,10 @@ function Wizard({ draft: loaded, metadata }: { draft: Draft; metadata: Authoring
       setDraft(await updateDraft(draft.draftId, { step: next, payload }))
       setDirty(false)
       setSave({ kind: 'saved' })
+      return true
     } catch (error) {
       setSave({ kind: 'failed', error })
+      return false
     }
   }
 
@@ -547,33 +568,4 @@ function SaveIndicator({
     return <span className={css.saveState}>단계를 넘기면 저장됩니다</span>
   }
   return <span className={css.saveState}>{`임시 저장됨 · ${savedAtLabel(updatedAt, Date.now())}`}</span>
-}
-
-/**
- * 조건이 고를 수 있는 값이 **어디서 오는가** (§13-56).
- *
- * 인물은 Step 3 에서 작성자가 만든 사람들이다 — 서버가 줄 수 없는 값이고(원고마다 다르다)
- * 계약도 그 사실을 적었다. 이름이 비어 있는 인물은 고를 수 없다: 빈 문자열을 조건에 담으면
- * 아무도 가리키지 않는 조건이 된다.
- *
- * **플래그도 이제 Step 3 에서 온다** (#125). 이 자리에는 `flags: []` 한 줄이 있었고, 그것이
- * `has_flag` · `lacks_flag` 를 잠그던 **실제 원인**이었다 — 판정도 저장도 이미 플래그를
- * 인물과 똑같이 다루고 있었고 없던 것은 선언하는 입구뿐이었다 (7차 `A-1`, 백엔드 #362).
- *
- * **여기서 `trim()` 하지 않는다** — 인물 쪽과 다르다. 원고에 저장되는 것은 작성자가 친 그대로의
- * 문자열이고(`writeValues`, §13-73), 조건은 **저장된 이름과 글자 하나까지 같아야** 가리킬 수
- * 있다 (계약 `ConditionParams` — 원고 밖을 가리키면 `400`). 여기서 몰래 다듬으면 목록에는
- * 다듬은 이름이 보이고 원고에는 다듬지 않은 이름이 들어가, 작성자가 고른 조건이 *없는 이름을
- * 가리킨다*는 이유로 거절된다.
- *
- * 빈 문자열만 뺀다 — 서버가 빈 항목을 건너뛰므로 그것은 선언되지 않은 이름이고, "추가" 를
- * 누른 직후의 빈 줄이 드롭다운에 빈 칸으로 서지도 않는다.
- */
-function conditionSources(values: StepValues): ConditionSources {
-  return {
-    characters: values.characters
-      .map((character) => character.name.trim())
-      .filter((name) => name !== ''),
-    flags: values.flags.filter((flag) => flag !== ''),
-  }
 }
