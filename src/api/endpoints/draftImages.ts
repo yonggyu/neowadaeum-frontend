@@ -1,4 +1,4 @@
-import { request } from '../client'
+import { request, requestBytes } from '../client'
 import type { components } from '../schema'
 
 /**
@@ -81,6 +81,34 @@ export function commitDraftImageUpload(
     body,
     signal,
   })
+}
+
+/**
+ * 확정된 이미지를 **바이트로** 되받는다 (`readDraftImage`, 정정본 §13-78).
+ *
+ * **문이 열린 것은 승인 *전* 이다.** 게시된 작품의 커버는 다른 경로(서명 URL)가 답하고,
+ * 여기는 아직 아무도 승인하지 않은 원고의 이미지다. 게이트는 관리자 역할이 아니라 **소유권**
+ * 이며, 남의 원고는 `403` 이 아니라 `404` 다 (I-8) — `getDraft` 와 같은 판단이다.
+ *
+ * **지목하는 것은 자리가 아니라 키다.** `slot` 파라미터가 없다: 커버든 초상이든 `objectKey`
+ * 하나로 부르고, 그 키 안에 원고 id 가 들어 있어 **소유 판정이 곧 경로 판정**이 된다.
+ * 인물 초상도 인덱스나 이름이 아니라 그 인물의 키로 지목한다.
+ *
+ * **키를 화면에 적지 않는다.** 이 함수가 키를 받는 것은 부르기 위해서이고, 그 값이 사용자에게
+ * 보이면 저장소 구조가 드러난다 (S-11).
+ *
+ * **`404` 는 정상일 수 있다.** 커버 없는 원고가 정상이고, 그때 원고의 키가 `null` 이라 이
+ * 함수는 애초에 불리지 않는다. 그런데도 `404` 가 오면 그것은 *올린 적이 있는데 지금 없다* 는
+ * 뜻이며, 부르는 쪽이 그것을 **업로드 실패로 그리지 않아야 한다** — 사용자가 하지 않은 일이
+ * 화면에 남는다.
+ */
+export function readDraftImage(
+  draftId: string,
+  objectKey: string,
+  signal?: AbortSignal,
+): Promise<Blob> {
+  const search = new URLSearchParams({ objectKey })
+  return requestBytes(`${images(draftId)}?${search.toString()}`, { signal })
 }
 
 /**
@@ -175,8 +203,9 @@ export interface UploadProgress {
  * 말하지 않기 때문이다. 확정을 통과한 키만 확인된 키다.
  *
  * **응답에 이미지 URL 이 없다** (I-8) — 버킷이 비공개라 영구 공개 URL 이 존재하지 않는다.
- * 그래서 이 함수도, 이것을 부르는 어떤 화면도 URL 을 조립하지 않는다. 열람 경로는 소유자 ·
- * 검수자에 한해 백엔드가 뒤에 연다.
+ * 그래서 이 함수도, 이것을 부르는 어떤 화면도 URL 을 조립하지 않는다. **열람은 뒤에 열렸고
+ * 그것도 URL 이 아니다** — 소유자는 `readDraftImage`, 검수자는 `readReviewImage` 로 **바이트**를
+ * 받는다 (§13-78).
  *
  * **`Idempotency-Key` 를 붙이지 않는다.** 계약이 그 헤더를 선언한 오퍼레이션은 턴 생성
  * 하나이고(R6.2), 여기에는 중복 과금이 없다 — 두 번 올리면 키가 둘 생기고 원고에 적히는
