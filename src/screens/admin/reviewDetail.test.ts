@@ -1,12 +1,21 @@
 import { describe, expect, it } from 'vitest'
 
-import type { ManuscriptEnding, ReasonCount, ReviewHistoryEntry } from '../../api/endpoints/admin'
+import type {
+  ManuscriptEnding,
+  ManuscriptGenre,
+  ReasonCount,
+  ReviewHistoryEntry,
+} from '../../api/endpoints/admin'
+import { genreSectionKey } from '../library/sections'
 import { REPORT_REASONS } from '../report/report'
 import {
   AUTO_CHECK_VERDICT_LABEL,
   authorLabel,
+  coverFact,
   DEFAULT_DETAIL_PANEL,
   endingBadges,
+  GENRE_ABSENCE_HINT,
+  genreChips,
   hasNote,
   HISTORY_REASON_LABEL,
   HISTORY_STAGE_LABEL,
@@ -238,5 +247,75 @@ describe('§13-68_미리보기가_없으면_없다고_적는다', () => {
 
   it('있을_때는_시각을_말하고_판단은_검수자에게_남긴다 — 오래된 미리보기는 지금 원고와 다르다', () => {
     expect(PREVIEW_STALENESS_HINT).toContain('마지막으로 확인한 상태')
+  })
+})
+
+
+/**
+ * 장르와 커버 (#134, backend #368 · 정정본 §13-77).
+ *
+ * **화면을 그리지 않고 판정만 확인한다** — 러너에 DOM 이 없다. 여기서 못박는 것은 *무엇을
+ * 그리는가*가 아니라 *무엇을 지어내지 않는가*이며, 그 둘이 어긋나는 자리가 곧 표류다.
+ */
+function genre(overrides: Partial<ManuscriptGenre> = {}): ManuscriptGenre {
+  return { key: 'dummy-one', label: '더미 장르 하나', ...overrides }
+}
+
+describe('genreChips — 라벨도 순서도 서버의 것이다 (§13-77)', () => {
+  it('라벨을_그대로_쓴다 — 화면이 키를 우리말로 옮기지 않는다', () => {
+    // 계약이 `label` 을 함께 주는 이유가 이것이다. 화면에 표를 두면 표시 문구의 정본이
+    // 하나 더 생기고, 라이브러리가 여는 섹션 이름과 검수자가 본 이름이 갈라진다.
+    expect(genreChips([genre({ label: '더미 라벨' })])[0]?.label).toBe('더미 라벨')
+  })
+
+  it('모르는_키가_와도_지어내지_않는다 — 서버가 준 라벨이 그대로 나온다', () => {
+    // 표가 없으므로 "매핑에 없는 키" 라는 갈래 자체가 코드에 없다.
+    const chips = genreChips([genre({ key: 'dummy-unknown', label: '더미 새 장르' })])
+    expect(chips[0]).toEqual({
+      key: 'dummy-unknown',
+      label: '더미 새 장르',
+      sectionKey: 'genre:dummy-unknown',
+    })
+  })
+
+  it('정렬하지_않는다 — `display_order` 가 순서이고 화면이 다시 줄을 세우지 않는다', () => {
+    const chips = genreChips([
+      genre({ key: 'dummy-b', label: '나 더미' }),
+      genre({ key: 'dummy-a', label: '가 더미' }),
+    ])
+    expect(chips.map((chip) => chip.key)).toEqual(['dummy-b', 'dummy-a'])
+  })
+
+  it('섹션_키는_라이브러리와_같은_형식이다 — 검수자가 값으로 대조한다', () => {
+    // `genreSectionKey` 하나가 그 형식의 정본이다. 두 곳에 적으면 대조하려던 값이 갈라진다.
+    expect(genreChips([genre({ key: 'dummy-two' })])[0]?.sectionKey).toBe(
+      genreSectionKey('dummy-two'),
+    )
+  })
+
+  it('비어_있으면_빈_상자를_두지_않는다 — 계약이 적은 것까지만 말한다', () => {
+    expect(genreChips([])).toEqual([])
+    expect(GENRE_ABSENCE_HINT.length).toBeGreaterThan(0)
+  })
+})
+
+describe('S11_커버는_객체_키를_화면으로_흘리지_않는다', () => {
+  it('키를_받아도_문장에_담지_않는다 — 객체 키는 저장소 구조를 드러낸다 (S-11)', () => {
+    // 값은 무해한 더미다 (S-11 — 이 레포는 공개다). 확인하는 것은 이 함수가 **무엇을 받든**
+    // 그것을 돌려주지 않는다는 사실이다.
+    const fact = coverFact('dummy-key-segment/dummy-object')
+    expect(JSON.stringify(fact)).not.toContain('dummy-key-segment')
+    expect(JSON.stringify(fact)).not.toContain('dummy-object')
+  })
+
+  it('커버가_있으면_판정의_이해관계를_함께_적는다 — 승인이 이 커버를 옮긴다 (§13-74)', () => {
+    const fact = coverFact('dummy-key-segment/dummy-object')
+    expect(fact.note).not.toBeNull()
+  })
+
+  it('커버가_없는_원고가_정상이다 — 결함처럼 적지 않는다 (§13-78)', () => {
+    // 커버를 올리지 않은 원고는 정상이며 `null` 이다. 덧붙이는 문장을 두지 않는다.
+    expect(coverFact(null).note).toBeNull()
+    expect(coverFact(null).status.length).toBeGreaterThan(0)
   })
 })

@@ -1,10 +1,12 @@
 import type {
   AutoCheckSummary,
   ManuscriptEnding,
+  ManuscriptGenre,
   ReasonCount,
   ReportItem,
   ReviewHistoryEntry,
 } from '../../api/endpoints/admin'
+import { genreSectionKey } from '../library/sections'
 import { REPORT_REASONS } from '../report/report'
 import { REJECT_REASON_LABEL, type QueueStatus } from './reviewQueue'
 
@@ -101,6 +103,87 @@ export const AUTO_CHECK_VERDICT_LABEL: Record<AutoCheckSummary['verdict'], strin
   pass: '자동 검수 통과',
   reject: '자동 검수 반려',
   hold: '사람이 봐야 함',
+}
+
+// ── 장르와 커버 (#134, backend #368 · 정정본 §13-77) ────────────────────
+
+/**
+ * 장르 칩 하나 — 검수자가 읽는 라벨과, 그것이 가리키는 섹션 키.
+ *
+ * 둘 다 그리는 이유를 계약이 적어 두었다 (§13-77). **라벨은 사람이 읽기 위해** 필요하고,
+ * **키는 검수자가 본 장르와 승인이 게시하는 섹션이 같은 것임을 값으로 확인하기 위해** 필요하다 —
+ * 라벨은 배포 없이 바뀔 수 있으므로 그 확인을 지탱하지 못한다.
+ */
+export interface GenreChip {
+  /** 계약의 `key`. 줄을 가리키는 키로도 쓴다 */
+  key: string
+  /** 계약의 `label` 그대로. 화면이 손대지 않는다 */
+  label: string
+  /** 라이브러리가 같은 장르를 가리킬 때 쓰는 `genre:<key>` */
+  sectionKey: string
+}
+
+/**
+ * 그릴 장르 목록. **순서도 라벨도 서버의 것이다.**
+ *
+ * 1. **정렬하지 않는다.** 작성 메타데이터가 `display_order` 로 주는 순서가 라이브러리의
+ *    순서이고 (§13-56), 여기서 다시 줄을 세우면 검수자가 본 순서가 그 어느 것도 아니게 된다.
+ * 2. **라벨 표를 두지 않는다.** 계약이 `label` 을 함께 주는 이유가 이것이다 (§13-77) —
+ *    화면이 `key` 를 우리말로 옮기기 시작하면 **표시 문구의 정본이 하나 더 생기고**, 그때
+ *    라이브러리가 여는 섹션 이름과 검수자가 본 이름이 갈라진다. 모르는 키가 와도 같다 —
+ *    서버가 그것의 라벨을 함께 주므로 화면이 지어낼 자리 자체가 없다.
+ * 3. **섹션 키의 형식을 여기서 적지 않는다.** `genreSectionKey` 가 그 정본이며, 두 곳에 적으면
+ *    검수자가 대조하려던 바로 그 값이 화면마다 달라진다.
+ */
+export function genreChips(genres: readonly ManuscriptGenre[]): GenreChip[] {
+  return genres.map((genre) => ({
+    key: genre.key,
+    label: genre.label,
+    sectionKey: genreSectionKey(genre.key),
+  }))
+}
+
+/**
+ * 장르가 비었을 때 적는 문장. **빈 상자를 두지 않는다** — `previewAbsenceHint` 와 같은 이유다.
+ *
+ * 계약이 적은 것까지만 말한다: *"작성자가 고르지 않았으면 빈 배열이다."* 그것이 승인 뒤에
+ * 무엇을 뜻하는지를 화면이 덧붙이지 않는다 — 덧붙이는 순간 서버가 하지 않은 말이 된다.
+ */
+export const GENRE_ABSENCE_HINT = '작성자가 고른 장르가 없어요.'
+
+/**
+ * 커버 자리에 그리는 것 — **사실 둘이고 그 이상은 없다.**
+ */
+export interface CoverFact {
+  /** 커버가 있는가 없는가 */
+  status: string
+  /** 있을 때만 덧붙는 사실. 없으면 `null` */
+  note: string | null
+}
+
+/**
+ * 커버를 어떻게 적는가.
+ *
+ * **값을 받고 값을 돌려주지 않는다.** 이 함수는 `coverImageKey` 를 읽지만 그것을 담은
+ * 문자열을 만들지 않는다 — 객체 키는 저장소 구조를 드러내므로 화면에도 로그에도 남지
+ * 않아야 한다 (S-11). 분기를 여기서 끝내면 키가 컴포넌트까지 흘러갈 이유 자체가 없어진다.
+ *
+ * **이 문구는 화면이 짓는다.** 서버가 주는 오류가 아니므로 `F-4` 의 대상이 아니다 —
+ * `B-1`(404)이 *"서버를 부르기 전에 일어나므로 문구를 서버에서 받지 않는다"* 로 세운 것과
+ * 같은 구분이다. 여기서 적는 것은 **서버가 말한 값의 사실**(키가 `null` 인가)과
+ * **이 화면이 지금 무엇을 그리고 있는가**로, 둘 다 프론트가 아는 사실이다.
+ *
+ * 있을 때 판정의 이해관계를 함께 적는다. 승인은 이 버전의 커버를 작품 행으로 옮기므로
+ * (§13-74, §13-77), 그 사실을 적지 않으면 검수자는 자기가 무엇을 내보내는지 모른 채 누른다.
+ * 없을 때는 덧붙이지 않는다 — **커버를 올리지 않은 원고가 정상이라** 결함처럼 적을 자리가 아니다.
+ */
+export function coverFact(coverImageKey: string | null): CoverFact {
+  return coverImageKey === null
+    ? { status: '올린 커버가 없어요.', note: null }
+    : {
+        status: '커버를 올렸어요.',
+        note: '이 화면은 커버 이미지를 아직 그리지 않아요 — 승인하면 이 커버가 라이브러리에 걸려요.',
+      }
 }
 
 // ── 미리보기 (#100, backend #332 · 정정본 §13-68) ───────────────────────

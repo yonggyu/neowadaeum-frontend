@@ -24,9 +24,12 @@ import { AdminTabBar } from './AdminTabBar'
 import {
   AUTO_CHECK_VERDICT_LABEL,
   authorLabel,
+  coverFact,
   DEFAULT_DETAIL_PANEL,
   DETAIL_PANEL_LABEL,
   endingBadges,
+  GENRE_ABSENCE_HINT,
+  genreChips,
   hasNote,
   HISTORY_REASON_LABEL,
   HISTORY_STAGE_LABEL,
@@ -545,6 +548,9 @@ function ManuscriptPanel({ storyId }: { storyId: string }) {
 
 function Manuscript({ manuscript }: { manuscript: ReviewManuscript }) {
   const now = Date.now()
+  // 순서를 여기서 정하지 않는다 — 서버가 `display_order` 로 준 순서가 라이브러리의 순서다
+  const genres = genreChips(manuscript.genres)
+  const cover = coverFact(manuscript.coverImageKey)
 
   return (
     <div className={styles.panel}>
@@ -591,6 +597,45 @@ function Manuscript({ manuscript }: { manuscript: ReviewManuscript }) {
             )}
           </>
         )}
+      </section>
+
+      {/*
+       * 장르와 커버 — **장식이 아니라 판정 근거다** (#134, backend #368 · §13-77).
+       *
+       * 승인이 이 버전의 장르와 커버를 작품 행으로 옮기므로 (§13-74), 여기 없으면 판정한
+       * 사람이 보지 않은 값이 라이브러리에 걸린다. 그래서 자동 검수 바로 다음, 원고 본문
+       * 앞에 둔다 — 검수자가 무엇을 내보내는지 먼저 알고 원고를 읽게 하는 자리다.
+       */}
+      <section className={styles.block} aria-label="장르">
+        <p className={styles.blockHead}>장르</p>
+        {genres.length === 0 ? (
+          <p className={styles.hint}>{GENRE_ABSENCE_HINT}</p>
+        ) : (
+          <ul className={styles.chips}>
+            {genres.map((genre) => (
+              <li key={genre.key} className={styles.chip}>
+                {/*
+                 * 라벨은 서버의 것 그대로다 (§13-77). 섹션 키를 함께 적는 이유는 검수자가
+                 * *자기가 본 장르*와 *승인이 게시하는 섹션*이 같은 것임을 **값으로** 확인할
+                 * 수 있어야 하기 때문이다 — 라벨은 배포 없이 바뀐다.
+                 */}
+                {genre.label} · {genre.sectionKey}
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      {/*
+       * 커버는 **사실만 적는다.** 계약이 나르는 것은 객체 키까지이고 버킷은 비공개다 —
+       * 그 값을 `<img src>` 에 넣으면 아무것도 뜨지 않고, 키 자체를 적으면 저장소 구조가
+       * 화면에 드러난다 (S-11). 그래서 `coverFact` 가 키를 받아 **문장만** 돌려주고,
+       * 이 컴포넌트에는 키가 닿지 않는다.
+       */}
+      <section className={styles.block} aria-label="커버">
+        <p className={styles.blockHead}>커버</p>
+        <p className={styles.hint}>{cover.status}</p>
+        {cover.note === null ? null : <p className={styles.hint}>{cover.note}</p>}
       </section>
 
       {/* `null` 은 작성자가 적지 않았다는 뜻이다 — 화면이 문장을 지어 채우지 않는다 */}
