@@ -4,6 +4,39 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>너와다음</title>
+
+    <!--
+      브랜드 자산 (#137, design-gaps E-3).
+
+      아래 문구는 **`F-4` 의 대상이 아니다.** F-4 가 금지하는 것은 *서버가 준 오류*를 프론트가
+      제 문장으로 바꿔 쓰는 일이고, 여기 있는 것은 오류 문구가 아니라 **소유자가 확정한 서비스
+      소개**다. 그 구분을 적어 두지 않으면 다음 사람이 이 자리를 F-4 위반으로 읽는다.
+
+      로고를 새로 그리지 않는다. favicon 은 헤더의 텍스트 마크(`src/shell/AppShell.tsx` 의
+      `.brand`)와 **같은 것을 말한다** — 근거는 `public/favicon.svg` 안에 적었다.
+    -->
+    <meta
+      name="description"
+      content="선택으로 이야기를 이끄는 AI 인터랙티브 스토리. 당신이 고른 다음이 이야기가 됩니다."
+    />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+
+    <!--
+      OG — **절대 주소가 필요 없는 것만 여기 둔다.**
+
+      `og:url` · `og:image` 는 규격이 절대 주소를 요구하는데 운영 도메인은 이 레포에 적지
+      않는다 (S-11). 그 둘만 빌드 시점에 `VITE_PUBLIC_ORIGIN` 으로 주입하고, 값이 없으면
+      **태그 자체를 내지 않는다** — 근거는 `vite.config.ts` 에 적었다. 아래 셋은 그 값과
+      무관하므로 언제나 나간다: 오리진을 모르는 빌드에서도 제목과 소개는 뜬다.
+    -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="너와다음" />
+    <meta property="og:locale" content="ko_KR" />
+    <meta property="og:title" content="너와다음" />
+    <meta
+      property="og:description"
+      content="선택으로 이야기를 이끄는 AI 인터랙티브 스토리. 당신이 고른 다음이 이야기가 됩니다."
+    />
   </head>
   <body>
     <div id="root"></div>
