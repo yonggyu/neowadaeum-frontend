@@ -22,6 +22,21 @@
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
 
     <!--
+      글자체 둘 (#136). 이름과 폴백 스택은 `src/styles/tokens.css` 가 갖고, **받아 오는 것은
+      여기서만 한다** — `@import` 로 두면 렌더 차단이 한 단계 늘어난다. `display=swap` · 굵기를
+      이만큼만 고른 근거 · 구글이 응답하지 않을 때 무엇이 화면을 세우는지는 그 파일에 적었다.
+
+      **주석은 빌드 산출물에 그대로 실린다** (CSS 주석과 달리 지워지지 않는다). 그래서 근거는
+      `tokens.css` 에 두고 여기에는 어디를 보라는 것만 남긴다.
+    -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600;700&amp;family=Noto+Serif+KR:wght@400;600;700&amp;display=swap"
+    />
+
+    <!--
       OG — **절대 주소가 필요 없는 것만 여기 둔다.**
 
       `og:url` · `og:image` 는 규격이 절대 주소를 요구하는데 운영 도메인은 이 레포에 적지
