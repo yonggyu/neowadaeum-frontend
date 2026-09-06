@@ -58,7 +58,7 @@
 .code {
   margin: 0;
   color: var(--fg-muted);
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-family: var(--font-mono);
   font-size: var(--fs-base);
   letter-spacing: 0.08em;
 }
