@@ -28,7 +28,7 @@ function authoringCss(): [string, string][] {
 }
 
 /** 소유자가 확정한 아홉. 이름을 여기 적는 것은 **열째가 생기는 것도 잡기 위해서**다 */
-const SCALE = ['xs', 'sm', 'base', 'md', 'lg', 'read', 'xl', '2xl', '3xl']
+const SCALE = ['xs', 'sm', 'base', 'md', 'lg', '2lg', 'xl', '2xl', '3xl']
 
 describe('#136 — 작품 만들기의 크기는 전부 스케일 아홉이다', () => {
   it('136_authoring_에_font_size_리터럴이_남지_않았다', () => {
