@@ -10,6 +10,7 @@ import {
   formatImageType,
   sizeNote,
   slotBody,
+  slotImageUrl,
   statusNote,
 } from './imageSlotView'
 import {
@@ -119,6 +120,57 @@ describe('자리 안에 무엇이 오는가', () => {
 
   it('방금_올린_자리는_그림만_그린다', () => {
     expect(slotBody(uploaded(COMMITTED), true)).toEqual({ image: true, note: false })
+  })
+})
+
+/**
+ * 되받은 그림을 어느 자리에 그리는가 (§13-78).
+ *
+ * 여기서 지키는 것은 **남의 초상을 이 사람의 것으로 그리지 않는다** 하나다. 인물의 순서가
+ * 바뀌거나 하나가 지워지면 같은 자리에 다른 키가 오고, 그 판정을 컴포넌트의 정리 순서에
+ * 맡기면 한 프레임이 새어 나간다.
+ */
+describe('그릴 그림 하나 (slotImageUrl)', () => {
+  const KEY = 'drafts/abc/portrait/1.png'
+  const OTHER = 'drafts/abc/portrait/2.png'
+
+  it('S13_78_되받은_그림은_그_키의_자리에서만_그린다', () => {
+    const restored = { key: KEY, url: 'blob:restored' }
+
+    expect(slotImageUrl(null, restored, KEY)).toBe('blob:restored')
+    expect(slotImageUrl(null, restored, OTHER)).toBeNull()
+  })
+
+  it('방금_고른_것이_이긴다 — 교체하는 중에 보고 싶은 것은 새 파일이다', () => {
+    const restored = { key: KEY, url: 'blob:restored' }
+
+    expect(slotImageUrl('blob:picked', restored, KEY)).toBe('blob:picked')
+    // 자리가 바뀌어 되받은 것이 남의 것이 됐어도, 고른 파일은 이 사람의 것이다.
+    expect(slotImageUrl('blob:picked', restored, OTHER)).toBe('blob:picked')
+  })
+
+  it('확정된_키가_없으면_되받은_것도_그리지_않는다 — 제거한 자리에 그림이 남지 않는다', () => {
+    expect(slotImageUrl(null, { key: KEY, url: 'blob:restored' }, null)).toBeNull()
+  })
+
+  it('둘_다_없으면_없다 — 그때 자리에 남는 것은 한 줄이다', () => {
+    expect(slotImageUrl(null, null, KEY)).toBeNull()
+  })
+
+  it('I8_키를_src_로_내보내지_않는다 — 돌려주는 것은 우리가 만든 blob 뿐이다', () => {
+    // 키로 열리는 주소는 존재하지 않는다. 이 함수가 키를 받는 것은 대조하기 위해서이고,
+    // 어떤 조합에서도 키 자체가 돌아 나오지 않는다.
+    const cases = [
+      slotImageUrl(null, { key: KEY, url: 'blob:restored' }, KEY),
+      slotImageUrl('blob:picked', { key: KEY, url: 'blob:restored' }, KEY),
+      slotImageUrl(null, { key: KEY, url: 'blob:restored' }, OTHER),
+      slotImageUrl(null, null, KEY),
+    ]
+
+    for (const value of cases) {
+      expect(value).not.toBe(KEY)
+      expect(value).not.toBe(OTHER)
+    }
   })
 })
 
