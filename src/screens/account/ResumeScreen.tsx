@@ -20,15 +20,20 @@ import {
  * 돌아온 사람에게 마지막 장면 없이 선택지부터 들이밀면 무엇을 고르는지 알 수 없다.
  *
  * `sessionState` 다섯의 판정은 서버가 한다 (§13-26). 화면은 받은 값 하나를 그린다.
+ *
+ * **실패에 다시 부를 길을 준다** (#142). `#122` 가 닿지 못한 실패에서 나가는 문을 걷어 낸 뒤
+ * 이 화면에는 문구 하나만 남았고, 사용자가 할 수 있는 것은 브라우저 새로 고침뿐이었다 —
+ * 화면은 그 방법을 말하지도 않는다. 다시 부르는 것은 **같은 조회 하나**이므로 여는 데 걸리는
+ * 것이 없다.
  */
 export function ResumeScreen() {
   const { sessionId } = useParams<{ sessionId: string }>()
-  const state = useSessionResume(sessionId ?? '')
+  const { state, reload } = useSessionResume(sessionId ?? '')
 
   return (
     <main className={`${shared.page} ${shared.reading}`} data-screen="ResumeScreen">
       {state.status === 'loading' ? <p className={shared.status}>불러오는 중…</p> : null}
-      {state.status === 'error' ? <ErrorNotice error={state.error} /> : null}
+      {state.status === 'error' ? <ErrorNotice error={state.error} onRetry={reload} /> : null}
       {state.status === 'ready' ? <Summary resume={state.resume} /> : null}
     </main>
   )
