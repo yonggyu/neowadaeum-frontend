@@ -26,8 +26,10 @@
  * 경로는 **이 파일의 위치**에서 푼다. cwd 에서 풀면 실행 위치에 따라 다른 곳을 보게 되고,
  * 그것이 `#40` 이 걷어 낸 바로 그 종류의 자리다.
  */
-import { existsSync, realpathSync } from 'node:fs'
-import { fileURLToPath, pathToFileURL } from 'node:url'
+import { existsSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
+
+import { isEntryPoint } from './entry-point.mjs'
 
 const ROOT = new URL('../', import.meta.url)
 
@@ -64,24 +66,12 @@ function main() {
   }
 }
 
-/**
- * 진입점으로 실행됐는가. 테스트는 이 파일을 import 해 `assertGeneratedTypesExist` 만 부른다.
- *
- * `process.argv[1]` 을 **realpath 로 편 뒤** 비교한다. Node 는 진입점을 실제 경로로 풀어
- * `import.meta.url` 을 만들므로, 경로에 심볼릭 링크가 하나라도 끼면(macOS 의 `/var` →
- * `/private/var` 가 그렇다) 두 문자열이 갈리고 **`main()` 이 조용히 안 돈다.**
- * 가드가 도는 척하며 아무것도 검사하지 않는 것이 이 이슈가 없애려는 실패다 (#113 · #143).
- */
-function runAsEntryPoint() {
-  const entry = process.argv[1]
-  if (entry === undefined) return false
-  try {
-    return import.meta.url === pathToFileURL(realpathSync(entry)).href
-  } catch {
-    return false
-  }
-}
-
-if (runAsEntryPoint()) {
+// 진입점으로 실행됐을 때만 검사한다. 테스트는 이 파일을 import 해
+// `assertGeneratedTypesExist` 만 부른다.
+//
+// 판정은 `entry-point.mjs` 가 든다 — 같은 열 줄이 `api-types.mjs` 에도 있었고 그쪽만 링크를
+// 펴지 않아 조용히 아무것도 하지 않았다 (#148). 가드가 도는 척하며 아무것도 검사하지 않는
+// 것이 `#113` · `#143` 이 없애려던 실패이며, 그 판정을 두 벌로 두는 한 다시 갈라진다.
+if (isEntryPoint(import.meta.url)) {
   main()
 }

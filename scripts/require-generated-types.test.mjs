@@ -8,7 +8,10 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import { GENERATED_TYPES, assertGeneratedTypesExist } from './require-generated-types.mjs'
 
-const SCRIPT = fileURLToPath(new URL('./require-generated-types.mjs', import.meta.url))
+const SCRIPTS = fileURLToPath(new URL('.', import.meta.url))
+
+/** 가드와 그것이 부르는 것. 진입점 판정은 `entry-point.mjs` 에 있다 (#148). */
+const COPIED = ['require-generated-types.mjs', 'entry-point.mjs']
 
 /**
  * 스크립트를 **레포 밖의 빈 트리**에 복사해 실행한다.
@@ -20,7 +23,7 @@ const SCRIPT = fileURLToPath(new URL('./require-generated-types.mjs', import.met
 function makeTreeWithoutGeneratedTypes() {
   const root = mkdtempSync(join(tmpdir(), 'nwd-143-'))
   mkdirSync(join(root, 'scripts'), { recursive: true })
-  copyFileSync(SCRIPT, join(root, 'scripts', 'require-generated-types.mjs'))
+  for (const name of COPIED) copyFileSync(join(SCRIPTS, name), join(root, 'scripts', name))
   return root
 }
 
