@@ -7,8 +7,8 @@
 
 .chapter {
   margin: var(--sp-8) 0 var(--sp-4);
-  color: var(--fg-subtle);
-  font-size: 0.8125rem;
+  color: var(--fg-muted);
+  font-size: var(--fs-sm);
   letter-spacing: 0.08em;
 }
 
@@ -18,8 +18,8 @@
 }
 
 .turnNo {
-  color: var(--fg-subtle);
-  font-size: 0.8125rem;
+  color: var(--fg-muted);
+  font-size: var(--fs-sm);
   font-variant-numeric: tabular-nums;
 }
 
@@ -31,7 +31,7 @@
 .speaker {
   display: block;
   color: var(--fg-muted);
-  font-size: 0.875rem;
+  font-size: var(--fs-base);
 }
 
 /* 지난 Choice 는 ✓ 로만 표시한다 — 버튼이 아니다 */
@@ -47,7 +47,7 @@
 
 .pending {
   margin-top: var(--sp-4);
-  color: var(--fg-subtle);
+  color: var(--fg-muted);
 }
 
 /*
