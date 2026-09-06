@@ -21,24 +21,28 @@
   gap: var(--sp-2);
   margin: var(--sp-6) 0 var(--sp-2);
   color: var(--fg-muted);
-  font-size: 0.8125rem;
+  font-size: var(--fs-sm);
 }
 
 /*
  * 이야기 제목 — 이 앱에서 가장 큰 글자이고(768 부터 `--fs-3xl`) 명조를 쓴다 (#136).
  * 크기가 폭에 따라 커지는 자리는 지금 여기 하나뿐이다.
+ *
+ * **기본 폭이 한 단계 작아졌다** (`1.75rem` → `--fs-2xl`). 그 값은 지우기로 한 다섯 중
+ * 하나이고, 위로 보내면 390 에서 이미 `--fs-3xl` 이 되어 768 부터 커진다는 규칙 자체가
+ * 사라진다 — "기본 폭에서 한 단계 아래" 가 이 자리의 형태다.
  */
 .title {
   margin: 0 0 var(--sp-2);
   font-family: var(--font-read);
-  font-size: 1.75rem;
+  font-size: var(--fs-2xl);
   line-height: 1.25;
 }
 
 .byline {
   margin: 0 0 var(--sp-4);
   color: var(--fg-muted);
-  font-size: 0.875rem;
+  font-size: var(--fs-base);
   /* 닉네임은 사용자 값이다 — 공백 없는 긴 이름이 390 에서 가로 스크롤을 만들지 않게 한다 */
   overflow-wrap: anywhere;
 }
@@ -54,7 +58,7 @@
   gap: var(--sp-6);
   margin: var(--sp-6) 0;
   color: var(--fg-muted);
-  font-size: 0.875rem;
+  font-size: var(--fs-base);
 }
 
 .detailSection {
@@ -135,7 +139,7 @@
 
 .stepName {
   margin: 0 0 var(--sp-2);
-  font-size: 1rem;
+  font-size: var(--fs-lg);
 }
 
 /* ── 768 Tablet — Detail 1열 유지, Character 2열 (1k) ────────── */
@@ -145,7 +149,7 @@
   }
 
   .title {
-    font-size: 2rem;
+    font-size: var(--fs-3xl);
   }
 
   .characterRow {

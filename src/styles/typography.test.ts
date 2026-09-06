@@ -171,6 +171,39 @@ describe('#136 — 명조가 걸리는 자리', () => {
   })
 })
 
+/**
+ * 이행이 끝난 화면 묶음. #136 은 흩어진 170회를 옮기는 일이라 화면 단위로 잘라서 하고,
+ * **끝난 묶음은 되돌아가지 않는다** — 새 규칙 하나가 `0.8125rem` 을 다시 적으면 그 화면만
+ * 스케일 밖으로 나가고, 그 어긋남은 두 화면을 나란히 놓아야 보인다. 묶음이 끝날 때마다
+ * 이 배열에 한 줄이 는다.
+ */
+const MIGRATED = ['screens/play/', 'screens/library/', 'screens/report/', 'screens/system/', 'shell/']
+
+describe('#136 — 이행이 끝난 영역은 크기를 직접 적지 않는다', () => {
+  it('136_이행한_영역에_font_size_리터럴이_없다', () => {
+    const literals: string[] = []
+    for (const [path, source] of cssFiles()) {
+      if (!MIGRATED.some((dir) => path.includes(`/${dir}`))) continue
+      for (const match of uncommented(source).matchAll(/font-size:\s*([^;]+);/g)) {
+        const value = (match[1] ?? '').trim()
+        if (!value.startsWith('var(--fs-')) literals.push(`${path}: ${value}`)
+      }
+    }
+    expect(literals).toStrictEqual([])
+  })
+
+  it('136_이행한_영역이_실제로_스케일을_쓴다', () => {
+    // 위 검사는 `font-size` 가 한 줄도 없어도 통과한다 — 규칙이 *지켜지는 쪽*이 아니라
+    // *사라지는 쪽*으로 무너질 수 있다는 뜻이다. 옮겨 온 자리의 수를 함께 센다.
+    let used = 0
+    for (const [path, source] of cssFiles()) {
+      if (!MIGRATED.some((dir) => path.includes(`/${dir}`))) continue
+      used += [...uncommented(source).matchAll(/font-size:\s*var\(--fs-/g)].length
+    }
+    expect(used).toBeGreaterThanOrEqual(58)
+  })
+})
+
 describe('#136 — 받아 오는 자리는 index.html 하나다', () => {
   it('136_CSS_가_폰트를_import_하지_않는다', () => {
     // `@import` 는 렌더 차단을 한 단계 늘린다 — 문서 → 우리 CSS → 구글 CSS → 폰트.

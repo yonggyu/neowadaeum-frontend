@@ -239,6 +239,62 @@ describe('#138 — 하드코딩한 뉴트럴이 다크에서 라이트로 남지
   })
 })
 
+/*
+ * ── #159 — `--fg-subtle` 은 장식에만 ──────────────────────────────────────────
+ *
+ * 소유자 결정(2026-09-06): **값을 올리지 않는다.** 라이트 `0.38` 을 4.5 를 넘는 값으로
+ * 올리면 그것이 곧 `--fg-muted` 이고, 세 단계가 둘이 되어 *읽지 않아도 된다* 를 색으로
+ * 말하는 자리가 사라진다. 대신 **읽어야 하는 글자를 `--fg-muted` 로 올리고**, 이 값은
+ * 그것이 감당할 수 있는 자리 — 구분선 · 테두리 · 장식 아이콘 · 비활성 — 로 좁힌다.
+ *
+ * 규칙을 문장으로만 남기면 다음 화면에서 되돌아온다. 그래서 여기서 센다.
+ */
+describe('#159 — --fg-subtle 은 읽지 않는 자리에만 남는다', () => {
+  /**
+   * 이행이 끝난 묶음(Play · Library · 신고 · system · shell)에 남은 **전부**다.
+   * 넷 다 읽지 않아도 화면이 성립한다 — 비활성 셋은 WCAG 가 대비를 요구하지 않는 자리이고
+   * (흐린 것이 곧 *지금 누를 수 없다*는 신호다), `.icon` 은 글자가 아니라 그림이다.
+   */
+  const DECORATIVE = [
+    'screens/play/play.module.css .action:disabled',
+    'screens/play/play.module.css .actionPrimary:disabled',
+    'screens/system/system.module.css .action:disabled',
+    'screens/system/system.module.css .icon',
+  ]
+
+  it('159_이행한_영역에는_장식만_남았다', () => {
+    // 목록이 **정확히 같아야** 한다. 늘어나면 읽는 글자가 되돌아온 것이고, 줄어들면
+    // 비활성 표시가 사라진 것이다 — 둘 다 이 결정이 막으려는 것이다.
+    expect(subtleTextUses(MIGRATED).sort()).toStrictEqual([...DECORATIVE].sort())
+  })
+
+  it('159_나머지_화면에서도_쓰는_자리가_늘지_않는다', () => {
+    // 아직 훑지 않은 화면들(작품 만들기 · 계정)은 같은 배치의 다른 PR 이 줄인다. 여기서
+    // 지키는 것은 **늘지 않는다**는 것 하나다 — 새 화면이 이 값을 글자에 집어 들면 그 화면이
+    // 머지되는 자리에서 깨지고, 남은 이행이 끝날 때마다 이 수는 내려간다.
+    expect(subtleTextUses().length).toBeLessThanOrEqual(37)
+  })
+})
+
+/** `--fg-subtle` 이 **글자 색**으로 쓰인 자리. 배경 · 테두리 · 그라디언트는 세지 않는다 */
+function subtleTextUses(dirs?: string[]): string[] {
+  const found: string[] = []
+  for (const [path, source] of cssFiles()) {
+    // `cssFiles()` 가 주는 것은 절대 경로다. 앞의 슬래시를 걷어 `src/` 아래 경로로 맞춘다
+    const relative = (path.split('/src/')[1] ?? path).replace(/^\/+/, '')
+    if (dirs !== undefined && !dirs.some((dir) => relative.startsWith(dir))) continue
+    // 가장 안쪽 `{ … }` 만 잡힌다 — `@media (...) {` 는 중괄호를 품고 있어 선택자가 되지 못한다
+    for (const rule of uncommented(source).matchAll(/([^{}]*)\{([^{}]*)\}/g)) {
+      // 앞에 `background-`(또는 `border-`)가 붙은 것은 글자가 아니다 — 구분자를 함께 본다
+      if (!/(?:^|[;{\s])color:\s*var\(--fg-subtle\)/.test(rule[2] ?? '')) continue
+      found.push(`${relative} ${(rule[1] ?? '').trim()}`)
+    }
+  }
+  return found
+}
+
+const MIGRATED = ['screens/play/', 'screens/library/', 'screens/report/', 'screens/system/', 'shell/']
+
 /** `rgb(r g b / N%)` 의 `N`. 두 판의 막이 얼마나 진한지만 비교하므로 백분율만 읽는다. */
 function alphaOf(value: string): number {
   const percent = /\/\s*([\d.]+)%/.exec(value)
