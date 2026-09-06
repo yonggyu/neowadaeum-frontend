@@ -130,6 +130,63 @@ describe('#136 — 글자체 둘', () => {
   })
 })
 
+describe('#170 — 셋째 글자체, 등폭', () => {
+  it('170_등폭_토큰이_폴백을_끝까지_갖는다', () => {
+    // 받아 오는 웹폰트가 아니라 **시스템 스택**이라 폴백이 곧 값 전체다. `monospace` 로
+    // 끝나지 않으면 앞의 이름이 하나도 없는 판에서 등폭이 아닌 글자로 그려지고, 그때
+    // 식별자의 자릿수가 어긋난다 — 이 토큰이 사려던 것이 정확히 그것이다.
+    const mono = families('--font-mono')
+    expect(mono.length).toBeGreaterThan(1)
+    expect(mono.at(-1)).toBe('monospace')
+  })
+
+  it('170_등폭_스택을_손으로_적지_않는다', () => {
+    // 여덟 자리가 같은 스택을 각자 적고 있었다. 글자 하나까지 같았지만 그것은 우연이고,
+    // 한 자리에 폰트를 더하는 날 나머지 일곱은 따라오지 않는다. 값의 자리는 `tokens.css`
+    // 하나다 — `136_글자체_이름을_화면이_직접_적지_않는다` 가 웹폰트 둘에 건 규칙과 같다.
+    const literals: string[] = []
+    for (const [path, source] of cssFiles()) {
+      if (path.endsWith('tokens.css')) continue
+      for (const match of uncommented(source).matchAll(/font-family:\s*([^;]+);/g)) {
+        const value = (match[1] ?? '').trim()
+        if (!value.startsWith('var(--font-')) literals.push(`${path}: ${value}`)
+      }
+    }
+    expect(literals).toStrictEqual([])
+  })
+
+  it('170_실제로_등폭_토큰을_쓴다', () => {
+    // 위 검사는 `font-family` 가 한 줄도 없어도 통과한다 — 규칙이 *지켜지는 쪽*이 아니라
+    // *사라지는 쪽*으로 무너질 수 있다. 옮겨 온 여덟 자리를 함께 센다.
+    let used = 0
+    for (const [, source] of cssFiles()) {
+      used += [...uncommented(source).matchAll(/font-family:\s*var\(--font-mono\)/g)].length
+    }
+    expect(used).toBeGreaterThanOrEqual(8)
+  })
+
+  it('170_등폭과_tabular_nums_를_한_자리에_섞지_않는다', () => {
+    // 둘은 다른 문제를 푼다. 등폭은 식별자와 JSON 을 **옮겨 적게** 하고, `tabular-nums` 는
+    // 읽는 문장 안의 숫자가 흔들리지 않게 한다 — 후자를 등폭으로 바꾸면 문장이 깨진다.
+    // 지금 두 무리는 파일 단위로도 겹치지 않는다.
+    const both: string[] = []
+    for (const [path, source] of cssFiles()) {
+      for (const [selector, declared] of bySelector(source)) {
+        if (!declared.includes('var(--font-mono)')) continue
+        if (declared.includes('tabular-nums')) both.push(`${path} ${selector}`)
+      }
+    }
+    expect(both).toStrictEqual([])
+  })
+
+  it('170_등폭은_받아_오지_않는다', () => {
+    // 소유자가 정한 것이다 — 셋째 글자체를 네트워크로 더 받지 않는다. 등폭이 서는 자리에서
+    // 필요한 것은 인상이 아니라 자릿수 정렬이고, 그것은 시스템 스택이 이미 한다.
+    // 받아 오는 패밀리는 `#137` 의 둘 그대로다.
+    expect([...fontHref().matchAll(/family=/g)]).toHaveLength(2)
+  })
+})
+
 describe('#136 — 명조가 걸리는 자리', () => {
   it('136_Story_본문이_명조와_읽는_크기_행간을_쓴다', () => {
     // `--fs-read` 는 이 앱에서 *읽으라고 내놓은 유일한 크기*이고, 그 이름이 가리키는 자리가
@@ -263,7 +320,7 @@ function remOf(value: string): number {
 }
 
 /** 글자체 스택을 쉼표로 가른다. 따옴표는 그대로 둔다 — 폴백 이름을 그대로 비교한다 */
-function families(name: '--font-ui' | '--font-read'): string[] {
+function families(name: '--font-ui' | '--font-read' | '--font-mono'): string[] {
   const value = ROOT.get(name)
   if (value === undefined) throw new Error(`${name} 이 없다`)
   return value.split(',').map((part) => part.trim())

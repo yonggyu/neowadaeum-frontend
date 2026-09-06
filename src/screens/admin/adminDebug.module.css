@@ -18,7 +18,7 @@
   min-height: 100dvh;
   padding: var(--sp-6);
   background: var(--bg-sunken);
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-family: var(--font-mono);
 }
 
 @media (max-width: 767px) {

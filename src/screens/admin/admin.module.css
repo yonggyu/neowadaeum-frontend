@@ -34,7 +34,7 @@
 .title {
   margin: 0 0 var(--sp-6);
   color: var(--fg-muted);
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-family: var(--font-mono);
   font-size: var(--fs-base);
   font-weight: 600;
   letter-spacing: 0.08em;
@@ -73,7 +73,7 @@
   border-radius: var(--r-md);
   background: var(--bg);
   color: var(--fg);
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-family: var(--font-mono);
   font-size: var(--fs-xl);
   letter-spacing: 0.35em;
   text-align: center;
@@ -175,7 +175,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: 0 var(--sp-3);
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-family: var(--font-mono);
   font-size: var(--fs-lg);
   letter-spacing: 0.12em;
 }

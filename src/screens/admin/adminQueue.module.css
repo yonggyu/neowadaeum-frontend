@@ -148,7 +148,7 @@
   padding: var(--sp-3) var(--sp-4);
   border-bottom: 1px solid var(--border);
   color: var(--fg-muted);
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-family: var(--font-mono);
   font-size: var(--fs-xs);
   letter-spacing: 0.06em;
 }
@@ -229,7 +229,7 @@
  */
 .storyId {
   color: var(--fg-muted);
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-family: var(--font-mono);
   font-size: var(--fs-xs);
   overflow-wrap: anywhere;
 }
@@ -371,7 +371,7 @@
   max-width: 100%;
   overflow-x: auto;
   color: var(--fg-muted);
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-family: var(--font-mono);
   font-size: var(--fs-sm);
   line-height: 1.6;
   white-space: pre-wrap;
