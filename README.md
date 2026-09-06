@@ -52,6 +52,14 @@ OPENAPI_SOURCE=/절대경로/neowadaeum-backend/docs/openapi.yaml npm run api:ty
 ref 를 고정하지 않으므로 **계약이 바뀌면 여기서 빨간불이 난다.** 오래된 계약 위에서 조용히
 초록인 것보다 어긋난 순간 멈추는 편이 싸다.
 
+**생성물이 없으면 `npm run typecheck` · `npm run build` 가 그 사실 하나만 말하고 멈춘다** (#143).
+`src/api/schema.d.ts` 는 커밋하지 않으므로 **새로 체크아웃한 워크트리에는 없다.** 그대로
+`tsc` 를 돌리면 화면 파일마다 `implicitly has an 'any' type` 이 쏟아져 **증상이 원인을 가린다** —
+읽는 사람은 자기 코드가 깨진 줄 안다. 두 명령의 앞에 `scripts/require-generated-types.mjs` 가
+있어 없는 것과 할 일을 함께 말하고 0 이 아닌 코드로 끝난다. **여기서 대신 만들어 주지 않는다** —
+`OPENAPI_SOURCE` 가 없으면 같은 실패가 한 단계 뒤에서 다시 나기 때문이다 (#40).
+`npm test` 에는 붙이지 않는다 — 러너는 타입을 지우고 돌므로 생성물 없이도 전체 셋이 통과한다.
+
 **계약과 화면이 어긋나면 계약이 이긴다.** 계약이 틀렸다고 판단되면 프론트에서 우회하지 말고
 백엔드 레포에 이슈를 연다 — 우회는 두 곳에 서로 다른 진실을 만든다.
 
@@ -65,6 +73,9 @@ npm run lint        # ESLint
 npm test            # Vitest
 npm run api:types   # 계약 → 타입
 ```
+
+`typecheck` · `build` 는 생성물(`src/api/schema.d.ts`)이 있어야 돈다. 없으면 시작하기 전에
+멈추고 무엇을 하면 되는지 말한다 (#143).
 
 ## 브랜치
 

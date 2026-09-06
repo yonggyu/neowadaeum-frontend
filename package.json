@@ -11,6 +11,9 @@
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "typecheck": "tsc -b --noEmit",
+    "guard:generated-types": "node scripts/require-generated-types.mjs",
+    "pretypecheck": "npm run guard:generated-types",
+    "prebuild": "npm run guard:generated-types",
     "lint": "eslint .",
     "test": "vitest run",
     "api:types": "node scripts/api-types.mjs"
