@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import type { ApiError } from '../../api/client'
 import type { Choice } from '../../api/endpoints/play'
 import { retryAfterSeconds } from '../../api/errors'
+import { isUnreachable } from '../system/systemNotice'
 import { LONG_WAIT_MS, loadingMessage } from './generating'
 import { recoveryActions, type RecoveryAction } from './recovery'
 import s from './play.module.css'
@@ -54,9 +55,16 @@ interface ProblemProps {
  *
  * 셋을 다른 컴포넌트로 나누지 않는다. 나누는 순간 같은 화면 셋이 조금씩 어긋나기 시작하고,
  * 실제로 다른 것은 서버가 준 `message` 와 `recoveryActions` 가 고른 버튼뿐이다.
+ *
+ * **서버에 닿지 못한 실패는 여기서 갈라지지 않는다** (#141). `#122` 의 `ErrorNotice` 는 그
+ * 갈래를 `UnreachableNotice` 로 통째로 보냈지만 이 자리는 그럴 이유가 없다 — 그 판이 그리는 것
+ * (문구 하나와 [다시 시도])이 여기에 이미 있고, 여기에는 그 판에 없는 것(저장된 턴 번호 ·
+ * 재시도 잠금)이 더 있다. **다른 것은 버튼 하나뿐이므로 판정만 넘긴다.**
  */
 export function PlayProblem({ error, savedTurnNo, handlers }: ProblemProps) {
-  const actions = recoveryActions(error.errorCode, error.details)
+  // 판정은 `systemNotice.ts` 한 곳에서 온다 (#122). 여기서 `error.status` 를 읽지 않는다 —
+  // 같은 사실을 두 곳에서 판단하기 시작하면 한쪽만 고쳐지는 날이 온다.
+  const actions = recoveryActions(error.errorCode, error.details, isUnreachable(error))
   const lockedFor = useCountdown(retryAfterSeconds(error.details))
 
   return (

@@ -34,7 +34,12 @@ interface PlayState {
 export interface PlaySession extends PlayState {
   /** 선택지를 제출한다. **`choiceId` 만 보낸다** (F-1). */
   select: (choiceId: string) => void
-  /** 같은 선택을 **같은 `Idempotency-Key` 로** 다시 보낸다 (F-7). */
+  /**
+   * **방금 실패한 그 호출**을 다시 부른다.
+   *
+   * 제출이 실패했으면 같은 선택을 **같은 `Idempotency-Key` 로** 다시 보내고 (F-7), 복원이
+   * 실패했으면 복원을 다시 부른다 — 어느 쪽이 실패했는지는 이 훅만 안다.
+   */
   retry: () => void
   /** 직전 턴을 그대로 다시 그린다. 사용자가 다른 번호를 고른다 (4a). */
   chooseOther: () => void
@@ -64,6 +69,13 @@ export function usePlaySession(sessionId: string): PlaySession {
   const inFlight = useRef<AbortController | null>(null)
   /** 409 가 알려준 서버의 턴 번호. 복원이 여기 못 미치면 화면은 아직 낡은 것이다. */
   const conflictAt = useRef<number | null>(null)
+  /**
+   * 마지막으로 부른 것이 무엇인가. **[다시 시도] 가 다시 부르는 대상이다** (#141).
+   *
+   * 상태로 두지 않는다 — 이 값이 바뀌었다고 다시 그릴 것이 없고, 다시 그리면 진행 중인
+   * 요청 하나가 두 번 세는 것처럼 보인다.
+   */
+  const lastCall = useRef<'restore' | 'submit'>('restore')
 
   /** 앞선 요청을 접고 새 컨트롤러를 연다. 뒤늦게 도착한 응답이 화면을 되돌리지 못하게 한다. */
   const open = useCallback(() => {
@@ -91,6 +103,7 @@ export function usePlaySession(sessionId: string): PlaySession {
 
   const restore = useCallback(() => {
     const controller = open()
+    lastCall.current = 'restore'
     setState((prev) => ({ ...prev, status: 'restoring', startedAt: null, error: null }))
     getCurrentTurn(sessionId, controller.signal)
       .then((turn) => {
@@ -123,6 +136,7 @@ export function usePlaySession(sessionId: string): PlaySession {
       return
     }
     const controller = open()
+    lastCall.current = 'submit'
     setState((prev) => ({
       ...prev,
       status: 'generating',
@@ -165,6 +179,29 @@ export function usePlaySession(sessionId: string): PlaySession {
     [state.status, state.turn, submit],
   )
 
+  /**
+   * [다시 시도] — **방금 실패한 그 호출**을 다시 부른다 (#141).
+   *
+   * `submit` 하나로 두지 않는다. 복원(`GET /current`)이 실패한 자리에서는 보낼 제출이 없어
+   * `submit()` 이 **조용히 아무 일도 하지 않고 돌아온다** — 서버가 죽은 채로 Play 를 열면
+   * 정확히 그 상태가 되며, 눌리는데 아무 일도 없는 버튼은 화면이 도는 것처럼 보이게 한다
+   * (CLAUDE.md 개발 루프). `#141` 이 *"닿지 못한 상태에서 `retry` 는 맞는 행동이라 남긴다"*
+   * 고 판정한 근거가 성립하려면 그 버튼이 실제로 무언가를 불러야 한다.
+   *
+   * **어느 쪽이 실패했는지로 고른다** — 들고 있는 제출이 있는지로 고르지 않는다. `INVALID_CHOICE`
+   * 뒤에 [최신 이야기 불러오기]가 실패하면 제출은 남아 있지만 그것은 서버가 이미 거절한
+   * 선택이고, 다시 보낼 것이 아니라 다시 불러올 것이다.
+   *
+   * F-7 은 그대로다 — `submit` 쪽으로 갈 때 보내는 것은 `select` 가 만들어 둔 **같은 키**다.
+   */
+  const retry = useCallback(() => {
+    if (lastCall.current === 'submit') {
+      submit()
+      return
+    }
+    restore()
+  }, [restore, submit])
+
   const chooseOther = useCallback(() => {
     submission.current = null
     setState((prev) => ({ ...prev, status: 'ready', selectedChoiceId: null, error: null }))
@@ -179,5 +216,5 @@ export function usePlaySession(sessionId: string): PlaySession {
     return () => inFlight.current?.abort()
   }, [restore])
 
-  return { ...state, select, retry: submit, chooseOther, refresh: restore, skipChapter }
+  return { ...state, select, retry, chooseOther, refresh: restore, skipChapter }
 }
