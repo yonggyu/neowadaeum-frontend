@@ -185,7 +185,40 @@ describe('#138 — 하드코딩한 뉴트럴이 다크에서 라이트로 남지
     expect(DARK.has('--scrim')).toBe(true)
     expect(DARK.get('--scrim')).not.toBe(LIGHT.get('--scrim'))
   })
+
+  /*
+   * `--scrim` 과 같은 실패가 작품 만들기에 셋 남아 있었다 (#157). `rgba(214, 69, 69, …)` 은
+   * `--danger` 의 **라이트 값을 풀어 적은 것**이라 다크에서 따라오지 않았고, 그 결과 같은
+   * 요소의 테두리(`var(--danger)`)와 배경이 서로 다른 빨강이 됐다.
+   */
+  it('157_작품_만들기의_경고_톤은_토큰이다', () => {
+    const source = uncommented(
+      readFileSync(new URL('../screens/authoring/wizard.module.css', import.meta.url), 'utf8'),
+    )
+    expect(source).toContain('var(--danger-wash)')
+    expect(source).toContain('var(--danger-wash-strong)')
+    // `--danger` 의 라이트 값을 어떤 표기로도 손으로 적지 않는다
+    expect(source).not.toMatch(/214[\s,]+69[\s,]+69/)
+    expect(source.toLowerCase()).not.toContain('#d64545')
+  })
+
+  it('157_경고_톤은_두_판이_각자_갖고_다크가_더_진하다', () => {
+    // 어두운 바닥 위의 4% 막은 보이지 않는다 — 검수가 막은 카드와 그냥 카드가 배경으로는
+    // 구분되지 않고, 남는 것이 테두리 하나뿐이면 이 톤을 두는 뜻이 없다.
+    for (const name of ['--danger-wash', '--danger-wash-strong'] as const) {
+      expect(LIGHT.has(name)).toBe(true)
+      expect(DARK.has(name)).toBe(true)
+      expect(alphaOf(DARK.get(name) ?? '')).toBeGreaterThan(alphaOf(LIGHT.get(name) ?? ''))
+    }
+  })
 })
+
+/** `rgb(r g b / N%)` 의 `N`. 두 판의 막이 얼마나 진한지만 비교하므로 백분율만 읽는다. */
+function alphaOf(value: string): number {
+  const percent = /\/\s*([\d.]+)%/.exec(value)
+  if (percent === null) throw new Error(`백분율 표기를 찾지 못했다: ${value}`)
+  return Number(percent[1])
+}
 
 // ── 읽는 도구 ────────────────────────────────────────────────────────────────
 
