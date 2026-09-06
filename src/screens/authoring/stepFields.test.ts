@@ -4,6 +4,7 @@ import type { DraftPayload } from '../../api/endpoints/authoring'
 import {
   addFlag,
   characterField,
+  conditionSources,
   characterFieldPaths,
   emptyCharacter,
   flagField,
@@ -20,6 +21,7 @@ import {
   WORLD_INTRO_MAX,
   writeValues,
   type CharacterDraft,
+  type StepValues,
 } from './stepFields'
 
 const character = (name: string): CharacterDraft => ({ ...emptyCharacter(), name })
@@ -162,6 +164,67 @@ describe('Step 1 · 2 의 값', () => {
   it('3d_상한이_가까우면_알린다', () => {
     expect(isNearLimit(1480, SETTING_DETAIL_MAX)).toBe(true)
     expect(isNearLimit(900, SETTING_DETAIL_MAX)).toBe(false)
+  })
+})
+
+/**
+ * 조건이 고를 수 있는 이름 (#131).
+ *
+ * **후보와 저장이 갈려 있었다.** 후보를 만드는 자리는 인물 이름을 `trim()` 했고 저장하는
+ * 자리는 작성자가 친 그대로를 실었다 — `" 유나 "` 를 적으면 드롭다운에는 `유나` 가 서고,
+ * 그것을 고른 조건은 원고의 `characters[].name` **밖**을 가리켰다 (계약 `ConditionParams` —
+ * 밖을 가리키면 `400`). 증상은 저장 실패가 아니라 **조용한 사라짐**이었다: `writableCondition`
+ * (#98)이 원고 밖을 가리키는 조건을 *고르지 않은 것과 같은 모양*으로 저장하므로, 작성자가 고른
+ * 조건이 사라지고 Step 4 에서 "도달 조건이 필요합니다" 만 다시 떴다.
+ *
+ * **다듬는 쪽이 아니라 다듬지 않는 쪽으로 맞춘다.** 저장을 다듬어 맞추는 것은 작성자가 친 것을
+ * 화면이 조용히 고치는 것이고, 문자 집합을 좁히지 않기로 한 판단(§13-73 · S-7)과 어긋난다.
+ *
+ * 아래 테스트가 붙잡는 것은 **두 함수의 대응**이다 — 한쪽만 바뀌면 깨진다.
+ */
+describe('conditionSources — 후보와 저장의 대응 (#131)', () => {
+  const step3 = (names: readonly string[], flags: readonly string[] = []): StepValues => ({
+    ...readValues({}),
+    characters: names.map(character),
+    flags: [...flags],
+  })
+
+  it('F131_후보를_다듬지_않는다_앞뒤_공백까지_저장되는_이름_그대로다', () => {
+    expect(conditionSources(step3([' 유나 '])).characters).toEqual([' 유나 '])
+    // 다듬은 이름은 원고 어디에도 없다 — 그것을 고른 조건은 없는 이름을 가리킨다
+    expect(conditionSources(step3([' 유나 '])).characters).not.toContain('유나')
+  })
+
+  it('F131_후보는_writeValues_가_싣는_이름_안에_글자_하나까지_같은_것이_있다', () => {
+    const values = step3([' 유나 ', '민', '유나', ''], ['  봄  ', '봄', ''])
+    const saved = writeValues({}, values)
+    const names = (saved['characters'] as readonly CharacterDraft[]).map((c) => c.name)
+
+    for (const candidate of conditionSources(values).characters) {
+      expect(names).toContain(candidate)
+    }
+    for (const candidate of conditionSources(values).flags) {
+      expect(saved['flags']).toContain(candidate)
+    }
+  })
+
+  /**
+   * 서버가 **빈 항목을 건너뛴다** (§13-71 *"이름이 빈 항목은 인물이 아니다"* · §13-73 #4).
+   * 건너뛴 이름은 선언되지 않았으므로 조건이 가리킬 수 없다 — 후보에 세우면 고르는 순간
+   * 다시 원고 밖을 가리키게 되고, "추가" 를 누른 직후의 빈 줄이 드롭다운에 빈 칸으로 선다.
+   * 공백뿐인 이름도 같은 자리다.
+   */
+  it('F131_선언되지_않는_이름은_후보가_아니다_인물과_플래그가_같은_규칙이다', () => {
+    expect(conditionSources(step3(['유나', '', '   '], ['봄', '', '  ']))).toEqual({
+      characters: ['유나'],
+      flags: ['봄'],
+    })
+  })
+
+  /** 세지 않는 것과 다듬는 것은 다르다 — 남는 이름은 그대로 남는다 */
+  it('F131_빈_줄을_빼도_남은_이름은_다듬지_않는다', () => {
+    expect(conditionSources(step3([' 유나 ', ''], ['  봄  ', ''])).characters).toEqual([' 유나 '])
+    expect(conditionSources(step3([' 유나 ', ''], ['  봄  ', ''])).flags).toEqual(['  봄  '])
   })
 })
 

@@ -70,6 +70,22 @@ export function flagJumpField(reference: FlagReference): string {
 }
 
 /**
+ * *[엔딩 3 으로]* 를 누른 뒤 **초점을 예약하는가** (#133).
+ *
+ * 예약은 단계가 **실제로 옮겨졌을 때만** 건다. 그 이동은 저장을 지나므로 실패할 수 있고,
+ * 실패하면 단계가 그대로여서 예약을 쓸 자리가 서지 않는다 — 그렇게 남은 예약은 나중에
+ * 작성자가 다른 이유로 그 단계에 들어가는 순간 **아무도 요청하지 않은 초점 이동**이 되고,
+ * 낭독기 사용자에게는 읽던 자리가 갑자기 옮겨 가는 것으로 나타난다. 사이가 멀수록 원인을
+ * 찾기 어렵다.
+ *
+ * `focus()` 자체는 화면의 효과가 한다 — 여기 있는 것은 판정뿐이고, 그 이유는
+ * `dialogKeyAction`(`useDialogChrome`)과 같다: 이 러너에는 DOM 이 없다.
+ */
+export function jumpFocusField(moved: boolean, reference: FlagReference): string | null {
+  return moved ? flagJumpField(reference) : null
+}
+
+/**
  * 숫자 뒤에 오는 `으로` · `로` (7차 아트보드의 *"엔딩 3 으로"*).
  *
  * 마지막 자리의 **읽는 소리**가 정한다 — 받침이 없거나 `ㄹ` 이면 `로`, 그 밖이면 `으로`.
