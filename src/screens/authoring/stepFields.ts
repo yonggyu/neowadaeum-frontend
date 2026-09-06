@@ -15,6 +15,11 @@ import type { DraftPayload } from '../../api/endpoints/authoring'
  * 인물의 `persona` 는 고를 자유가 없는 또 하나의 자리다 — 계약 `DraftCharacter` 가 직접
  * 적어 둔 이름이고, 검수 원고(`ReviewManuscript.characters[].persona`)가 같은 이름으로 받는다.
  *
+ * `flags` 도 그런 자리다 — 계약 `DraftPayload.flags` 가 세운 이름이며 (#362, 정정본 §13-73),
+ * 조건의 `flag` 파라미터가 가리키는 목록의 **정본**이다 (계약 `ConditionParams`). 여기 적히지
+ * 않은 이름을 가리키는 조건은 `400` 이고, 받아 두었다면 평가기에서 조용히 거짓이 되어 그
+ * 챕터·엔딩은 영원히 도달되지 않는다.
+ *
  * `settingDetail`(AI 에게만 전달되는 설정 상세)만 발행물에 짝이 없다. 독자에게 보이지 않는
  * 값이라 `StoryDetail` 에 나올 이유가 없기 때문이고, 이름은 3d 의 라벨에서 왔다.
  */
@@ -28,6 +33,7 @@ export const FIELD = {
   worldIntro: 'worldIntro',
   settingDetail: 'settingDetail',
   characters: 'characters',
+  flags: 'flags',
 } as const
 
 /** 인물 카드가 쓰는 세 칸. 이름은 계약 `DraftCharacter` 의 것이며 여기서 짓지 않는다. */
@@ -53,6 +59,18 @@ export function characterFieldPaths(count: number): string[] {
   ).flat()
 }
 
+/**
+ * `flags[0]` — `characterField` 와 **같은 이유**의 표기다: 계약 `PrecheckRequest.fields` 의
+ * 예시가 `characters[0].name` 이고, 그 형식이 곧 DOM id 여서 라벨과 입력이 서로를 가리킨다.
+ *
+ * **검수(precheck)에 이 경로를 보내지 않는다.** 계약이 플래그를 검수 대상으로 요구하지
+ * 않았고 (#125 의 물음 2), 7차 아트보드도 그 자리를 그리지 않았다 — 없는 화면을 지어내지
+ * 않는다. 여기 있는 것은 **한 줄을 식별하는 이름**뿐이다.
+ */
+export function flagField(index: number): string {
+  return `${FIELD.flags}[${index}]`
+}
+
 
 /**
  * 글자 수 상한 — **3d 가 값으로 적은 셋만** 둔다.
@@ -63,6 +81,23 @@ export function characterFieldPaths(count: number): string[] {
 export const SHORT_DESCRIPTION_MAX = 40
 export const WORLD_INTRO_MAX = 300
 export const SETTING_DETAIL_MAX = 1500
+
+/**
+ * 플래그의 상한 — **계약의 값이다.** `DraftPayload.flags` 의 `maxItems: 32` 와 항목의
+ * `maxLength: 40` 이고, 화면이 정한 숫자가 아니다 (#362, 정정본 §13-73).
+ *
+ * **7차 아트보드는 `3 / 12` 로 그렸다.** 그 그림은 #362 **이전**의 것이라 계약에 숫자가 없던
+ * 때이며, `CLAUDE.md` 의 순서대로 **계약이 화면을 이긴다** — 그래서 12 가 아니라 32 다.
+ * 계약보다 좁은 선을 화면이 따로 그으면 그것은 *왜 좁혔는지가 보이지 않는 규칙*이 되고,
+ * 작성자에게는 고장으로 읽힌다. 아트보드를 역반영하는 것은 디자인 쪽 일이다.
+ *
+ * **이 둘이 진짜 게이트가 아니다** (정정본 §13-76). 계약이 남겨 둔 *거친 바깥 울타리*이고,
+ * 실제로 저장을 막는 것은 이 원고의 어휘가 프롬프트 예산에 들어가는가이며 그 판정은 인물
+ * 이름까지 **함께** 본다. 그래서 화면은 이 숫자로 남은 자리를 보여 줄 뿐, 통과를 약속하지
+ * 않는다 — 넘으면 서버가 `400` 과 함께 얼마나 줄여야 하는지를 말한다 (F-4).
+ */
+export const FLAG_MAX_COUNT = 32
+export const FLAG_NAME_MAX = 40
 
 /**
  * 상한이 가까워졌다고 말할 지점 (3d — *"상한에 거의 도달했습니다"*).
@@ -115,6 +150,15 @@ export interface StepValues {
   readonly worldIntro: string
   readonly settingDetail: string
   readonly characters: readonly CharacterDraft[]
+  /**
+   * 이 원고가 선언한 플래그 이름 (계약 `DraftPayload.flags`).
+   *
+   * **문자열의 배열이다** (S-1). 인물이 객체 배열이므로 여기도 같은 모양으로 만드는 것이
+   * 이 자리의 가장 있을 법한 실수이고, 정정본 §13-73 이 그것을 직접 경고했다 — 객체로
+   * 보내면 서버는 이름을 찾지 못해 **조용히 빈 목록**이 되고, 그러면 작성자가 고른
+   * `has_flag` 는 *없는 이름을 가리킨다* 는 이유로 거절된다.
+   */
+  readonly flags: readonly string[]
 }
 
 const text = (value: unknown): string => (typeof value === 'string' ? value : '')
@@ -132,6 +176,7 @@ export function readValues(payload: DraftPayload): StepValues {
   const raw: Record<string, unknown> = payload ?? {}
   const genres = raw[FIELD.genres]
   const characters = raw[FIELD.characters]
+  const flags = raw[FIELD.flags]
   return {
     title: text(raw[FIELD.title]),
     genres: Array.isArray(genres) ? genres.filter((g): g is string => typeof g === 'string') : [],
@@ -140,6 +185,9 @@ export function readValues(payload: DraftPayload): StepValues {
     worldIntro: text(raw[FIELD.worldIntro]),
     settingDetail: text(raw[FIELD.settingDetail]),
     characters: Array.isArray(characters) ? characters.map(readCharacter) : [],
+    // 문자열만 남긴다 — 계약이 그 형을 정했고 (S-1), 다른 형이 섞여 있으면 그것은 조건이
+    // 가리킬 수 없는 이름이다. `genres` 와 같은 자리다.
+    flags: Array.isArray(flags) ? flags.filter((flag): flag is string => typeof flag === 'string') : [],
   }
 }
 
@@ -170,6 +218,13 @@ export function writeValues(payload: DraftPayload, values: StepValues): Record<s
     [FIELD.worldIntro]: values.worldIntro,
     [FIELD.settingDetail]: values.settingDetail,
     [FIELD.characters]: values.characters.map((c) => ({ ...c })),
+    // **문자열 그대로 내보낸다** (S-1) — 인물처럼 `{ name }` 으로 감싸지 않는다.
+    //
+    // **`trim()` 도 하지 않고 빈 항목도 버리지 않는다** (S-6). "추가" 가 빈 줄을 먼저
+    // 만드는 화면이므로 빈 줄을 막으면 줄을 하나 더한 순간 저장이 멈춘다 — 서버가 빈 항목을
+    // 건너뛴다 (§13-73 #4, 인물과 같다 §13-71). 앞뒤 공백을 화면이 몰래 떼면 작성자가 친
+    // 이름과 서버가 검증하는 이름이 갈라지고, 그 차이는 조건이 거절될 때까지 보이지 않는다.
+    [FIELD.flags]: [...values.flags],
   }
 }
 
@@ -212,4 +267,39 @@ export function moveCharacter(
   to: number,
 ): CharacterDraft[] {
   return moveItem(characters, from, to)
+}
+
+/**
+ * 플래그 한 줄을 더한다 (7차 `A-1` — *"[＋ 플래그 추가]"*).
+ *
+ * **빈 줄로 시작한다.** 그것이 이 화면의 전제이고, 그래서 계약이 빈 항목을 건너뛰기로 했다
+ * (S-6, §13-73 #4). 빈 줄을 막으면 줄을 더한 순간 저장이 멈춘다.
+ *
+ * **`FLAG_MAX_COUNT` 를 여기서 조용히 자르지 않는다.** 자르면 "추가" 를 눌러도 아무 일이
+ * 일어나지 않고 이유가 어디에도 보이지 않는다 — 상한에 닿았다는 사실은 화면이 버튼을
+ * 잠그며 말한다 (`SHORT_DESCRIPTION_MAX` 를 카운터가 말하는 것과 같은 자리다).
+ */
+export function addFlag(flags: readonly string[]): string[] {
+  return [...flags, '']
+}
+
+/**
+ * 한 줄을 고친다. **값을 다듬지 않는다** — 판정은 서버가 하고 문장도 서버가 준다 (F-4).
+ *
+ * 문자 집합도 좁히지 않는다 (S-7, §13-73 #3): 좁히면 한글에 문장부호가 섞인 정상적인 이름이
+ * 거절되는데 그 대가로 얻는 안전이 없다.
+ */
+export function setFlag(flags: readonly string[], index: number, name: string): string[] {
+  return flags.map((flag, i) => (i === index ? name : flag))
+}
+
+/**
+ * 한 줄을 지운다.
+ *
+ * **여기서 조건까지 손대지 않는다.** 지워진 이름을 가리키던 챕터·엔딩의 조건을 비우는 것은
+ * `clearFlagConditions`(`outline.ts`) 의 몫이며, 그 둘은 **서로 다른 값**(Step 3 의 값과
+ * Step 4 의 값)을 고친다 — 여기서 함께 하면 이 함수가 개요 전체를 알아야 한다.
+ */
+export function removeFlag(flags: readonly string[], index: number): string[] {
+  return flags.filter((_, i) => i !== index)
 }

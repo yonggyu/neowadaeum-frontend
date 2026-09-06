@@ -2,12 +2,18 @@ import { describe, expect, it } from 'vitest'
 
 import type { DraftPayload } from '../../api/endpoints/authoring'
 import {
+  addFlag,
   characterField,
   characterFieldPaths,
   emptyCharacter,
+  flagField,
+  FLAG_MAX_COUNT,
+  FLAG_NAME_MAX,
   isNearLimit,
   moveCharacter,
   readValues,
+  removeFlag,
+  setFlag,
   SETTING_DETAIL_MAX,
   SHORT_DESCRIPTION_MAX,
   toggleGenre,
@@ -67,6 +73,7 @@ describe('payload 를 화면의 값으로', () => {
       worldIntro: '다',
       settingDetail: '라',
       characters: [{ name: '마', oneLine: '바', persona: '사', portraitImage: null }],
+      flags: ['아'],
     }
     expect(writeValues(payload, readValues(payload))).toEqual(payload)
   })
@@ -168,5 +175,93 @@ describe('Step 3 의 순서 변경', () => {
     const list = [character('가'), character('나')]
     expect(moveCharacter(list, 0, -1).map((c) => c.name)).toEqual(['가', '나'])
     expect(moveCharacter(list, 1, 2).map((c) => c.name)).toEqual(['가', '나'])
+  })
+})
+
+/**
+ * 원고가 선언하는 플래그 (#125 · 백엔드 #362 · 정정본 §13-73).
+ *
+ * 픽스처는 **명백한 가짜**로 둔다 (S-11) — 이 레포는 공개다.
+ */
+describe('Step 3 의 플래그 선언 — 계약 DraftPayload.flags', () => {
+  it('S1_플래그를_문자열_배열로_보낸다_인물처럼_객체로_감싸지_않는다', () => {
+    /**
+     * §13-73 이 직접 경고한 실수다 — 인물이 객체 배열이므로 화면이 플래그도 같은 모양으로
+     * 보내는 것은 **있을 법한 일**이고, 객체로 오면 서버는 이름을 찾지 못해 **조용히 빈
+     * 목록**이 된다. 그러면 작성자가 고른 `has_flag` 는 *없는 이름을 가리킨다* 는 이유로
+     * 거절되고, 작성자가 보는 것은 "플래그를 적었는데 그 이름이 없다고 한다" 뿐이다.
+     */
+    const saved = writeValues({}, { ...readValues({}), flags: ['첫번째표시', '두번째표시'] })
+    expect(saved['flags']).toEqual(['첫번째표시', '두번째표시'])
+  })
+
+  it('S1_문자열이_아닌_항목은_고를_수_없는_이름이므로_읽지_않는다', () => {
+    // `readValues` 의 다른 자리와 같은 이유로 형을 넓힌다 — 계약이 형을 세웠지만 그것은
+    // 서버의 약속이지 런타임 검증이 아니다.
+    const wirePayload: Record<string, unknown> = { flags: ['첫번째표시', 7, null] }
+    expect(readValues(wirePayload as DraftPayload).flags).toEqual(['첫번째표시'])
+  })
+
+  it('flags_가_없는_옛_원고도_빈_목록으로_열린다', () => {
+    expect(readValues({ title: '가' }).flags).toEqual([])
+    expect(readValues(undefined).flags).toEqual([])
+  })
+
+  it('읽고_다시_쓰는_왕복에서_플래그가_보존된다', () => {
+    const payload = { flags: ['첫번째표시', '두번째표시'] }
+    expect(writeValues(payload, readValues(payload))['flags']).toEqual([
+      '첫번째표시',
+      '두번째표시',
+    ])
+  })
+
+  /**
+   * **계약이 화면을 이긴다** (CLAUDE.md). 7차 아트보드는 `3 / 12` 를 그렸지만 그 그림은
+   * #362 이전의 것이라 계약에 숫자가 없던 때다 — `DraftPayload.flags` 의 `maxItems` 는 32,
+   * 항목의 `maxLength` 는 40 이다.
+   */
+  it('S2_상한은_계약의_값이다_아트보드의_12_가_아니다', () => {
+    expect([FLAG_MAX_COUNT, FLAG_NAME_MAX]).toEqual([32, 40])
+  })
+
+  /**
+   * **화면이 빈 줄을 막지 않는다** (S-6, §13-73 #4 · §13-71). "추가" 가 빈 줄을 먼저 만드는
+   * 화면이므로 막으면 줄을 하나 더한 순간 저장이 멈춘다 — 서버가 빈 항목을 건너뛴다.
+   */
+  it('S6_빈_항목을_화면이_버리지_않는다_서버가_건너뛴다', () => {
+    const saved = writeValues({}, { ...readValues({}), flags: ['첫번째표시', '', '두번째표시'] })
+    expect(saved['flags']).toEqual(['첫번째표시', '', '두번째표시'])
+    expect(addFlag(['첫번째표시'])).toEqual(['첫번째표시', ''])
+  })
+
+  /**
+   * **값을 다듬지 않는다.** 판정은 서버가 하고 문장도 서버가 준다 (F-4). 화면이 몰래 떼면
+   * 작성자가 친 이름과 서버가 검증하는 이름이 갈라지고, 그 차이는 조건이 거절될 때까지
+   * 보이지 않는다. 문자 집합도 좁히지 않는다 (S-7).
+   */
+  it('S7_값에_trim_이_걸리지_않는다_문장부호가_섞인_이름도_그대로_나간다', () => {
+    const values = readValues({ flags: ['  앞뒤 공백  ', '쉼표, 물음표?'] })
+    expect(values.flags).toEqual(['  앞뒤 공백  ', '쉼표, 물음표?'])
+    expect(writeValues({}, values)['flags']).toEqual(['  앞뒤 공백  ', '쉼표, 물음표?'])
+  })
+
+  it('한_줄을_고치고_지운다_나머지_줄은_그대로다', () => {
+    expect(setFlag(['첫번째표시', '두번째표시'], 1, '고친표시')).toEqual([
+      '첫번째표시',
+      '고친표시',
+    ])
+    expect(removeFlag(['첫번째표시', '두번째표시', '세번째표시'], 1)).toEqual([
+      '첫번째표시',
+      '세번째표시',
+    ])
+  })
+
+  /**
+   * 배열 표기는 계약 `PrecheckRequest.fields` 의 예시 형식이며 DOM id 도 이 값이다.
+   * **검수에 보내지는 않는다** — 계약이 요구하지 않았고 아트보드도 그 자리를 그리지 않았다.
+   */
+  it('F2_배열_표기를_지어내지_않는다', () => {
+    expect(flagField(0)).toBe('flags[0]')
+    expect(flagField(2)).toBe('flags[2]')
   })
 })
