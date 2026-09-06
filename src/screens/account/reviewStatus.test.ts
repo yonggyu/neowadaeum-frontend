@@ -6,6 +6,7 @@ import {
   isVisibilityReadOnly,
   narrowsExposure,
   REVIEW_STATUS_LABEL,
+  REVIEW_STATUS_TONE,
   reviewPhase,
   triggersHumanReview,
   VISIBILITY_LABEL,
@@ -58,6 +59,60 @@ describe('R8.7 · F-5 — auto_rejected 는 사용자에게 rejected 로 표시�
     // 7종을 화면 여러 곳에서 각각 비교하면 언젠가 한 곳이 빠지고, 그 한 곳이 자동 반려라고
     // 말해 버린다. 분기는 `reviewPhase` 하나로만 한다.
     expect(screenSource()).not.toContain('auto_rejected')
+  })
+})
+
+describe('#135 — 배지의 결은 여섯이다', () => {
+  it('135_결_표는_화면에_오는_상태를_남김없이_덮는다', () => {
+    // 빠지면 그 상태의 배지가 클래스 없이 떠서 뉴트럴로 되돌아간다 — 이 이슈가 고치려던
+    // 바로 그 모양이고, 화면은 여전히 그려지므로 아무도 모른다.
+    expect(Object.keys(REVIEW_STATUS_TONE).sort()).toEqual([...ALL_STATUSES].sort())
+  })
+
+  it('135_결은_여섯이다', () => {
+    expect(new Set(Object.values(REVIEW_STATUS_TONE)).size).toBe(6)
+  })
+
+  it('F5_같은_문구를_쓰는_둘은_같은_결이다', () => {
+    // 라벨이 같은 두 상태가 다른 색을 가지면 화면이 *자동인지 사람인지* 를 색으로 말하게
+    // 된다. 문구로 말하지 않기로 한 것을 옆문으로 내보내는 일이다.
+    expect(REVIEW_STATUS_TONE.auto_rejected).toBe(REVIEW_STATUS_TONE.rejected)
+  })
+
+  it('135_접수됨과_검수_중은_갈린다', () => {
+    // `reviewPhase` 는 이 둘을 한 칸으로 접지만 그것은 *우측 패널이 같은 것을 그린다* 는
+    // 뜻이고, 배지에서 둘은 다른 사실을 말한다 — 아직 아무 일도 없다 / 사람이 보고 있다.
+    expect(REVIEW_STATUS_TONE.pending).not.toBe(REVIEW_STATUS_TONE.in_review)
+    expect(reviewPhase('pending')).toBe(reviewPhase('in_review'))
+  })
+
+  it('135_배지를_그리는_길이_하나다', () => {
+    // 상태에서 결로, 결에서 클래스로 가는 두 걸음을 화면마다 적으면 언젠가 한 곳이 빠지고
+    // 그 한 곳만 뉴트럴로 되돌아간다.
+    for (const file of ['MyStoriesScreen.tsx', 'MyStoryReviewScreen.tsx']) {
+      const source = read(file)
+      expect(source).toContain('<ReviewStatusBadge status=')
+      expect(source).not.toContain('badge}>{REVIEW_STATUS_LABEL')
+    }
+    expect(read('ReviewStatusBadge.tsx')).toContain('REVIEW_STATUS_TONE')
+  })
+
+  it('135_여섯의_클래스가_스타일시트에_실제로_있다', () => {
+    // CSS 모듈의 이름은 `string | undefined` 라 오타가 타입검사에 걸리지 않는다. 걸리지
+    // 않으면 그 상태만 클래스 없이 떠서 뉴트럴로 돌아가고, 그게 이 이슈가 고친 모양이다.
+    const badge = read('ReviewStatusBadge.tsx')
+    const sheet = readFileSync(new URL('account.module.css', import.meta.url), 'utf8')
+    for (const name of [
+      'statusDraft',
+      'statusPending',
+      'statusInReview',
+      'statusApproved',
+      'statusRejected',
+      'statusSuspended',
+    ]) {
+      expect(badge).toContain(`shared.${name}`)
+      expect(sheet).toContain(`.${name} {`)
+    }
   })
 })
 

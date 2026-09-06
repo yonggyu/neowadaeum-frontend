@@ -37,6 +37,7 @@ import {
   VISIBILITY_OPTIONS,
   visibilityBlockedReason,
 } from './reviewStatus'
+import { ReviewStatusBadge } from './ReviewStatusBadge'
 
 /**
  * 내 작품 — 공개 범위 · 검수 상태 (와이어프레임 3f · 6c).
@@ -83,7 +84,7 @@ export function MyStoryReviewScreen() {
                   aria-current={story.storyId === id ? 'true' : undefined}
                 >
                   <span className={styles.rowTitle}>{story.title}</span>
-                  <span className={shared.badge}>{REVIEW_STATUS_LABEL[story.reviewStatus]}</span>
+                  <ReviewStatusBadge status={story.reviewStatus} />
                 </Link>
               </li>
             ))}
@@ -163,7 +164,7 @@ function StoryDetail({
     <>
       <h2 className={styles.title}>{story.title}</h2>
       <div className={styles.badges}>
-        <span className={shared.badge}>{REVIEW_STATUS_LABEL[story.reviewStatus]}</span>
+        <ReviewStatusBadge status={story.reviewStatus} />
         <span className={shared.badge}>{VISIBILITY_LABEL[story.visibility]}</span>
       </div>
       {/*
