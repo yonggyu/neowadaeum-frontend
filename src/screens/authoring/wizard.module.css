@@ -264,7 +264,7 @@
 
 .mark {
   border-radius: var(--r-sm);
-  background: rgba(214, 69, 69, 0.16);
+  background: var(--danger-wash-strong);
   color: inherit;
 }
 
@@ -355,7 +355,7 @@
    */
   overflow: visible;
   border: 2px solid var(--danger);
-  background: rgba(214, 69, 69, 0.04);
+  background: var(--danger-wash);
 }
 
 .slotFailed > .imageSlotNote {
@@ -465,7 +465,7 @@
 
 .cardBlocked {
   border: 2px solid var(--danger);
-  background: rgba(214, 69, 69, 0.04);
+  background: var(--danger-wash);
 }
 
 .cardHead,
