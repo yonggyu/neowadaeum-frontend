@@ -208,6 +208,20 @@ npm run typecheck && npm run lint && npm test
 데이터 계층(훅 · 엔드포인트)을 먼저 내고 화면을 뒤에 내는 것도 좋은 seam 이다.
 CI 잡 이름 셋(`build` · `test` · `gitleaks`)은 브랜치 보호의 필수 체크 이름이므로 **바꾸지 않는다.**
 
+**스택을 냈으면 부모를 머지하기 *전에* 자식의 base 를 옮긴다 (#145).**
+
+```bash
+gh pr edit <자식> --base frontend      # 부모를 머지하기 전에
+```
+
+부모를 `--delete-branch` 로 머지하면 자식의 base 브랜치가 사라지고 **GitHub 이 그 순간 자식 PR 을
+닫는다.** 닫힌 PR 은 되살릴 수 없다 — base 를 고치는 것도(`Cannot change the base branch of a
+closed pull request`) 상태를 되돌리는 것도(`state cannot be changed. The … branch was
+force-pushed or recreated`) 거부된다. **커밋은 살고 PR 이 죽는다**: 새 PR 을 열어 같은 커밋을
+머지할 수는 있지만 **리뷰 코멘트와 이력이 거기서 끊긴다.** 세 번 잃고서 적는다.
+
+**아래 리베이스는 이 순서를 지켰을 때 만나는 다음 문제다.** 어기면 리베이스할 PR 자체가 없다.
+
 **스택을 냈으면 부모를 머지한 뒤 자식을 리베이스한다 (#77).** squash 머지는 부모의 커밋들을
 **새 커밋 하나**로 바꾼다. 자식은 여전히 원래 커밋들을 들고 있으므로 조상 관계가 끊기고,
 git 이 보기에 같은 파일이 양쪽에서 새로 생긴 것이 된다 — **add/add 충돌**이다.
