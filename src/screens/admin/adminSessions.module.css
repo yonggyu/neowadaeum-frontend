@@ -97,7 +97,7 @@
   margin: var(--sp-4) 0 0;
   color: var(--fg-muted);
   font-size: var(--fs-sm);
-  line-height: 1.5;
+  line-height: var(--lh-normal);
 }
 
 /*
@@ -108,7 +108,7 @@
   margin: var(--sp-4) 0 0;
   color: var(--fg-muted);
   font-size: var(--fs-base);
-  line-height: 1.6;
+  line-height: var(--lh-relaxed);
 }
 
 /*

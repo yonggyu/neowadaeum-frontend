@@ -140,7 +140,7 @@
 .placeholderTitle {
   margin: 0;
   font-size: var(--fs-lg);
-  line-height: 1.4;
+  line-height: var(--lh-snug);
 }
 
 /* ── Step 1~3 의 입력 (3d) ───────────────────────────────────────────────────── */
@@ -217,7 +217,7 @@
   background: var(--bg);
   color: var(--fg);
   font: inherit;
-  line-height: 1.6;
+  line-height: var(--lh-relaxed);
   resize: vertical;
 }
 
@@ -258,7 +258,7 @@
   margin: 0;
   color: var(--fg-muted);
   font-size: var(--fs-md);
-  line-height: 1.6;
+  line-height: var(--lh-relaxed);
   word-break: break-word;
 }
 
@@ -365,7 +365,7 @@
 .imageSlotNote {
   color: var(--fg-muted);
   font-size: var(--fs-xs);
-  line-height: 1.4;
+  line-height: var(--lh-snug);
   text-align: center;
 }
 
@@ -755,7 +755,7 @@
 
 .declaredNames {
   font-size: var(--fs-md);
-  line-height: 1.6;
+  line-height: var(--lh-relaxed);
   word-break: break-word;
 }
 
@@ -798,7 +798,7 @@
 .body {
   margin: 0;
   color: var(--fg-muted);
-  line-height: 1.7;
+  line-height: var(--lh-loose);
 }
 
 /*
@@ -809,7 +809,7 @@
   margin: 0;
   color: var(--fg-muted);
   font-size: var(--fs-base);
-  line-height: 1.6;
+  line-height: var(--lh-relaxed);
 }
 
 .button {
@@ -1017,7 +1017,7 @@
   border: 1px solid var(--fg);
   border-radius: var(--r-xl);
   font-size: var(--fs-xs);
-  line-height: 1.6;
+  line-height: var(--lh-relaxed);
 }
 
 /*

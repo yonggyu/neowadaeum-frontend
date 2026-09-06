@@ -29,7 +29,7 @@
   margin: 0 0 var(--sp-6);
   font-family: var(--font-read);
   font-size: var(--fs-2xl);
-  line-height: 1.35;
+  line-height: var(--lh-snug);
 }
 
 /* ── 장르 칩 — Mobile 은 가로 스크롤 (1g) ───────────────────── */
@@ -188,7 +188,7 @@
   margin: 0;
   font-size: var(--fs-md);
   font-weight: 600;
-  line-height: 1.35;
+  line-height: var(--lh-snug);
 }
 
 .cardMeta {
@@ -206,7 +206,7 @@
   margin: 0;
   color: var(--fg-muted);
   font-size: var(--fs-sm);
-  line-height: 1.45;
+  line-height: var(--lh-normal);
 }
 
 /* ── 이어하기 — 가로 카드, 진행바를 그리지 않는다 (4d · R13.2) ── */

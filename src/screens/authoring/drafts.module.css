@@ -57,7 +57,7 @@
 
 .rowTitle {
   font-size: var(--fs-2lg);
-  line-height: 1.4;
+  line-height: var(--lh-snug);
 }
 
 .rowActions {
@@ -89,14 +89,14 @@
 .body {
   margin: 0;
   color: var(--fg-muted);
-  line-height: 1.7;
+  line-height: var(--lh-loose);
 }
 
 .meta {
   margin: 0;
   color: var(--fg-muted);
   font-size: var(--fs-base);
-  line-height: 1.6;
+  line-height: var(--lh-relaxed);
 }
 
 .button {

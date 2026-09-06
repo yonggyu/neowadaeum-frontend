@@ -56,7 +56,7 @@
   margin: 0;
   color: var(--fg-muted);
   font-size: var(--fs-base);
-  line-height: 1.7;
+  line-height: var(--lh-loose);
 }
 
 /*
@@ -150,7 +150,7 @@
   margin: var(--sp-3) 0 0;
   color: var(--fg-muted);
   font-size: var(--fs-base);
-  line-height: 1.6;
+  line-height: var(--lh-relaxed);
 }
 
 .secret {
@@ -216,5 +216,5 @@
   margin: var(--sp-2) 0 0;
   color: var(--fg-muted);
   font-size: var(--fs-xs);
-  line-height: 1.5;
+  line-height: var(--lh-normal);
 }

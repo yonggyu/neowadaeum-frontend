@@ -165,7 +165,7 @@
   border: 1px solid var(--border);
   border-radius: var(--r-md);
   color: var(--fg);
-  line-height: 1.55;
+  line-height: var(--lh-relaxed);
   list-style: none;
 }
 

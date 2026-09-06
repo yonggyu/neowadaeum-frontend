@@ -40,7 +40,7 @@
 .body {
   margin: 0;
   color: var(--fg-muted);
-  line-height: 1.7;
+  line-height: var(--lh-loose);
 }
 
 /*
