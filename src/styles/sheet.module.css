@@ -26,7 +26,8 @@
   max-height: 90dvh;
   padding: var(--sp-3) var(--sp-4) calc(var(--sp-4) + env(safe-area-inset-bottom, 0px));
   border-radius: var(--r-lg) var(--r-lg) 0 0;
-  background: var(--bg);
+  /* 떠오른 면이다 (#160) — 시트는 어느 폭에서도 막 위에 뜬다 */
+  background: var(--bg-raised);
   overflow-y: auto;
 }
 
@@ -86,7 +87,8 @@
   padding: 0 var(--sp-6);
   border: 1px solid var(--fg);
   border-radius: var(--r-md);
-  background: var(--bg);
+  /* **판과 같은 면에 선다** — 판만 올리면 버튼이 판보다 어두워져 우물처럼 파인다 (#160) */
+  background: var(--bg-raised);
   color: var(--fg);
   font: inherit;
   font-weight: 600;

@@ -204,6 +204,30 @@ describe('#138 — 하드코딩한 뉴트럴이 다크에서 라이트로 남지
     expect(source.toLowerCase()).not.toContain('#d64545')
   })
 
+  /*
+   * **다크가 드러낸 셋째 자리** (#160). 판과 그 뒤가 같은 색이면, 막을 아무리 진하게 해도
+   * 앞의 판이 앞이라고 말하지 못한다 — 라이트에서는 막 하나가 *뒤를 죽이는 일*과 *앞을
+   * 띄우는 일*을 겸하고 있었고, 그 겸업이 어두운 판에서 깨졌다.
+   */
+  it('160_떠오른_면은_다크에서만_바탕과_갈린다', () => {
+    expect(resolve(LIGHT, '--bg-raised')).toBe(resolve(LIGHT, '--bg'))
+    expect(resolve(DARK, '--bg-raised')).not.toBe(resolve(DARK, '--bg'))
+  })
+
+  it('160_다크의_위계가_바탕_가라앉음_떠오름_순이다', () => {
+    // 둘이 `--bg` 기준의 같은 한 칸이면 가라앉은 것과 떠오른 것이 같은 밝기가 된다.
+    const lum = (name: string): number => luminance(parse(resolve(DARK, name)))
+    expect(lum('--bg-sunken')).toBeGreaterThan(lum('--bg'))
+    expect(lum('--bg-raised')).toBeGreaterThan(lum('--bg-sunken'))
+  })
+
+  it('160_뜬_판이_막을_지난_바탕과_1_5_대_1_이상으로_갈린다', () => {
+    // 고치기 전이 1.08 이었다. 경계가 보이지 않는 값이고, 그 판 위에 되돌릴 수 없는
+    // 동작의 확인이 선다 — 탈퇴 · 세션 삭제 · 원고 삭제.
+    const behind = flatten(parse(resolve(DARK, '--scrim')), parse(resolve(DARK, '--bg')))
+    expect(contrast(parse(resolve(DARK, '--bg-raised')), behind)).toBeGreaterThanOrEqual(1.5)
+  })
+
   it('157_경고_톤은_두_판이_각자_갖고_다크가_더_진하다', () => {
     // 어두운 바닥 위의 4% 막은 보이지 않는다 — 검수가 막은 카드와 그냥 카드가 배경으로는
     // 구분되지 않고, 남는 것이 테두리 하나뿐이면 이 톤을 두는 뜻이 없다.
@@ -283,3 +307,4 @@ function contrast(a: Rgba, b: Rgba): number {
 
 const round = (n: number): number => Math.round(n * 100) / 100
 const count = (text: string, needle: string): number => text.split(needle).length - 1
+
