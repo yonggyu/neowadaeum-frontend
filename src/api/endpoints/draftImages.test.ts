@@ -4,11 +4,13 @@ import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { ApiError } from '../client'
+import { setAccessToken } from '../client'
 import {
   StorageUploadError,
   commitDraftImageUpload,
   issueDraftImageUpload,
   putToStorage,
+  readDraftImage,
   uploadDraftImage,
 } from './draftImages'
 
@@ -87,6 +89,68 @@ describe('발급 (issueDraftImageUpload)', () => {
     const failure = await issueDraftImageUpload(DRAFT_ID, 'portrait', 'image/jpeg').catch(
       (cause: unknown) => cause,
     )
+
+    expect(failure).toBeInstanceOf(ApiError)
+    expect((failure as ApiError).errorCode).toBe('NOT_FOUND')
+  })
+})
+
+describe('되받기 (readDraftImage, §13-78)', () => {
+  afterEach(() => {
+    setAccessToken(null)
+  })
+
+  it('키를_쿼리로_지목한다 — slot 이 아니라 objectKey 하나다', async () => {
+    // 계약에 `slot` 파라미터가 없다. 커버든 초상이든 같은 경로를 키로 부르며, 그 키 안에
+    // 원고 id 가 들어 있어 소유 판정이 곧 경로 판정이 된다.
+    const fetchMock = stubFetch()
+    fetchMock.mockResolvedValueOnce(
+      new Response(new Blob(['PNG']), { status: 200, headers: { 'Content-Type': 'image/png' } }),
+    )
+
+    await readDraftImage(DRAFT_ID, ISSUED.objectKey)
+
+    const url = new URL(urlOf(fetchMock, 0), 'http://x.invalid')
+    expect(url.pathname).toBe(`/api/v1/authoring/drafts/${DRAFT_ID}/images`)
+    expect(url.searchParams.get('objectKey')).toBe(ISSUED.objectKey)
+    expect(initOf(fetchMock, 0).method).toBe('GET')
+  })
+
+  it('우리_오리진이라_토큰을_붙인다 — putToStorage 와 정반대다', async () => {
+    // 같은 이미지의 두 방향이 서로 다른 상대와 말한다. 올릴 때는 제3자의 저장소라 토큰을
+    // 붙이지 않았고, 되받을 때는 우리 서버가 소유권을 판정하므로 붙여야 한다.
+    setAccessToken('who-i-am')
+    const fetchMock = stubFetch()
+    fetchMock.mockResolvedValueOnce(
+      new Response(new Blob(['PNG']), { status: 200, headers: { 'Content-Type': 'image/png' } }),
+    )
+
+    await readDraftImage(DRAFT_ID, ISSUED.objectKey)
+
+    const headers = initOf(fetchMock, 0).headers as Record<string, string>
+    expect(headers['Authorization']).toBe('Bearer who-i-am')
+    expect(urlOf(fetchMock, 0)).toContain('/api/v1/')
+  })
+
+  it('바이트를_돌려준다 — 응답에 URL 이 없으므로 이것이 그릴 유일한 값이다', async () => {
+    const fetchMock = stubFetch()
+    fetchMock.mockResolvedValueOnce(
+      new Response(new Blob(['JPEG']), { status: 200, headers: { 'Content-Type': 'image/jpeg' } }),
+    )
+
+    const bytes = await readDraftImage(DRAFT_ID, ISSUED.objectKey)
+
+    expect(bytes).toBeInstanceOf(Blob)
+    expect(await bytes.text()).toBe('JPEG')
+  })
+
+  it('I8_남의_원고는_404_다 — 403 과 구분되지 않는다', async () => {
+    const fetchMock = stubFetch()
+    fetchMock.mockResolvedValueOnce(
+      json({ error: 'NOT_FOUND', message: '찾을 수 없어요.', details: {} }, 404),
+    )
+
+    const failure = await readDraftImage(DRAFT_ID, ISSUED.objectKey).catch((cause: unknown) => cause)
 
     expect(failure).toBeInstanceOf(ApiError)
     expect((failure as ApiError).errorCode).toBe('NOT_FOUND')

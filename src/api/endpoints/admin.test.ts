@@ -10,6 +10,7 @@ import {
   listAdminSessions,
   listReviewQueue,
   listStoryReports,
+  readReviewImage,
   readReviewManuscript,
   setAdminStepUp,
   verifyAdminTotp,
@@ -264,6 +265,55 @@ describe('S4_검수_상세_세_문은_기존_승격_경로를_그대로_쓴다',
     await readReviewManuscript('a b/c')
 
     expect(pathOf(fetchMock)).toContain('a%20b%2Fc')
+  })
+})
+
+/**
+ * 넷째 문 — 이미지 (`readReviewImage`, 정정본 §13-78).
+ *
+ * 앞의 셋과 같은 승격을 쓰고 같은 규칙을 진다. 다른 것은 **응답이 JSON 이 아니라는 것**
+ * 하나이고, 그래서 화면이 키를 `<img src>` 에 넣을 수 없다.
+ */
+describe('S4_이미지도_같은_승격을_쓴다 (readReviewImage)', () => {
+  const OBJECT_KEY = 'drafts/00000000-0000-4000-8000-000000000001/cover/dummy.png'
+
+  function imageBytes(): Response {
+    return new Response(new Blob(['PNG']), {
+      status: 200,
+      headers: { 'Content-Type': 'image/png', 'Cache-Control': 'private, no-store' },
+    })
+  }
+
+  it('승격을_붙이고_계약이_적은_경로를_부른다', async () => {
+    const fetchMock = stubFetch(json(STEP_UP), imageBytes())
+    await verifyAdminTotp('123456')
+
+    await readReviewImage(STORY_ID, OBJECT_KEY)
+
+    expect(headersOf(fetchMock, 1)['X-Admin-Step-Up']).toBe(STEP_UP.stepUpToken)
+    const url = new URL(pathOf(fetchMock, 1), 'http://x.invalid')
+    expect(url.pathname).toContain(`/admin/reviews/${STORY_ID}/images`)
+    expect(url.searchParams.get('objectKey')).toBe(OBJECT_KEY)
+  })
+
+  it('바이트를_돌려준다 — 키는 URL 이 아니라서 화면이 조립할 것이 없다', async () => {
+    stubFetch(imageBytes())
+
+    const bytes = await readReviewImage(STORY_ID, OBJECT_KEY)
+
+    expect(bytes).toBeInstanceOf(Blob)
+    expect(await bytes.text()).toBe('PNG')
+  })
+
+  it('다른_원고의_키는_400_이다 — 관리자라는 사실만으로 아무 객체나 열리지 않는다', async () => {
+    stubFetch(json({ error: 'VALIDATION_ERROR', message: '잘못된 요청이에요.', details: {} }, 400))
+
+    const failure = await readReviewImage(STORY_ID, 'drafts/other/cover/x.png').catch(
+      (cause: unknown) => cause,
+    )
+
+    expect(failure).toBeInstanceOf(ApiError)
+    expect((failure as ApiError).status).toBe(400)
   })
 })
 

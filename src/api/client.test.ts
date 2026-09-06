@@ -5,6 +5,7 @@ import {
   hasAccessToken,
   renewAccessToken,
   request,
+  requestBytes,
   setAccessToken,
   toApiError,
 } from './client'
@@ -154,6 +155,114 @@ describe('request — 계약 밖으로 새지 않는다', () => {
     expect(error).toBeInstanceOf(ApiError)
     expect(error.errorCode).toBe('UNKNOWN')
     expect(error.message).toBe(UNREACHABLE_MESSAGE)
+  })
+})
+
+/**
+ * 바이트를 받는 두 오퍼레이션 (`readDraftImage` · `readReviewImage`, §13-78).
+ *
+ * 여기서 지키는 것은 하나다 — **성공 응답만 갈라지고 나머지는 전부 같은 길이다.** 오류도,
+ * 재발급도, 취소도 `request` 와 같아야 클라이언트를 우회할 이유가 생기지 않는다.
+ */
+describe('requestBytes — 이미지 바이트', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    setAccessToken(null)
+  })
+
+  it('바이트를_그대로_돌려준다 — 서버가 URL 을 주지 않으므로 이것이 화면이 그릴 유일한 값이다', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() =>
+        Promise.resolve(
+          new Response(new Blob(['PNG']), {
+            status: 200,
+            headers: { 'Content-Type': 'image/png', 'Cache-Control': 'private, no-store' },
+          }),
+        ),
+      ),
+    )
+
+    const bytes = await requestBytes('/authoring/drafts/d1/images?objectKey=k')
+
+    expect(bytes).toBeInstanceOf(Blob)
+    expect(await bytes.text()).toBe('PNG')
+  })
+
+  it('JSON_판정보다_앞이다 — 뒤에 두면 image/png 가 undefined 로 조용히 사라진다', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() =>
+        Promise.resolve(
+          new Response(new Blob(['JPEG']), {
+            status: 200,
+            // `hasJsonBody` 는 이 헤더에 `application/json` 이 없으면 거짓을 답한다.
+            headers: { 'Content-Type': 'image/jpeg' },
+          }),
+        ),
+      ),
+    )
+
+    await expect(requestBytes('/admin/reviews/s1/images?objectKey=k')).resolves.toBeInstanceOf(Blob)
+  })
+
+  it('오류는_여전히_계약_형태다 — 404 도 message 를 서버가 쓴다 (F-4)', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() =>
+        Promise.resolve(
+          new Response(
+            JSON.stringify({ error: 'NOT_FOUND', message: '이미지를 찾을 수 없어요.', details: {} }),
+            { status: 404, headers: { 'Content-Type': 'application/json' } },
+          ),
+        ),
+      ),
+    )
+
+    const error = (await requestBytes('/authoring/drafts/d1/images?objectKey=k').catch(
+      (thrown: unknown) => thrown,
+    )) as ApiError
+
+    expect(error).toBeInstanceOf(ApiError)
+    expect(error.status).toBe(404)
+    expect(error.errorCode).toBe('NOT_FOUND')
+    expect(error.message).toBe('이미지를 찾을 수 없어요.')
+  })
+
+  it('401_재발급_경로를_그대로_탄다 — 바이트라고 다른 길을 만들지 않는다', async () => {
+    // 러너에 DOM 이 없다 — 아래 재발급 테스트들과 같은 방식으로 쿠키 자리를 세운다.
+    vi.stubGlobal('document', { cookie: 'XSRF-TOKEN=csrf-1' })
+    let call = 0
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((url: string) => {
+        if (String(url).includes('/auth/refresh')) {
+          return Promise.resolve(
+            new Response(JSON.stringify({ accessToken: 'fresh', tokenType: 'Bearer', expiresIn: 1800 }), {
+              status: 200,
+              headers: { 'Content-Type': 'application/json' },
+            }),
+          )
+        }
+        call += 1
+        return Promise.resolve(
+          call === 1
+            ? new Response(
+                JSON.stringify({ error: 'UNAUTHENTICATED', message: '로그인이 필요해요.', details: {} }),
+                { status: 401, headers: { 'Content-Type': 'application/json' } },
+              )
+            : new Response(new Blob(['PNG']), {
+                status: 200,
+                headers: { 'Content-Type': 'image/png' },
+              }),
+        )
+      }),
+    )
+
+    const bytes = await requestBytes('/authoring/drafts/d1/images?objectKey=k')
+
+    expect(await bytes.text()).toBe('PNG')
+    expect(call).toBe(2)
   })
 })
 

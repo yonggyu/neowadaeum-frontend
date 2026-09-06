@@ -1,4 +1,4 @@
-import { request } from '../client'
+import { request, requestBytes } from '../client'
 import type { components } from '../schema'
 
 /**
@@ -354,6 +354,39 @@ export function readReviewManuscript(
   signal?: AbortSignal,
 ): Promise<ReviewManuscript> {
   return request<ReviewManuscript>(reviewPath(storyId), { adminStepUp: stepUp(), signal })
+}
+
+/**
+ * 검수 대상의 이미지를 **바이트로** 받는다 (계약 `readReviewImage`, 정정본 §13-78).
+ *
+ * 넘기는 `objectKey` 는 `readReviewManuscript` 가 준 `coverImageKey` 또는
+ * `characters[].portraitImageKey` 다. **그 값은 URL 이 아니다** — `<img src>` 에 넣으면
+ * 아무것도 뜨지 않는다. 승인 전 이미지에는 서명 URL 도 참조 토큰도 없고, 서버가 바이트를
+ * 직접 중계한다.
+ *
+ * **문 하나에 게이트가 둘이다** — 관리자 단계 승격(S-4)과, *이 작품의 원고가 만든 키인가* 라는
+ * 판정이다. 관리자라는 사실만으로 아무 객체나 열리지 않고, 다른 원고의 키는 `400` 이다.
+ *
+ * **이 호출 하나가 열람 기록 한 줄이고, 기록이 바이트보다 먼저다** (§13-78, backend S-5).
+ * 원고 열람과 **다른 자원 종류로** 남으므로 검수 상세 한 번이 원고 열람 여러 줄로 부풀지는
+ * 않지만, **이미지마다 한 줄**인 것은 그대로다. `readReviewManuscript` 가 세운 규칙이 여기에도
+ * 그대로 걸린다 — **목록을 그리려고 미리 부르지 않는다.**
+ *
+ * **응답이 `Cache-Control: private, no-store` 다.** 브라우저가 다시 쓰지 않으므로 같은
+ * 이미지를 두 번 그리면 요청도 기록도 두 번이다. 부르는 쪽이 받은 것을 들고 있어야 한다.
+ *
+ * **키를 화면에 적지 않는다** (S-11). 이 함수가 키를 받는 것은 부르기 위해서다.
+ */
+export function readReviewImage(
+  storyId: string,
+  objectKey: string,
+  signal?: AbortSignal,
+): Promise<Blob> {
+  const search = new URLSearchParams({ objectKey })
+  return requestBytes(`${reviewPath(storyId)}/images?${search.toString()}`, {
+    adminStepUp: stepUp(),
+    signal,
+  })
 }
 
 /**

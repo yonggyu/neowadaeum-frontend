@@ -128,6 +128,17 @@ export interface RequestOptions {
 }
 
 /**
+ * `RequestOptions` 에 **모듈 안에서만 쓰는 한 칸**을 더한 것.
+ *
+ * `bytes` 를 공개 타입에 두지 않는다 — 두면 화면이나 새 엔드포인트가 그 값을 직접 켜게 되고,
+ * *어느 오퍼레이션이 바이트를 주는가* 는 계약이 정한 사실이지 부르는 쪽의 선택이 아니다.
+ * 대신 `requestBytes` 하나가 이 값을 붙인다.
+ */
+interface SendOptions extends RequestOptions {
+  bytes?: true
+}
+
+/**
  * 계약 경로 하나를 부른다.
  *
  * 인증은 `Authorization` 헤더의 Bearer 토큰이다. 자격 증명(쿠키)은 **기본으로 보내지 않는다**
@@ -142,7 +153,37 @@ export interface RequestOptions {
  * 주는 약속이며, 부르는 쪽이 각자 폴백을 두지 않아도 되는 근거다 — 폴백을 화면마다 두면
  * 같은 실패에 서로 다른 문구가 붙고, **닿지 않는 그 갈래를 다음 사람이 살아 있는 길로 읽는다.**
  */
-export async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
+export function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
+  return withRenewal<T>(path, options)
+}
+
+/**
+ * 계약 경로 하나를 부르되 **응답을 바이트로 받는다** (`readDraftImage` · `readReviewImage`, §13-78).
+ *
+ * 이 둘만 JSON 이 아니다. 서버는 승인 전 이미지에 **서명 URL 도 내부 참조 토큰도 주지 않고**
+ * 바이트를 직접 중계한다 — 둘 중 무엇이든 주는 순간 그것이 게이트 밖에서 수명 동안 열리는
+ * 출입증이 되기 때문이다. 그래서 **`<img src>` 에 넣을 수 있는 주소가 처음부터 없고**, 화면이
+ * 그릴 방법은 여기서 받은 `Blob` 하나뿐이다.
+ *
+ * **`request` 와 같은 길을 탄다** — `Authorization` · `401` 재발급 · 계약 오류 형태가 전부
+ * 그대로다. 갈라지는 것은 성공 응답을 읽는 한 줄뿐이라, 클라이언트를 우회해 직접 `fetch` 하는
+ * 대신 이 자리를 열었다: 우회하면 그 넷을 한꺼번에 잃는다 (`draftImages.ts` 의 `putToStorage`
+ * 가 실제로 그 넷을 잃어도 되는 유일한 자리이고, 이것은 그 자리가 아니다).
+ *
+ * **오류는 여전히 JSON 이다.** 계약이 `400` · `401` · `403` · `404` 를 `Error` 스키마로 답하므로
+ * `ApiError` 의 `errorCode` · `message` 가 그대로 살아 있다 (F-4).
+ *
+ * **캐시에 기대지 않는다.** 응답이 `Cache-Control: private, no-store` 라 같은 이미지를 두 번
+ * 그리면 요청이 두 번 나가고, 검수 쪽에서는 **열람 기록도 두 줄** 남는다 (§13-78).
+ */
+export function requestBytes(path: string, options: RequestOptions = {}): Promise<Blob> {
+  // `bytes` 를 `RequestOptions` 에 두지 않는 이유는 `adminStepUp` · `csrfToken` 과 같다 —
+  // 부르는 쪽이 켜고 끄는 값이 아니라 **어느 오퍼레이션인가**가 정하는 값이다. 옵션으로 열면
+  // `request<Blob>` 을 `bytes` 없이 부르는 자리가 생기고, 그때 응답은 조용히 `undefined` 다.
+  return withRenewal<Blob>(path, { ...options, bytes: true })
+}
+
+async function withRenewal<T>(path: string, options: SendOptions): Promise<T> {
   try {
     return await send<T>(path, options)
   } catch (error) {
@@ -233,7 +274,7 @@ async function attemptRenewal(): Promise<boolean> {
  * **`401` 을 여기서 해석하지 않는다.** 재발급을 시도할지 · 토큰을 버릴지는 이 요청 하나만
  * 보고는 정할 수 없고, 재시도 자체가 이 함수를 다시 부르는 일이다 — 그 판단은 `request` 하나가 한다.
  */
-async function send<T>(path: string, options: RequestOptions): Promise<T> {
+async function send<T>(path: string, options: SendOptions): Promise<T> {
   const headers: Record<string, string> = {}
   if (options.body !== undefined) {
     headers['Content-Type'] = 'application/json'
@@ -272,6 +313,17 @@ async function send<T>(path: string, options: RequestOptions): Promise<T> {
     // `401` 을 해석하는 자리는 `request` 하나다 — 재발급을 시도할지, 토큰을 버릴지는 이 요청
     // 하나만 보고는 정할 수 없다. 여기서 버려 버리면 재발급이 성공해도 다시 부를 토큰이 없다.
     throw new ApiError(response.status, ...(await errorOf(response)), requestId)
+  }
+  if (options.bytes === true) {
+    // **`hasJsonBody` 앞이다.** 뒤에 두면 `image/png` 응답이 그 판정에서 걸러져 `undefined` 가
+    // 되고, 화면은 요청이 성공했는데 그릴 것이 없는 상태를 만난다.
+    try {
+      return (await response.blob()) as T
+    } catch (cause) {
+      // 본문을 읽는 도중 끊겼다. JSON 쪽과 같은 자리이고 같은 뜻이다 — 우리가 요청한 것을
+      // 받지 못했다.
+      throw asUnreachable(cause)
+    }
   }
   if (!hasJsonBody(response)) {
     return undefined as T
