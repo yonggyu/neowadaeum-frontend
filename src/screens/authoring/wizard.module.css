@@ -59,13 +59,13 @@
 
 .stepLabel {
   color: var(--fg-muted);
-  font-size: 0.8125rem;
+  font-size: var(--fs-sm);
   text-align: center;
 }
 
 .saveState {
-  color: var(--fg-subtle);
-  font-size: 0.8125rem;
+  color: var(--fg-muted);
+  font-size: var(--fs-sm);
   text-align: right;
 }
 
@@ -139,7 +139,7 @@
 
 .placeholderTitle {
   margin: 0;
-  font-size: 1rem;
+  font-size: var(--fs-lg);
   line-height: 1.4;
 }
 
@@ -171,13 +171,13 @@
   margin: 0;
   padding: 0;
   color: var(--fg-muted);
-  font-size: 0.8125rem;
+  font-size: var(--fs-sm);
 }
 
 /* 3d — "독자에게 보입니다" · "AI에게만 전달됩니다". 라벨과 한 줄에 붙어야 대상이 읽힌다 */
 
 .fieldHint {
-  color: var(--fg-subtle);
+  color: var(--fg-muted);
 }
 
 /*
@@ -194,16 +194,16 @@
 
 .fieldNote {
   margin: 0;
-  color: var(--fg-subtle);
-  font-size: 0.8125rem;
-  line-height: 1.5;
+  color: var(--fg-muted);
+  font-size: var(--fs-sm);
+  line-height: var(--lh-normal);
 }
 
 /* 글자 수와 "확인 중" 이 같은 자리를 쓴다 — 둘이 동시에 필요한 순간이 없다 (3d) */
 
 .fieldMeta {
-  color: var(--fg-subtle);
-  font-size: 0.8125rem;
+  color: var(--fg-muted);
+  font-size: var(--fs-sm);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
@@ -242,8 +242,8 @@
 .nearLimit {
   margin: 0;
   color: var(--danger);
-  font-size: 0.8125rem;
-  line-height: 1.5;
+  font-size: var(--fs-sm);
+  line-height: var(--lh-normal);
 }
 
 .fieldFindings {
@@ -257,7 +257,7 @@
 .highlight {
   margin: 0;
   color: var(--fg-muted);
-  font-size: 0.9375rem;
+  font-size: var(--fs-md);
   line-height: 1.6;
   word-break: break-word;
 }
@@ -271,8 +271,8 @@
 .blockedMessage {
   margin: 0;
   color: var(--danger);
-  font-size: 0.9375rem;
-  line-height: 1.5;
+  font-size: var(--fs-md);
+  line-height: var(--lh-normal);
 }
 
 /* 장르 칩 — 다중 선택 (3d) */
@@ -363,8 +363,8 @@
 }
 
 .imageSlotNote {
-  color: var(--fg-subtle);
-  font-size: 0.75rem;
+  color: var(--fg-muted);
+  font-size: var(--fs-xs);
   line-height: 1.4;
   text-align: center;
 }
@@ -637,7 +637,7 @@
   border: 1px solid var(--border);
   border-radius: var(--r-md);
   background: var(--bg);
-  line-height: 1.5;
+  line-height: var(--lh-normal);
 }
 
 /*
@@ -663,10 +663,17 @@
   background: var(--bg);
 }
 
+/*
+ * 카드 미리보기 안의 제목 한 줄. `1.125rem` 은 스케일 아홉의 어느 단계도 아니었으므로
+ * (#136 이 그 다섯을 지웠다) 위아래 중 하나를 골라야 했다 — 위(`--fs-xl`)는 구역 제목이라
+ * 카드 안의 한 줄이 쓸 자리가 아니고, 아래(`--fs-read`)는 **원고 목록의 제목
+ * (`drafts.module.css` 의 `.rowTitle`)과 내 작품의 패널 제목이 이미 서 있는 자리**다.
+ * 크기가 가까워서가 아니라 그 셋이 같은 일을 해서 여기로 온다.
+ */
 .previewTitle {
   margin: 0;
-  font-size: 1.125rem;
-  line-height: 1.3;
+  font-size: var(--fs-read);
+  line-height: var(--lh-tight);
 }
 
 .jump {
@@ -675,7 +682,7 @@
   background: none;
   color: var(--focus);
   font: inherit;
-  font-size: 0.8125rem;
+  font-size: var(--fs-sm);
   text-align: left;
   cursor: pointer;
 }
@@ -697,7 +704,7 @@
 
 .sideTitle {
   margin: 0;
-  font-size: 0.875rem;
+  font-size: var(--fs-base);
   font-weight: 600;
 }
 
@@ -747,7 +754,7 @@
 }
 
 .declaredNames {
-  font-size: 0.9375rem;
+  font-size: var(--fs-md);
   line-height: 1.6;
   word-break: break-word;
 }
@@ -784,8 +791,8 @@
 .pageTitle {
   margin: 0;
   font-family: var(--font-read);
-  font-size: 1.5rem;
-  line-height: 1.3;
+  font-size: var(--fs-2xl);
+  line-height: var(--lh-tight);
 }
 
 .body {
@@ -794,10 +801,14 @@
   line-height: 1.7;
 }
 
+/*
+ * **읽는 줄이다** (#159). 걸린 곳이 없다는 안내 · 장르 요약 · 검수가 막은 자리의 설명이
+ * 전부 이 자리를 쓴다 — `--fg-subtle` 로는 그 문장들을 읽으라고 내놓은 뜻이 없다.
+ */
 .meta {
   margin: 0;
-  color: var(--fg-subtle);
-  font-size: 0.875rem;
+  color: var(--fg-muted);
+  font-size: var(--fs-base);
   line-height: 1.6;
 }
 
@@ -887,8 +898,8 @@
 
 .outlineIntroTitle {
   margin: 0;
-  font-size: 1.25rem;
-  line-height: 1.5;
+  font-size: var(--fs-xl);
+  line-height: var(--lh-normal);
 }
 
 /* 생성 중이라는 것을 움직임으로 말한다. 남은 시간을 지어내지 않는다 — 계약이 주지 않는다 */
@@ -979,13 +990,13 @@
   display: flex;
   gap: var(--sp-2);
   align-items: baseline;
-  line-height: 1.5;
+  line-height: var(--lh-normal);
 }
 
 .flowNo {
   flex: none;
-  color: var(--fg-subtle);
-  font-size: 0.8125rem;
+  color: var(--fg-muted);
+  font-size: var(--fs-sm);
   font-variant-numeric: tabular-nums;
 }
 
@@ -993,7 +1004,7 @@
   flex: 1 1 auto;
   min-width: 0;
   overflow: hidden;
-  font-size: 0.9375rem;
+  font-size: var(--fs-md);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -1005,7 +1016,7 @@
   padding: 0 var(--sp-2);
   border: 1px solid var(--fg);
   border-radius: var(--r-xl);
-  font-size: 0.75rem;
+  font-size: var(--fs-xs);
   line-height: 1.6;
 }
 

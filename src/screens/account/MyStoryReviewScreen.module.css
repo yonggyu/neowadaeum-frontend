@@ -81,7 +81,7 @@
 
 .columnTitle {
   margin: 0 0 var(--sp-3);
-  font-size: 1rem;
+  font-size: var(--fs-lg);
   line-height: 1.4;
 }
 
@@ -124,11 +124,18 @@
   white-space: nowrap;
 }
 
+/*
+ * 보고 있는 작품의 이름 — **이 화면에서 가장 큰 글자이고 상세의 제목이다.** `1.375rem` 은
+ * 스케일 아홉의 어느 단계도 아니었으므로(#136) 한 단계를 골라야 하고, 가까운 쪽
+ * (`--fs-xl`, 구역 제목)이 아니라 역할이 같은 쪽(`--fs-2xl`, 화면 제목)으로 올린다.
+ * 큰 제목은 명조다 (#136 의 표).
+ */
 .title {
   margin: 0 0 var(--sp-3);
   overflow-wrap: anywhere;
-  font-size: 1.375rem;
-  line-height: 1.3;
+  font-family: var(--font-read);
+  font-size: var(--fs-2xl);
+  line-height: var(--lh-tight);
 }
 
 .badges {
@@ -152,13 +159,13 @@
 
 .panelTitle {
   margin: 0 0 var(--sp-2);
-  font-size: 1.0625rem;
+  font-size: var(--fs-read);
   line-height: 1.4;
 }
 
 .panelSubtitle {
   margin: var(--sp-4) 0 var(--sp-2);
-  font-size: 0.9375rem;
+  font-size: var(--fs-md);
 }
 
 .reasons {
@@ -174,7 +181,7 @@
   border-radius: var(--r-md);
   background: var(--bg-sunken);
   color: var(--fg-muted);
-  font-size: 0.875rem;
+  font-size: var(--fs-base);
   line-height: 1.6;
 }
 
@@ -249,7 +256,7 @@
 
 .appealLabel {
   color: var(--fg-muted);
-  font-size: 0.8125rem;
+  font-size: var(--fs-sm);
 }
 
 /*

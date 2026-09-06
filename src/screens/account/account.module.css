@@ -33,8 +33,8 @@
 .pageTitle {
   margin: 0 0 var(--sp-6);
   font-family: var(--font-read);
-  font-size: 1.5rem;
-  line-height: 1.3;
+  font-size: var(--fs-2xl);
+  line-height: var(--lh-tight);
 }
 
 .body {
@@ -43,10 +43,15 @@
   line-height: 1.7;
 }
 
+/*
+ * **읽는 줄이다** (#159). 저장 결과(`role="status"`)와 **서버가 준 오류 문장**
+ * (`role="alert"`)이 이 자리를 쓴다 — F-4 는 그 문장을 그대로 보여 주라고 하고, 흐린 글자로
+ * 보여 주는 것은 그 뜻의 절반이다.
+ */
 .meta {
   margin: 0;
-  color: var(--fg-subtle);
-  font-size: 0.875rem;
+  color: var(--fg-muted);
+  font-size: var(--fs-base);
   font-variant-numeric: tabular-nums;
 }
 
@@ -95,7 +100,7 @@
 
 .tall {
   min-height: 56px;
-  font-size: 1rem;
+  font-size: var(--fs-lg);
 }
 
 .wide {
@@ -157,7 +162,7 @@
   border: 1px solid var(--border);
   border-radius: var(--r-sm);
   color: var(--fg-muted);
-  font-size: 0.75rem;
+  font-size: var(--fs-xs);
   white-space: nowrap;
 }
 
