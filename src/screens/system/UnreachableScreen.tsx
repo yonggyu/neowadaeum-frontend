@@ -1,6 +1,7 @@
 import { useState } from 'react'
 
 import { UNREACHABLE_MESSAGE } from '../../api/errors'
+import { NoticePanel, UnreachableMark } from './NoticePanel'
 import css from './system.module.css'
 import { retryLabel } from './systemNotice'
 
@@ -23,8 +24,9 @@ import { retryLabel } from './systemNotice'
  *   `X-Request-Id` 도 오지 않았다) · 재시도 횟수
  * - 자동 재시도 — 서버가 뜨는 순간 모든 탭이 동시에 몰린다. 다시 부르는 것은 사람이 정한다
  *
- * `role="alert"` 다. 복원 중(`restoring`)의 `role="status"` 와 다르다 — 저쪽은 아직 아무 일도
- * 일어나지 않았고, 이쪽은 화면이 바뀐 것을 낭독기가 그 자리에서 알려야 한다.
+ * `role="alert"` 다 (`NoticePanel` 이 든다). 복원 중(`restoring`)의 `role="status"` 와 다르다 —
+ * 저쪽은 아직 아무 일도 일어나지 않았고, 이쪽은 화면이 바뀐 것을 낭독기가 그 자리에서 알려야
+ * 한다.
  */
 export function UnreachableScreen({ onRetry }: { onRetry: () => void }) {
   /*
@@ -35,25 +37,8 @@ export function UnreachableScreen({ onRetry }: { onRetry: () => void }) {
 
   return (
     <main className={css.screen} data-screen="Unreachable">
-      {/* `role` 은 안쪽 덩어리가 갖는다 — `main` 에 얹으면 랜드마크가 사라진다 */}
-      <div className={css.column} role="alert">
-        <svg
-          className={css.icon}
-          viewBox="0 0 32 32"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          aria-hidden="true"
-        >
-          <path d="M9.5 24h11a5.5 5.5 0 0 0 1.2-10.87A7.5 7.5 0 0 0 8.6 11.4" />
-          <path d="M9.5 24a5.5 5.5 0 0 1-1.6-10.77" />
-          <path d="M5 5l22 22" />
-        </svg>
-
-        <h1 className={css.headline}>{UNREACHABLE_MESSAGE}</h1>
-
+      {/* 껍데기는 `NoticePanel` 이 든다 (#122). 이 화면에만 있는 것은 아래 `pending` 하나다 */}
+      <NoticePanel mark={<UnreachableMark />} headline={UNREACHABLE_MESSAGE} headlineTag="h1">
         <button
           type="button"
           className={`${css.action} ${css.primary}`}
@@ -65,7 +50,7 @@ export function UnreachableScreen({ onRetry }: { onRetry: () => void }) {
         >
           {retryLabel(pending)}
         </button>
-      </div>
+      </NoticePanel>
     </main>
   )
 }

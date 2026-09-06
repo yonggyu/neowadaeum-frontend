@@ -1,11 +1,14 @@
 import { useEffect, useRef, useState, type RefObject } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 
 import type { Turn } from '../../api/endpoints/play'
 import { usePlaySession } from '../../hooks/usePlaySession'
 import { ROUTES } from '../../routes/routes'
 import { ReportDialog } from '../report/ReportDialog'
 import { storyTarget, turnTarget } from '../report/report'
+import { NoticePanel } from '../system/NoticePanel'
+import { PLAY_ENTRY_EXITS } from '../system/systemNotice'
+import system from '../system/system.module.css'
 import { EndingPanel } from './EndingPanel'
 import { PlayMenu } from './PlayMenu'
 import { isPlayable, PlayStage } from './PlayStage'
@@ -25,9 +28,43 @@ import s from './play.module.css'
 export function PlayScreen() {
   const { sessionId } = useParams()
 
-  // 라우트가 `:sessionId` 를 요구하므로 여기에 오려면 값이 있어야 한다. 없는 경우를 위해
-  // 문구를 지어내지 않는다 — 디자인에 그 화면이 없다.
-  return sessionId === undefined ? <main data-screen="PlayScreen" /> : <Play sessionId={sessionId} />
+  return sessionId === undefined ? <PlayEntryFailure /> : <Play sessionId={sessionId} />
+}
+
+/**
+ * 세션 식별자 없이 이 화면에 닿았다 — 8차 design-gaps `B-4` (#129).
+ *
+ * 라우트가 `:sessionId` 를 요구하므로 정상적인 이동으로는 오지 않는다. 그래도 **빈 화면을
+ * 두지 않는다**: 주소를 직접 고쳐 들어오거나 오래된 링크를 열면 이 자리에 닿고, 비어 있는
+ * 화면은 돌아가는 것처럼 보인다 (CLAUDE.md 개발 루프).
+ *
+ * **원인을 나누지 않는다.** 주소를 잘못 친 것과 세션이 사라진 것이 화면에서 같아 보이고,
+ * 여기서는 둘을 구분할 근거도 없다 — 식별자가 *있는데* 서버가 `404` 를 주는 경우는
+ * `usePlaySession` 의 오류 경로이지 이 자리가 아니다.
+ *
+ * **문구를 화면이 쓴다.** 이 실패는 서버를 부르기 *전*에 일어나 서버가 준 `message` 가 없다 —
+ * `F-4` 가 그대로 보여 주라고 하는 그 대상이 없는 자리이며, `B-1`(404)이 세운 것과 같은
+ * 구분이다. 계약의 `NOT_FOUND` 는 여기 오지 않는다.
+ *
+ * 나가는 문은 있다 — 이 화면은 `RequireAuth` 안이라 라이브러리가 실제로 열린다. 목적지는
+ * `PLAY_ENTRY_EXITS` 가 들고, 그 판단에 테스트가 붙는다 (8차 B-2 와 갈리는 지점).
+ */
+function PlayEntryFailure() {
+  return (
+    <main className={system.screen} data-screen="PlayScreen">
+      <NoticePanel
+        headline="이야기를 열 수 없어요"
+        headlineTag="h1"
+        body="이 주소로는 읽던 이야기를 찾을 수 없습니다."
+      >
+        {PLAY_ENTRY_EXITS.map((exit) => (
+          <Link key={exit.to} className={`${system.action} ${system.primary}`} to={exit.to}>
+            {exit.label}
+          </Link>
+        ))}
+      </NoticePanel>
+    </main>
+  )
 }
 
 function Play({ sessionId }: { sessionId: string }) {

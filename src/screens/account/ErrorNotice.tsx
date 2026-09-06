@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom'
 import { ApiError } from '../../api/client'
 import { retryAfterSeconds, THROTTLED } from '../../api/errors'
 import { ROUTES } from '../../routes/routes'
+import { isUnreachable } from '../system/systemNotice'
+import { UnreachableNotice } from '../system/UnreachableNotice'
 import styles from './account.module.css'
 
 /**
@@ -11,8 +13,16 @@ import styles from './account.module.css'
  * **문구를 프론트가 짓지 않는다 (F-4).** 서버가 준 `message` 를 그대로 내고, `error` 코드는
  * *무엇을 할 수 있는가*를 정하는 데만 쓴다 — 로그인이 필요한가, 다시 시도할 수 있는가.
  * 코드마다 다른 문구를 여기 적어 두면 서버와 화면이 서로 다른 말을 하기 시작한다.
+ *
+ * **서버에 닿지 못한 실패는 아래로 내려오지 않는다** (#122). 그 갈래에는 나가는 문이 없어야
+ * 하는데(8차 B-2) 여기 아래는 언제나 라이브러리 링크를 그리기 때문이다 — 판정은
+ * `isUnreachable` 하나가 하고, 그리는 것은 `UnreachableNotice` 가 한다.
  */
 export function ErrorNotice({ error, onRetry }: { error: unknown; onRetry?: () => void }) {
+  if (isUnreachable(error)) {
+    return <UnreachableNotice onRetry={onRetry} />
+  }
+
   const api = error instanceof ApiError ? error : null
 
   return (
