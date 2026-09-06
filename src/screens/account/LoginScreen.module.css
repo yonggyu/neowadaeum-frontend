@@ -47,13 +47,13 @@
   margin: 0 0 var(--sp-2);
   font-family: var(--font-read);
   font-size: var(--fs-2xl);
-  line-height: 1.4;
+  line-height: var(--lh-snug);
 }
 
 .sub {
   margin: 0;
   color: var(--fg-muted);
-  line-height: 1.6;
+  line-height: var(--lh-relaxed);
 }
 
 /*

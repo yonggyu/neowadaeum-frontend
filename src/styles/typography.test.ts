@@ -32,6 +32,36 @@ const SCALE = [
 ] as const
 
 /**
+ * 행간 여섯 (#168). 크기와 같이 **차례**가 여기 있는 사실이다 — 촘촘한 쪽에서 넓은 쪽으로.
+ */
+const LEADING = [
+  '--lh-tight',
+  '--lh-snug',
+  '--lh-normal',
+  '--lh-relaxed',
+  '--lh-loose',
+  '--lh-read',
+] as const
+
+/**
+ * 행간을 토큰으로 적지 **않아도 되는** 자리. 글줄이 아닌 것만 여기 온다.
+ *
+ * **선택자까지 적는다.** 파일 단위로 면제하면 그 파일에 새로 생기는 글줄이 통째로 규칙
+ * 밖으로 나가고, 그 구멍은 화면에서 보이지 않는다.
+ */
+const EXEMPT = [
+  {
+    file: 'screens/play/play.module.css',
+    selector: '.menuButton',
+    value: '1',
+    // 44px 칸 가운데의 글리프 하나(`⋯`)다. `1` 은 *촘촘하게 읽힌다* 가 아니라 글자 상자를
+    // 글리프에 맞춰 `align-items: center` 가 실제로 가운데를 잡게 하는 값이다 — 행간 여섯
+    // 중 무엇을 넣어도 아이콘이 위로 밀린다. 근거는 그 자리의 주석에도 있다.
+    why: '글줄이 아니라 아이콘 정렬',
+  },
+] as const
+
+/**
  * 큰 제목의 크기. 이행(#136 의 뒤따르는 PR 셋)이 끝나면 왼쪽 둘은 사라지고 토큰만 남는데,
  * **그 사이에도 같은 규칙이 걸려야 하므로** 둘 다 적는다.
  */
@@ -66,13 +96,15 @@ describe('#136 — 스케일 아홉', () => {
     ])
   })
 
-  it('136_행간_셋이_있고_읽는_쪽이_가장_넓다', () => {
+  it('136_읽는_쪽이_가장_넓고_1_75_다', () => {
+    // 셋이던 행간은 `#168` 이 여섯으로 늘렸다 — 개수는 아래 `#168` 묶음이 센다. 여기 남는
+    // 것은 `#136` 이 정한 두 사실이다: **읽는 쪽이 끝이고**, 그 값이 `1.75` 다.
     const read = Number(ROOT.get('--lh-read'))
     const normal = Number(ROOT.get('--lh-normal'))
     const tight = Number(ROOT.get('--lh-tight'))
     expect(read).toBeGreaterThan(normal)
     expect(normal).toBeGreaterThan(tight)
-    // `.narration` 이 이미 쓰던 값이다 — 이 PR 로 행간이 바뀌지 않는다는 사실이 이 줄이다.
+    // `.narration` 이 이미 쓰던 값이다 — `#136` 으로 행간이 바뀌지 않는다는 사실이 이 줄이다.
     expect(read).toBe(1.75)
   })
 
@@ -82,7 +114,7 @@ describe('#136 — 스케일 아홉', () => {
     // 토큰에 *어느 폭의 값인가* 가 따라붙는다.
     const stripped = uncommented(TOKENS)
     const outside = stripped.slice(0, stripped.indexOf('@media'))
-    for (const name of [...SCALE, '--lh-read', '--lh-normal', '--lh-tight']) {
+    for (const name of [...SCALE, ...LEADING]) {
       expect(count(stripped, `${name}:`), name).toBe(1)
       expect(outside, name).toContain(`${name}:`)
     }
@@ -208,6 +240,85 @@ describe('#169 — 크기 토큰의 이름은 크기만 말한다', () => {
     // 위 검사는 이름이 하나도 없어도 통과한다. 선언과 사용이 **같은 아홉**임을 함께 못박는다 —
     // 화면이 선언에 없는 단계를 부르기 시작하면 그것도 여기서 걸린다.
     expect([...names].sort()).toStrictEqual([...SCALE].sort())
+  })
+})
+
+/**
+ * **행간도 값을 화면이 적지 않는다** (#168).
+ *
+ * 크기가 `#136` 에서 겪은 것을 행간이 그대로 겪고 있었다 — 토큰 셋이 실제 분포를 덮지 못해
+ * 리터럴 62자리가 남았고, 가장 많은 셋에는 토큰이 아예 없었다. 여섯으로 늘려 62자리를 전부
+ * 옮겼고, **여기서 지키는 것은 그 상태가 다시 흩어지지 않는 것**이다.
+ */
+describe('#168 — 행간 여섯', () => {
+  it('168_여섯_단계가_전부_있고_단조증가한다', () => {
+    // 값이 겹치거나 순서가 뒤집히면 그것은 단계가 아니라 그냥 여섯 개의 숫자다 — 크기 아홉이
+    // 같은 이유로 같은 검사를 갖는다. 행간은 특히 조용히 무너진다: 두 단계가 같아지면
+    // 어느 쪽을 골라도 화면이 똑같이 그려져서, 고른 사람은 자기가 고른 줄로 안다.
+    const values = LEADING.map((name) => {
+      const raw = ROOT.get(name)
+      expect(raw, name).toBeDefined()
+      return Number(raw)
+    })
+    for (const [i, value] of values.entries()) expect(Number.isNaN(value), LEADING[i]).toBe(false)
+    expect(new Set(values).size).toBe(LEADING.length)
+    expect(values).toStrictEqual([...values].sort((a, b) => a - b))
+  })
+
+  it('168_행간을_손으로_적지_않는다', () => {
+    // 값의 자리는 `tokens.css` 하나다. `136_어느_CSS_에도_font_size_리터럴이_없다` 가 크기에
+    // 건 규칙과 같은 것이고, **면제는 목록으로만 열린다** — 넓은 구멍을 내지 않는다.
+    const literals: string[] = []
+    for (const [path, source] of cssFiles()) {
+      for (const [selector, declared] of bySelector(source)) {
+        for (const match of declared.matchAll(/line-height:\s*([^;]+);/g)) {
+          const value = (match[1] ?? '').trim()
+          if (value.startsWith('var(--lh-')) continue
+          const exempt = EXEMPT.some(
+            (one) => path.endsWith(one.file) && selector === one.selector && value === one.value,
+          )
+          if (!exempt) literals.push(`${path} ${selector}: ${value}`)
+        }
+      }
+    }
+    expect(literals).toStrictEqual([])
+  })
+
+  it('168_면제된_자리가_실제로_거기_있다', () => {
+    // 위 검사는 면제 목록이 **낡아도** 통과한다 — 그 자리가 사라지거나 값이 바뀌면 목록만
+    // 남아 다음 사람에게 *여기는 규칙 밖* 이라고 계속 말한다. 그러면 그 선택자가 언젠가
+    // 글줄을 그리게 되는 날 아무도 모른다.
+    for (const one of EXEMPT) {
+      const found = cssFiles().find(([path]) => path.endsWith(one.file))
+      expect(found, one.file).toBeDefined()
+      const declared = bySelector(found?.[1] ?? '').get(one.selector)
+      expect(declared, `${one.file} ${one.selector}`).toBeDefined()
+      expect(declared, one.why).toContain(`line-height: ${one.value};`)
+    }
+  })
+
+  it('168_실제로_행간_토큰을_쓴다', () => {
+    // 위 검사는 `line-height` 가 한 줄도 없어도 통과한다 — 규칙이 *지켜지는 쪽*이 아니라
+    // *사라지는 쪽*으로 무너질 수 있다. 옮겨 온 자리의 수를 함께 센다 (62 + 이미 토큰이던 17,
+    // 면제 하나는 빼고 78).
+    let used = 0
+    for (const [, source] of cssFiles()) {
+      used += [...uncommented(source).matchAll(/line-height:\s*var\(--lh-/g)].length
+    }
+    expect(used).toBeGreaterThanOrEqual(78)
+  })
+
+  it('168_여섯_밖의_이름을_집어_들지_않는다', () => {
+    // 선언과 사용이 **같은 여섯**임을 못박는다. 화면이 선언에 없는 단계를 부르면 그 자리는
+    // 상속된 행간으로 그려지고 — 아무것도 깨지지 않은 것처럼 보인다.
+    const used = new Set<string>()
+    for (const [, source] of cssFiles()) {
+      for (const match of uncommented(source).matchAll(/line-height:\s*var\((--lh-[\w-]+)\)/g)) {
+        const name = match[1]
+        if (name) used.add(name)
+      }
+    }
+    expect([...used].sort()).toStrictEqual([...LEADING].sort())
   })
 })
 

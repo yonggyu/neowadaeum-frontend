@@ -62,12 +62,12 @@
    * 읽으라고 내놓은 글이 아니다.**
    */
   font-size: var(--fs-xl);
-  line-height: 1.4;
+  line-height: var(--lh-snug);
 }
 
 .body {
   color: var(--fg-muted);
-  line-height: 1.7;
+  line-height: var(--lh-loose);
 }
 
 .failure {

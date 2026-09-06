@@ -78,7 +78,7 @@
   margin: var(--sp-3) 0 0;
   color: var(--fg-muted);
   font-size: var(--fs-base);
-  line-height: 1.7;
+  line-height: var(--lh-loose);
 }
 
 /*
@@ -91,7 +91,7 @@
   margin: var(--sp-4) 0 0;
   color: var(--fg-muted);
   font-size: var(--fs-base);
-  line-height: 1.6;
+  line-height: var(--lh-relaxed);
 }
 
 /*
@@ -317,7 +317,7 @@
   margin: 0;
   max-width: var(--read-width);
   font-size: var(--fs-md);
-  line-height: 1.7;
+  line-height: var(--lh-loose);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
@@ -356,7 +356,7 @@
   max-width: var(--read-width);
   color: var(--fg-muted);
   font-size: var(--fs-md);
-  line-height: 1.6;
+  line-height: var(--lh-relaxed);
   overflow-wrap: anywhere;
 }
 
@@ -373,7 +373,7 @@
   color: var(--fg-muted);
   font-family: var(--font-mono);
   font-size: var(--fs-sm);
-  line-height: 1.6;
+  line-height: var(--lh-relaxed);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
@@ -535,7 +535,7 @@
 .confirmText {
   margin: 0;
   font-size: var(--fs-md);
-  line-height: 1.7;
+  line-height: var(--lh-loose);
   overflow-wrap: anywhere;
 }
 

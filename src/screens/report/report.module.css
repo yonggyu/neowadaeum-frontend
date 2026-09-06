@@ -109,7 +109,7 @@
   color: var(--fg);
   font: inherit;
   font-size: var(--fs-lg);
-  line-height: 1.6;
+  line-height: var(--lh-relaxed);
   resize: vertical;
 }
 
@@ -129,7 +129,7 @@
 .confirmText {
   margin: var(--sp-2) 0 0;
   font-size: var(--fs-md);
-  line-height: 1.6;
+  line-height: var(--lh-relaxed);
 }
 
 .target:focus-visible,

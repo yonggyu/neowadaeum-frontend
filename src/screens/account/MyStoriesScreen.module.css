@@ -81,7 +81,7 @@
   margin: 0;
   overflow-wrap: anywhere;
   font-size: var(--fs-lg);
-  line-height: 1.4;
+  line-height: var(--lh-snug);
 }
 
 .cardActions {

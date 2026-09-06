@@ -73,6 +73,13 @@
   color: var(--fg-muted);
   font: inherit;
   font-size: var(--fs-xl);
+  /*
+   * **행간 여섯 밖의 유일한 자리다** (#168). 여기 서 있는 것은 글줄이 아니라 44px 칸
+   * 가운데의 글리프 하나(`⋯`)이고, `1` 은 *촘촘하게 읽힌다* 는 뜻이 아니라 **글자 상자를
+   * 글리프에 맞춰 `align-items: center` 가 실제로 가운데를 잡게** 하는 값이다. 여섯 중
+   * 무엇을 넣어도 아이콘이 위로 밀린다 — 그래서 토큰으로 옮기지 않았고, 이 자리는
+   * `typography.test.ts` 의 면제 목록에 선택자까지 적혀 있다.
+   */
   line-height: 1;
   cursor: pointer;
 }
@@ -196,7 +203,7 @@
   margin: var(--sp-6) 0 0;
   color: var(--fg-muted);
   font-size: var(--fs-xs);
-  line-height: 1.6;
+  line-height: var(--lh-relaxed);
   text-align: right;
 }
 
@@ -226,7 +233,7 @@
   background: var(--bg);
   color: var(--fg);
   font: inherit;
-  line-height: 1.6;
+  line-height: var(--lh-relaxed);
   text-align: left;
   cursor: pointer;
   transition: border-color 160ms ease, background 160ms ease;
@@ -343,7 +350,7 @@
 .noticeMessage {
   margin: 0;
   font-size: var(--fs-2lg);
-  line-height: 1.6;
+  line-height: var(--lh-relaxed);
 }
 
 .saved {
@@ -558,13 +565,13 @@
 .confirmText {
   margin: 0;
   font-size: var(--fs-md);
-  line-height: 1.7;
+  line-height: var(--lh-loose);
 }
 
 .confirmError {
   margin: var(--sp-3) 0 0;
   font-size: var(--fs-md);
-  line-height: 1.6;
+  line-height: var(--lh-relaxed);
 }
 
 .confirm .actions {
@@ -621,5 +628,5 @@ p.menuRow {
   margin: var(--sp-3) 0 0;
   color: var(--fg-muted);
   font-size: var(--fs-xs);
-  line-height: 1.6;
+  line-height: var(--lh-relaxed);
 }

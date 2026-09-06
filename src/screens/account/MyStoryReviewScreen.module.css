@@ -82,7 +82,7 @@
 .columnTitle {
   margin: 0 0 var(--sp-3);
   font-size: var(--fs-lg);
-  line-height: 1.4;
+  line-height: var(--lh-snug);
 }
 
 .list {
@@ -160,7 +160,7 @@
 .panelTitle {
   margin: 0 0 var(--sp-2);
   font-size: var(--fs-2lg);
-  line-height: 1.4;
+  line-height: var(--lh-snug);
 }
 
 .panelSubtitle {
@@ -172,7 +172,7 @@
   margin: 0;
   padding-left: var(--sp-6);
   color: var(--fg-muted);
-  line-height: 1.7;
+  line-height: var(--lh-loose);
 }
 
 .warning {
@@ -182,7 +182,7 @@
   background: var(--bg-sunken);
   color: var(--fg-muted);
   font-size: var(--fs-base);
-  line-height: 1.6;
+  line-height: var(--lh-relaxed);
 }
 
 .fieldset {
@@ -232,7 +232,7 @@
 }
 
 .optionLabel {
-  line-height: 1.4;
+  line-height: var(--lh-snug);
 }
 
 /*
@@ -273,7 +273,7 @@
   background: var(--bg);
   color: var(--fg);
   font: inherit;
-  line-height: 1.6;
+  line-height: var(--lh-relaxed);
   resize: vertical;
 }
 
@@ -307,7 +307,7 @@
   border: 1px solid var(--border);
   border-radius: var(--r-md);
   color: var(--fg);
-  line-height: 1.55;
+  line-height: var(--lh-relaxed);
   list-style: none;
 }
 

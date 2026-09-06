@@ -36,7 +36,7 @@
   margin: 0 0 var(--sp-2);
   font-family: var(--font-read);
   font-size: var(--fs-2xl);
-  line-height: 1.25;
+  line-height: var(--lh-tight);
 }
 
 .byline {
@@ -50,7 +50,7 @@
 .body {
   max-width: var(--read-width);
   margin: 0;
-  line-height: 1.7;
+  line-height: var(--lh-loose);
 }
 
 .counts {
@@ -120,7 +120,7 @@
   margin: 0;
   max-width: var(--read-width);
   color: var(--fg-muted);
-  line-height: 1.6;
+  line-height: var(--lh-relaxed);
 }
 
 .steps {

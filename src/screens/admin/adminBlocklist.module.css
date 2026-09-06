@@ -34,7 +34,7 @@
   margin: var(--sp-4) 0 0;
   color: var(--fg-muted);
   font-size: var(--fs-sm);
-  line-height: 1.7;
+  line-height: var(--lh-loose);
 }
 
 .heading {
@@ -50,7 +50,7 @@
   padding: var(--sp-4) 0;
   color: var(--fg-muted);
   font-size: var(--fs-base);
-  line-height: 1.6;
+  line-height: var(--lh-relaxed);
 }
 
 .split {
@@ -179,7 +179,7 @@
   border-radius: var(--r-sm);
   color: var(--fg-muted);
   font-size: var(--fs-xs);
-  line-height: 1.7;
+  line-height: var(--lh-loose);
 }
 
 .srOnly {
@@ -266,7 +266,7 @@
 .warn {
   color: var(--fg-muted);
   font-size: var(--fs-xs);
-  line-height: 1.6;
+  line-height: var(--lh-relaxed);
 }
 
 /* 한 번짜리 동작이라 56px 이다 (8차가 정한 값) */
