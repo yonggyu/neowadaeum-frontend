@@ -161,7 +161,14 @@
   gap: var(--sp-2);
 }
 
+/*
+ * `label` · `legend` · `span` 말고 `h2` · `p` 에도 붙는다 (7차 `A-1` 의 플래그 절). 그 둘은
+ * UA 여백을 들고 오므로 `margin` 을 여기서 걷는다 — 붙는 자리마다 다시 걷으면 언젠가 하나를
+ * 빠뜨리고, 빠뜨린 줄만 다른 간격으로 선다.
+ */
+
 .fieldLabel {
+  margin: 0;
   padding: 0;
   color: var(--fg-muted);
   font-size: 0.8125rem;
@@ -504,6 +511,146 @@
   border-style: dashed;
 }
 
+/*
+ * ── Step 3 의 플래그 절 (7차 `A-1` · #125) ────────────────────────────────────
+ *
+ * **인물 카드의 값을 나눠 쓰지 않는다.** 두 목록이 같은 단계에 있지만 그리는 것이 다르다 —
+ * 인물은 초상과 세 칸을 든 카드이고 플래그는 **한 줄**이다. 여기서 새로 정하는 값은 없다:
+ * 입력 48px 은 `.control`, 지우기 44px 은 `.iconButton` 이 이미 든 값이고 D-3 이 *"인물
+ * 카드의 버튼과 같은 크기"* 라고 적은 것이 그 뜻이다.
+ *
+ * 네 폭에서 모양이 같다 (F-9). 한 줄에 입력 하나와 버튼 하나뿐이라 1440 에서 벌릴 것이
+ * 없고, 좌측 컬럼의 폭(460 → 520)이 이미 그 차이를 만든다 — 폭이 넓다고 벌리지 않는다.
+ */
+
+/* 인물 목록과 플래그 절을 가르는 선 (D-1). `hr` 의 기본 테두리를 걷고 한 줄만 남긴다 */
+
+.divider {
+  width: 100%;
+  height: 0;
+  margin: var(--sp-4) 0 0;
+  border: 0;
+  border-top: 1px solid var(--border);
+}
+
+.flagSection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+
+/*
+ * 절의 제목은 `h2` 다 — 이 단계가 두 목록을 들게 되면서 낭독기에 목차가 필요해졌다. 하지만
+ * **보이는 것은 인물의 라벨과 같은 한 줄**이어야 한다 (D-2 가 그 둘을 짝으로 그렸다).
+ * 그래서 굵기만 걷는다 — 크기와 색과 여백은 `.fieldLabel` 의 것을 그대로 쓴다.
+ */
+
+.flagTitle {
+  font-weight: inherit;
+}
+
+.flagList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.flagRow {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+}
+
+/*
+ * D-3 — 한 줄에 입력 하나 + 지우기 하나. 390 에서도 둘이 같은 줄에 선다: 버튼이 44px 고정이고
+ * 입력이 남은 폭을 갖는다. `min-width: 0` 이 없으면 input 의 기본 폭이 flex 를 밀어내 버튼이
+ * 화면 밖으로 나간다.
+ */
+
+.flagLine {
+  display: flex;
+  gap: var(--sp-2);
+  align-items: flex-start;
+}
+
+.flagLine > .control {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/*
+ * 줄 아래의 한 줄 — 왼쪽은 이 이름을 가리키는 자리(D-4), 오른쪽은 남은 글자.
+ *
+ * 가리키는 곳이 없으면 왼쪽이 빈 칸이고 글자 수만 오른쪽에 남는다. 그때 자리가 접히지 않게
+ * `justify-content` 가 아니라 왼쪽이 늘어나는 쪽으로 둔다 — 접히면 줄마다 높이가 달라진다.
+ */
+
+.flagMeta {
+  display: flex;
+  gap: var(--sp-2);
+  align-items: baseline;
+}
+
+.flagMeta > .fieldNote {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.addFlag {
+  width: 100%;
+}
+
+/*
+ * 빈 상태 (D-7) — **다음 단계를 여기로 가져온다.**
+ *
+ * 플래그는 이 마법사에서 유일하게 *무엇에 쓰이는지 화면 안에서 보이지 않는* 값이다. 그래서
+ * 비었을 때만 Step 4 의 조건 목록을 그대로 보여 주고, 잠긴 둘의 이유는 `templateBlockedReason`
+ * 이 준 문장 그대로다.
+ */
+
+.flagEmpty {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  padding: var(--sp-4);
+  border: 1px dashed var(--border);
+  border-radius: var(--r-lg);
+}
+
+.templatePeek {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.templateRow {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  padding: var(--sp-3);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--bg);
+  line-height: 1.5;
+}
+
+/*
+ * 잠긴 둘 — **흐리게 하되 읽히게 둔다.** 이유가 붙어 있는 줄이라 그 이유까지 흐려지면 무엇을
+ * 하라는 것인지 보이지 않는다. 그래서 `opacity` 로 통째로 덮지 않고 바탕과 글자만 낮춘다.
+ */
+
+.templateLocked {
+  border-style: dashed;
+  background: var(--bg-sunken);
+  color: var(--fg-muted);
+}
+
 /* 우측 패널의 미리보기 (6a — Step 1·2) */
 
 .previewCard {
@@ -571,6 +718,38 @@
   border: 1px solid var(--border);
   border-radius: var(--r-md);
   background: var(--bg);
+}
+
+/*
+ * 패널 안의 절 (7차 `A-1` D-8) — Step 3 은 검수와 "이 원고가 선언한 이름" 둘을 든다.
+ *
+ * **`aside` 를 둘로 나누지 않는다.** 1024 부터 `.wizardBody` 가 2열 grid 이므로 grid 항목이
+ * 셋이 되면 둘째 패널이 다음 행의 좌측 컬럼으로 떨어진다 — 본문 아래에 패널이 끼어든다.
+ */
+
+.sideBlock {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+
+.sideBlock + .sideBlock {
+  padding-top: var(--sp-3);
+  border-top: 1px solid var(--border);
+}
+
+/* 이름 한 줄 — 라벨 위, 이름들 아래. 좁은 컬럼(320px)에서 가로로 놓으면 이름이 잘린다 */
+
+.declaredRow {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+}
+
+.declaredNames {
+  font-size: 0.9375rem;
+  line-height: 1.6;
+  word-break: break-word;
 }
 
 /*
