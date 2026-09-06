@@ -29,8 +29,10 @@
   margin: 0 auto;
 }
 
+/* 화면 제목은 큰 제목(`--fs-2xl`)이라 명조다 (#136) */
 .pageTitle {
   margin: 0 0 var(--sp-6);
+  font-family: var(--font-read);
   font-size: 1.5rem;
   line-height: 1.3;
 }

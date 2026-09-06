@@ -1,5 +1,7 @@
-import { readdirSync, readFileSync, statSync } from 'node:fs'
+import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
+
+import { cssFiles, darkBlock, declarations, rootBlock, uncommented } from './cssTokens'
 
 /**
  * 팔레트와 다크 (#135 · #138).
@@ -221,48 +223,9 @@ function alphaOf(value: string): number {
 }
 
 // ── 읽는 도구 ────────────────────────────────────────────────────────────────
-
-/**
- * 주석을 걷어낸 CSS. 이 레포의 주석에는 `#135` 같은 이슈 번호가 있어서, 걷어내지 않으면
- * *색을 직접 적었는가* 를 보는 규칙이 설명하는 글에 걸린다.
- */
-function uncommented(css: string): string {
-  return css.replace(/\/\*[\s\S]*?\*\//g, '')
-}
-
-/** `marker` 뒤에 처음 오는 균형 잡힌 `{ … }` 의 안쪽 */
-function block(text: string, marker: string): string {
-  const stripped = uncommented(text)
-  const at = stripped.indexOf(marker)
-  if (at < 0) throw new Error(`${marker} 를 찾지 못했다`)
-  let depth = 0
-  for (let i = at + marker.length - 1; i < stripped.length; i += 1) {
-    if (stripped[i] === '{') depth += 1
-    if (stripped[i] === '}') {
-      depth -= 1
-      if (depth === 0) return stripped.slice(at + marker.length, i)
-    }
-  }
-  throw new Error(`${marker} 의 블록이 닫히지 않았다`)
-}
-
-function rootBlock(text: string): string {
-  return block(text, ':root {')
-}
-
-function darkBlock(text: string): string {
-  return block(text, '@media (prefers-color-scheme: dark) {')
-}
-
-function declarations(css: string): Map<string, string> {
-  const found = new Map<string, string>()
-  for (const match of css.matchAll(/(--[\w-]+)\s*:\s*([^;]+);/g)) {
-    const [, name, value] = match
-    if (name === undefined || value === undefined) continue
-    found.set(name, value.trim())
-  }
-  return found
-}
+//
+// `uncommented` · `rootBlock` · `darkBlock` · `declarations` · `cssFiles` 는 `./cssTokens`
+// 에 있다 — `typography.test.ts`(#136)가 같은 것을 읽으면서 사용처가 둘이 됐다.
 
 /** 다크는 라이트 위에 얹힌다 — 다시 정의하지 않은 이름은 라이트의 것을 그대로 쓴다 */
 function resolve(scope: Map<string, string>, name: string, depth = 0): string {
@@ -320,18 +283,3 @@ function contrast(a: Rgba, b: Rgba): number {
 
 const round = (n: number): number => Math.round(n * 100) / 100
 const count = (text: string, needle: string): number => text.split(needle).length - 1
-
-/** `src/**` 의 모든 CSS. 새 화면이 늘어도 위의 규칙이 그 화면에 저절로 걸린다 */
-function cssFiles(): [string, string][] {
-  const root = new URL('..', import.meta.url).pathname
-  const found: [string, string][] = []
-  const walk = (dir: string): void => {
-    for (const entry of readdirSync(dir)) {
-      const path = `${dir}/${entry}`
-      if (statSync(path).isDirectory()) walk(path)
-      else if (entry.endsWith('.css')) found.push([path, readFileSync(path, 'utf8')])
-    }
-  }
-  walk(root)
-  return found
-}

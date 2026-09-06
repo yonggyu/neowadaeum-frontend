@@ -151,10 +151,21 @@
   gap: var(--paragraph-gap);
 }
 
+/*
+ * Story 본문 — **여기가 명조를 쓰는 자리다** (#136).
+ *
+ * `--fs-read` 는 이 앱에서 *읽으라고 내놓은 유일한 크기*이고, 그 이름이 가리키는 자리가
+ * 이 두 줄이다. 그전까지 이 문단들은 크기를 적지 않아 `body` 의 기본값(1rem)을 받고
+ * 있었다 — 토큰의 이름과 실제가 어긋나 있었다는 뜻이다.
+ *
+ * `--lh-read` 는 여기 있던 `1.75` 에 이름을 준 것뿐이라 **행간은 바뀌지 않는다.**
+ */
 .narration,
 .dialogue {
   margin: 0;
-  line-height: 1.75;
+  font-family: var(--font-read);
+  font-size: var(--fs-read);
+  line-height: var(--lh-read);
 }
 
 .dialogue {
@@ -441,7 +452,9 @@
   text-transform: uppercase;
 }
 
+/* 챕터 제목은 큰 제목(`--fs-2xl`)이라 명조다 (#136) */
 .interstitialTitle {
+  font-family: var(--font-read);
   font-size: 1.5rem;
   font-weight: 600;
   text-align: center;

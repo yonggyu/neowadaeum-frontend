@@ -24,8 +24,13 @@
   font-size: 0.8125rem;
 }
 
+/*
+ * 이야기 제목 — 이 앱에서 가장 큰 글자이고(768 부터 `--fs-3xl`) 명조를 쓴다 (#136).
+ * 크기가 폭에 따라 커지는 자리는 지금 여기 하나뿐이다.
+ */
 .title {
   margin: 0 0 var(--sp-2);
+  font-family: var(--font-read);
   font-size: 1.75rem;
   line-height: 1.25;
 }
