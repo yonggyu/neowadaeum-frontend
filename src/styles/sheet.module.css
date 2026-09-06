@@ -55,7 +55,8 @@
 
 .title {
   margin: 0;
-  font-size: 1.25rem;
+  /* 판의 머리 = 구역 제목 (#136). 확인 판의 `.title` 과 같은 단계에 선다 */
+  font-size: var(--fs-xl);
 }
 
 .close {
