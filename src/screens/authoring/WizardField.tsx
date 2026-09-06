@@ -1,3 +1,4 @@
+import type { Finding } from '../../api/endpoints/authoring'
 import { findingsFor, highlightSegments } from './precheck'
 import { isNearLimit } from './stepFields'
 import type { PrecheckHandle } from './usePrecheck'
@@ -79,37 +80,59 @@ export function DraftField({
         <p className={css.nearLimit}>{nearLimitNote}</p>
       ) : null}
 
-      {blocked ? (
-        <div className={css.fieldFindings} id={`${field}--msg`} role="alert">
-          {/*
-           * 문제 구간을 원문 위에 보여 준다 (3d). `input` 안에는 밑줄을 그을 수 없으므로
-           * 바로 아래 한 줄로 다시 그린다 — 사용자가 쓴 글자 말고는 아무것도 더하지 않는다.
-           */}
-          <p className={css.highlight}>
-            {highlightSegments(
-              value,
-              found.map((finding) => finding.span),
-            ).map((segment, index) =>
-              segment.marked ? (
-                <mark key={index} className={css.mark}>
-                  {segment.text}
-                </mark>
-              ) : (
-                <span key={index}>{segment.text}</span>
-              ),
-            )}
-          </p>
-          {/*
-           * **서버가 준 `message` 그대로다** (F-4). `kind` 를 우리 문구로 옮기지 않고 무엇에
-           * 걸렸는지도 덧붙이지 않는다 (F-5) — 그 설명이 곧 우회를 가르친다 (R8.7, S-11).
-           */}
-          {found.map((finding, index) => (
-            <p key={index} className={css.blockedMessage}>
-              {finding.message}
-            </p>
-          ))}
-        </div>
-      ) : null}
+      {blocked ? <FieldFindings field={field} value={value} findings={found} /> : null}
+    </div>
+  )
+}
+
+/**
+ * 걸린 자리 하나를 그린다 — 구간 하이라이트와 서버의 문장 (3d · 6a).
+ *
+ * **인물 카드와 플래그 줄이 같은 것을 쓴다** (#130). 부르는 쪽이 둘이라 꺼냈고, 같은 것을
+ * 쓰는 이유는 모양이 닮아서가 아니라 **지켜야 하는 것이 같아서**다: 원문 말고는 아무것도
+ * 더하지 않고(F-5 · R8.7 · S-11), 문장은 서버의 `message` 그대로다 (F-4). 두 곳이 각자
+ * 그리면 언젠가 한쪽만 그 둘을 지킨다.
+ *
+ * **`id` 가 `aria-describedby` 의 짝이다** — 부르는 쪽이 `field` 로 그 관계를 맺는다.
+ */
+export function FieldFindings({
+  field,
+  value,
+  findings,
+}: {
+  field: string
+  value: string
+  findings: readonly Finding[]
+}) {
+  return (
+    <div className={css.fieldFindings} id={`${field}--msg`} role="alert">
+      {/*
+       * 문제 구간을 원문 위에 보여 준다 (3d). `input` 안에는 밑줄을 그을 수 없으므로
+       * 바로 아래 한 줄로 다시 그린다 — 사용자가 쓴 글자 말고는 아무것도 더하지 않는다.
+       */}
+      <p className={css.highlight}>
+        {highlightSegments(
+          value,
+          findings.map((finding) => finding.span),
+        ).map((segment, index) =>
+          segment.marked ? (
+            <mark key={index} className={css.mark}>
+              {segment.text}
+            </mark>
+          ) : (
+            <span key={index}>{segment.text}</span>
+          ),
+        )}
+      </p>
+      {/*
+       * **서버가 준 `message` 그대로다** (F-4). `kind` 를 우리 문구로 옮기지 않고 무엇에
+       * 걸렸는지도 덧붙이지 않는다 (F-5) — 그 설명이 곧 우회를 가르친다 (R8.7, S-11).
+       */}
+      {findings.map((finding, index) => (
+        <p key={index} className={css.blockedMessage}>
+          {finding.message}
+        </p>
+      ))}
     </div>
   )
 }

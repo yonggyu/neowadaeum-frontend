@@ -9,6 +9,7 @@ import {
   flagRemovedEntirely,
 } from './flagsView'
 import { ImageSlotField } from './ImageSlotField'
+import { findingsFor } from './precheck'
 import {
   templateBlockedReason,
   type ConditionSources,
@@ -31,7 +32,7 @@ import {
   type StepValues,
 } from './stepFields'
 import type { PrecheckHandle } from './usePrecheck'
-import { DraftField } from './WizardField'
+import { DraftField, FieldFindings } from './WizardField'
 import css from './wizard.module.css'
 
 /**
@@ -267,6 +268,7 @@ export function StepCharacters({
       <FlagSection
         values={values}
         onChange={onChange}
+        precheck={precheck}
         templates={templates}
         sources={sources}
         referencesTo={referencesTo}
@@ -284,8 +286,13 @@ export function StepCharacters({
  * 한 줄에 입력 하나와 지우기 하나뿐이며(D-3), 값은 **문자열 하나**다 (계약 `DraftPayload.flags`).
  * 모양이 닮았다는 이유로 `CharacterCard` 와 합치면 그 순간 두 목록이 서로의 제약을 나눠 갖는다.
  *
- * **검수(precheck)에 보내지 않는다.** 계약이 플래그를 검수 대상으로 요구하지 않았고 아트보드도
- * 그 자리를 그리지 않았다 — 없는 화면을 지어내지 않는다.
+ * **검수(precheck)에 보낸다** (#130). #125 는 보내지 않았다 — 계약이 그때 플래그를 검수 대상으로
+ * 요구하지 않았기 때문이고, 정정본 §13-75 가 그 사이에 **L1 에 `flags[]` 를 걸었다.** 넘기지
+ * 않는 동안 이 절은 바로 위 인물 카드와 **다르게 동작했다**: 같은 화면에서 이름 하나는 그
+ * 자리에서 걸리고 아래 줄은 제출 뒤에야 걸렸다.
+ *
+ * **표시는 인물 카드의 것 그대로다** — 밑줄도 문장도 `FieldFindings` 가 그리고, 걸린 줄의
+ * 테두리와 간격은 `controlBlocked` · `fieldBlocked` 다. 새 모양을 만들지 않는다.
  *
  * **값을 다듬지 않는다** (§13-73). `trim()` 도 하지 않고 빈 줄도 막지 않으며 쓸 수 있는 문자도
  * 좁히지 않는다: "추가" 가 빈 줄을 먼저 만드는 화면이라 빈 줄을 막으면 줄을 하나 더한 순간
@@ -295,12 +302,13 @@ export function StepCharacters({
 function FlagSection({
   values,
   onChange,
+  precheck,
   templates,
   sources,
   referencesTo,
   onRemoveFlag,
   onGoToReference,
-}: Pick<StepProps, 'values' | 'onChange'> & FlagStepProps) {
+}: Pick<StepProps, 'values' | 'onChange' | 'precheck'> & FlagStepProps) {
   /** 확인 판이 물어보고 있는 자리. `null` 이면 판이 없다 */
   const [removing, setRemoving] = useState<number | null>(null)
 
@@ -355,6 +363,7 @@ function FlagSection({
               key={index}
               index={index}
               flag={flag}
+              precheck={precheck}
               references={referencesTo(flag)}
               onChange={(next) =>
                 onChange({
@@ -411,25 +420,36 @@ function FlagSection({
   )
 }
 
-/** 한 줄 — 입력 하나와 지우기 하나 (D-3). 그 아래에 이 이름을 가리키는 자리가 붙는다 (D-4) */
+/**
+ * 한 줄 — 입력 하나와 지우기 하나 (D-3). 그 아래에 이 이름을 가리키는 자리가 붙는다 (D-4).
+ *
+ * **검수 표시는 `DraftField` 의 것을 그대로 쓴다** (#130). 이 줄이 `DraftField` 자체가 되지
+ * 않는 이유는 모양이 다르기 때문이다 — 라벨이 절에 하나뿐이고(D-2) 입력 옆에 지우기가 서며
+ * 아래 한 줄에 D-4 가 붙는다. 그래서 **판정과 그리기만** 같은 것을 쓴다: `findingsFor` 로
+ * 걸렸는지 보고, `FieldFindings` 로 그린다. 클래스도 인물 카드의 것 그대로다.
+ */
 function FlagRow({
   index,
   flag,
+  precheck,
   references,
   onChange,
   onRemove,
 }: {
   index: number
   flag: string
+  precheck: PrecheckHandle
   references: readonly FlagReference[]
   onChange: (flag: string) => void
   onRemove: () => void
 }) {
   const field = flagField(index)
   const note = flagReferenceNote(references)
+  const found = findingsFor(precheck.findings, field)
+  const blocked = found.length > 0
 
   return (
-    <li className={css.flagRow}>
+    <li className={blocked ? `${css.flagRow} ${css.fieldBlocked}` : css.flagRow}>
       <div className={css.flagLine}>
         {/*
          * 라벨은 절에 하나뿐이므로(D-2) 줄마다 다시 적지 않는다 — 대신 낭독기가 몇 번째 줄인지
@@ -438,11 +458,17 @@ function FlagRow({
         <input
           id={field}
           type="text"
-          className={css.control}
+          className={blocked ? `${css.control} ${css.controlBlocked}` : css.control}
           value={flag}
           maxLength={FLAG_NAME_MAX}
           aria-label={`플래그 ${index + 1}`}
-          onChange={(event) => onChange(event.target.value)}
+          aria-invalid={blocked}
+          aria-describedby={blocked ? `${field}--msg` : undefined}
+          // 입력과 검수를 함께 태운다 — 검사는 0.8초 뒤에 나간다 (`DraftField` 와 같다)
+          onChange={(event) => {
+            onChange(event.target.value)
+            precheck.check(field, event.target.value)
+          }}
         />
         <button type="button" className={css.iconButton} onClick={onRemove}>
           지우기
@@ -451,9 +477,15 @@ function FlagRow({
       <div className={css.flagMeta}>
         {/* D-4 — 어느 자리가 이 이름을 쓰는지. 지우기 전에 보이는 것이 판보다 먼저다 */}
         <span className={css.fieldNote}>{note ?? ''}</span>
-        {/* 남은 글자는 한줄소개와 같은 방식으로 보여 준다 (`SHORT_DESCRIPTION_MAX`) */}
-        <span className={css.fieldMeta}>{`${flag.length} / ${FLAG_NAME_MAX}`}</span>
+        {/*
+         * 3d — 검사 중에는 글자 수 자리에 "확인 중". 두 값이 같은 자리를 두고 다투지 않는다.
+         * 남은 글자는 한줄소개와 같은 방식으로 보여 준다 (`SHORT_DESCRIPTION_MAX`).
+         */}
+        <span className={css.fieldMeta}>
+          {precheck.isChecking(field) ? '확인 중' : `${flag.length} / ${FLAG_NAME_MAX}`}
+        </span>
       </div>
+      {blocked ? <FieldFindings field={field} value={flag} findings={found} /> : null}
     </li>
   )
 }

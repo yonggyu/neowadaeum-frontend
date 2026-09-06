@@ -8,6 +8,8 @@ import {
   characterFieldPaths,
   emptyCharacter,
   flagField,
+  flagFieldPaths,
+  flagPrecheckFields,
   FLAG_MAX_COUNT,
   FLAG_NAME_MAX,
   isNearLimit,
@@ -319,12 +321,122 @@ describe('Step 3 의 플래그 선언 — 계약 DraftPayload.flags', () => {
     ])
   })
 
-  /**
-   * 배열 표기는 계약 `PrecheckRequest.fields` 의 예시 형식이며 DOM id 도 이 값이다.
-   * **검수에 보내지는 않는다** — 계약이 요구하지 않았고 아트보드도 그 자리를 그리지 않았다.
-   */
+  /** 배열 표기는 계약 `PrecheckRequest.fields` 의 예시 형식이며 DOM id 도 이 값이다. */
   it('F2_배열_표기를_지어내지_않는다', () => {
     expect(flagField(0)).toBe('flags[0]')
     expect(flagField(2)).toBe('flags[2]')
+    expect(flagFieldPaths(3)).toEqual(['flags[0]', 'flags[1]', 'flags[2]'])
+    // 줄이 없으면 버릴 자리도 없다 — 음수를 받아도 배열을 만들지 않는다
+    expect(flagFieldPaths(0)).toEqual([])
+    expect(flagFieldPaths(-1)).toEqual([])
+  })
+})
+
+/**
+ * 플래그가 실시간 검수를 지난다 (#130 · 정정본 §13-75).
+ *
+ * §13-75 는 **L1 에 `flags[]` 를 걸면서** 같은 절에 *"L0 은 화면이 넘긴 필드 지도를 검사하므로
+ * 화면이 안 넘기는 칸은 L0 도 지나지 않는다"* 고 적었다. 그래서 이 목록이 짧으면 작성자는
+ * 다섯 스텝을 다 지나고 **제출한 뒤에야** 이름 하나로 반려된다.
+ *
+ * 아래가 붙잡는 것은 **두 검수가 보는 값의 집합**이다. 번호는 어긋날 수 있다 — L1 은 선언
+ * 목록(빈 줄과 중복을 접은 것)의 자리로 세고 화면은 화면의 줄로 센다 (§13-75 #4 — *경로는
+ * 밑줄을 그을 자리를 가리키는 값*). 어긋나면 안 되는 것은 **무엇이 검사되는가**다.
+ */
+describe('플래그의 L0 — 화면이 넘기는 필드 지도 (#130)', () => {
+  /** 서버가 L1 에 거는 값 — `DraftStateSchema` 가 빈 항목을 건너뛰고 집합으로 읽는다 (§13-73) */
+  const screenedByL1 = (flags: readonly string[]): Set<string> =>
+    new Set(flags.filter((flag) => flag.trim() !== ''))
+
+  it('F130_선언된_이름이_전부_L0_에_실린다_L1_이_거는_것과_같은_집합이다', () => {
+    const flags = ['첫번째표시', '두번째표시', '세번째표시']
+    const sent = flagPrecheckFields(flags)
+
+    expect(new Set(sent.map((field) => field.value))).toEqual(screenedByL1(flags))
+    // 경로는 **화면의 줄**이다 — 그 값이 곧 DOM id 이고 밑줄이 그어질 자리다 (§13-75 #4)
+    expect(sent.map((field) => field.field)).toEqual(['flags[0]', 'flags[1]', 'flags[2]'])
+  })
+
+  /**
+   * **빈 칸에 밑줄을 보게 하지 않는다** (§13-71 이 인물에서 금지한 것). 서버도 빈 항목을
+   * 건너뛰므로 (§13-73 #4) 넘기지 않는 편이 L1 과도 같다 — "추가" 가 빈 줄을 먼저 만드는
+   * 화면이라 그 상태는 예외가 아니라 기본값이다.
+   */
+  it('F130_빈_줄은_넘기지_않는다_공백뿐인_줄도_같다', () => {
+    const flags = ['첫번째표시', '', '   ', '두번째표시']
+    const sent = flagPrecheckFields(flags)
+
+    expect(sent.map((field) => field.field)).toEqual(['flags[0]', 'flags[3]'])
+    expect(new Set(sent.map((field) => field.value))).toEqual(screenedByL1(flags))
+  })
+
+  /**
+   * **같은 이름이 둘이면 두 줄 다 넘긴다.** 두 줄이 화면에 서 있고 둘 다 밑줄을 받아야 한다 —
+   * 서버가 보는 값의 집합은 그래도 같다. 후보를 이름으로 접는 것(#144)과 다른 자리다.
+   */
+  it('F130_같은_이름_두_줄은_둘_다_자기_자리를_받는다_검사되는_값은_같다', () => {
+    const flags = ['첫번째표시', '첫번째표시']
+    const sent = flagPrecheckFields(flags)
+
+    expect(sent.map((field) => field.field)).toEqual(['flags[0]', 'flags[1]'])
+    expect(new Set(sent.map((field) => field.value))).toEqual(screenedByL1(flags))
+  })
+
+  /** 값을 다듬지 않는다 (S-7 · §13-73 #3) — 검사되는 것은 작성자가 친 그대로여야 한다 */
+  it('F130_넘기는_값을_다듬지_않는다', () => {
+    expect(flagPrecheckFields([' 첫번째표시 '])).toEqual([
+      { field: 'flags[0]', value: ' 첫번째표시 ' },
+    ])
+  })
+})
+
+/**
+ * 조건 후보를 이름으로 접는다 (#144 — `#132` 의 나머지).
+ *
+ * `#132` 가 `<option key>` 의 겹침을 고쳤지만 **보이는 쪽은 그대로였다** — 글자가 똑같은
+ * 항목이 두 줄 섰고, 계약이 받는 것은 이름이므로 (`ConditionParams`) 고르는 결과도 같았다.
+ * **두 줄이 서 있다는 것 자체가 거짓 정보다.**
+ */
+describe('conditionSources — 같은 이름은 한 줄이다 (#144)', () => {
+  const step3 = (names: readonly string[], flags: readonly string[] = []): StepValues => ({
+    ...readValues({}),
+    characters: names.map(character),
+    flags: [...flags],
+  })
+
+  it('F144_같은_이름은_한_줄로_선다_인물과_플래그가_같은_규칙이다', () => {
+    expect(conditionSources(step3(['유나', '유나', '민'], ['봄', '봄']))).toEqual({
+      characters: ['유나', '민'],
+      flags: ['봄'],
+    })
+  })
+
+  /** 남는 것은 **처음 나온 자리**의 것이다 — 서버의 `LinkedHashSet` 과 같은 순서다 */
+  it('F144_처음_나온_순서를_지킨다', () => {
+    expect(conditionSources(step3([], ['봄', '여름', '봄', '가을'])).flags).toEqual([
+      '봄',
+      '여름',
+      '가을',
+    ])
+  })
+
+  /**
+   * **다르게 친 이름은 다른 이름이다.** 접는 것은 세는 방식이지 다듬는 것이 아니다 —
+   * 앞뒤 공백이 다르면 원고에 서로 다른 두 이름이 들어가고, 조건은 그중 하나를 가리킨다.
+   */
+  it('F144_접는_것은_다듬는_것이_아니다_공백이_다르면_다른_이름이다', () => {
+    expect(conditionSources(step3([], [' 봄 ', '봄'])).flags).toEqual([' 봄 ', '봄'])
+  })
+
+  /** #131 의 대응은 그대로다 — 남은 후보는 모두 `writeValues` 가 싣는 이름 그대로 있다 */
+  it('F144_접어도_후보는_writeValues_가_싣는_이름_그대로다_131_의_대응', () => {
+    const values = step3(['유나', '유나'], ['봄', '봄', ''])
+    const saved = writeValues({}, values)
+    const names = (saved['characters'] as readonly CharacterDraft[]).map((c) => c.name)
+
+    for (const candidate of conditionSources(values).characters) expect(names).toContain(candidate)
+    for (const candidate of conditionSources(values).flags) {
+      expect(saved['flags']).toContain(candidate)
+    }
   })
 })
