@@ -72,7 +72,7 @@
   background: none;
   color: var(--fg-muted);
   font: inherit;
-  font-size: 1.25rem;
+  font-size: var(--fs-xl);
   line-height: 1;
   cursor: pointer;
 }
@@ -90,7 +90,7 @@
 .storyTitle {
   margin: 0;
   overflow: hidden;
-  font-size: 1rem;
+  font-size: var(--fs-lg);
   font-weight: 600;
   white-space: nowrap;
   text-overflow: ellipsis;
@@ -99,7 +99,7 @@
 .chapterMeta {
   margin: 0;
   color: var(--fg-muted);
-  font-size: 0.8125rem;
+  font-size: var(--fs-sm);
 }
 
 /* ── Visual — sceneImage 는 아직 발행되지 않는다(P3). 항상 그라디언트 폴백이다 ──── */
@@ -177,7 +177,7 @@
 /* 긴 이름은 2줄까지 그대로 흐른다. 말풍선을 두지 않는다 (1k) */
 .speaker {
   color: var(--fg-muted);
-  font-size: 0.875rem;
+  font-size: var(--fs-base);
   font-weight: 600;
 }
 
@@ -187,11 +187,14 @@
  * 문구는 서버가 준 문장이다 (R11.1). 대문자 변환과 자간을 걷은 이유가 그것이다 —
  * 라벨이 아니라 한국어 한 문장이고, `text-transform` 은 그 문장을 건드릴 뿐이다.
  * ◦ 는 와이어프레임의 장식이므로 CSS 에 둔다: 서버 문자열에 글자를 더하지 않는다.
+ *
+ * **글자색이 `--fg-muted` 로 올라갔다** (#159). 고지는 읽히라고 있는 문장이고, 물러나 있어야
+ * 하는 것은 크기(`--fs-xs`)와 자리(우하단)가 이미 말한다. `--fg-subtle` 은 장식에만 쓴다.
  */
 .aiNotice {
   margin: var(--sp-6) 0 0;
-  color: var(--fg-subtle);
-  font-size: 0.75rem;
+  color: var(--fg-muted);
+  font-size: var(--fs-xs);
   line-height: 1.6;
   text-align: right;
 }
@@ -238,9 +241,14 @@
   background: var(--bg-sunken);
 }
 
+/*
+ * 선택지 번호 — **읽는 값이라 `--fg-muted` 다** (#159). 사용자가 *몇 번을 골랐는지* 확인하는
+ * 자리이고, 고른 뒤 잔상(`.selected`)에 남는 것도 이 번호다. 본문보다 물러나 있어야 한다는
+ * 것은 크기(`--fs-xs`)가 말하고, 색이 그 말을 한 번 더 할 필요는 없다.
+ */
 .number {
-  color: var(--fg-subtle);
-  font-size: 0.75rem;
+  color: var(--fg-muted);
+  font-size: var(--fs-xs);
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.06em;
 }
@@ -310,7 +318,7 @@
   border-radius: var(--r-xl);
   background: var(--bg-sunken);
   color: var(--fg-muted);
-  font-size: 0.75rem;
+  font-size: var(--fs-xs);
   pointer-events: none;
 }
 
@@ -328,19 +336,19 @@
 .selected {
   margin: 0 0 var(--sp-4);
   color: var(--fg-muted);
-  font-size: 0.9375rem;
+  font-size: var(--fs-md);
 }
 
 .noticeMessage {
   margin: 0;
-  font-size: 1.0625rem;
+  font-size: var(--fs-read);
   line-height: 1.6;
 }
 
 .saved {
   margin: var(--sp-2) 0 0;
   color: var(--fg-muted);
-  font-size: 0.875rem;
+  font-size: var(--fs-base);
 }
 
 /* 스피너를 쓰지 않는다 (1e) — dot 셋이 순차로 옅어진다 */
@@ -447,7 +455,7 @@
 
 .interstitialNo {
   color: var(--fg-muted);
-  font-size: 0.8125rem;
+  font-size: var(--fs-sm);
   letter-spacing: 0.24em;
   text-transform: uppercase;
 }
@@ -455,7 +463,7 @@
 /* 챕터 제목은 큰 제목(`--fs-2xl`)이라 명조다 (#136) */
 .interstitialTitle {
   font-family: var(--font-read);
-  font-size: 1.5rem;
+  font-size: var(--fs-2xl);
   font-weight: 600;
   text-align: center;
 }
@@ -474,19 +482,26 @@
 .endingBadge {
   margin: 0;
   color: var(--fg-muted);
-  font-size: 0.75rem;
+  font-size: var(--fs-xs);
   letter-spacing: 0.18em;
   text-transform: uppercase;
 }
 
+/*
+ * 결말 제목 — **한 단계 작아졌다** (`1.375rem` → `--fs-xl`, #136).
+ *
+ * 지우기로 한 다섯 중 하나였고, 위(`--fs-2xl`)는 *화면 제목* 의 자리다. 이 제목은 본문 끝의
+ * 구역(윗선 하나로 갈린 `.ending`) 안에 있고 그 화면의 제목은 헤더의 작품 제목이다 —
+ * 화면 제목을 둘로 만들지 않는다. 큰 제목이 아니게 되면서 명조를 집어 들지도 않는다.
+ */
 .endingTitle {
   margin: var(--sp-3) 0 0;
-  font-size: 1.375rem;
+  font-size: var(--fs-xl);
 }
 
 .epilogue {
   margin: var(--sp-4) 0 0;
-  line-height: 1.75;
+  line-height: var(--lh-read);
   text-align: left;
 }
 
@@ -497,7 +512,7 @@
   margin: var(--sp-4) 0 0;
   padding: 0;
   color: var(--fg-muted);
-  font-size: 0.875rem;
+  font-size: var(--fs-base);
   list-style: none;
 }
 
@@ -541,13 +556,13 @@
 
 .confirmText {
   margin: 0;
-  font-size: 0.9375rem;
+  font-size: var(--fs-md);
   line-height: 1.7;
 }
 
 .confirmError {
   margin: var(--sp-3) 0 0;
-  font-size: 0.9375rem;
+  font-size: var(--fs-md);
   line-height: 1.6;
 }
 
@@ -575,7 +590,7 @@
   background: none;
   color: inherit;
   font: inherit;
-  font-size: 1.0625rem;
+  font-size: var(--fs-read);
   text-align: left;
   text-decoration: none;
   cursor: pointer;
@@ -593,16 +608,17 @@ p.menuRow {
 
 .menuValue {
   color: var(--fg-muted);
-  font-size: 0.875rem;
+  font-size: var(--fs-base);
 }
 
 .menuDanger {
   color: var(--danger);
 }
 
+/* 시트 안의 AI 고지 — `.aiNotice` 와 **같은 문장**이라 색도 같이 올라간다 (#159) */
 .menuNotice {
   margin: var(--sp-3) 0 0;
-  color: var(--fg-subtle);
-  font-size: 0.75rem;
+  color: var(--fg-muted);
+  font-size: var(--fs-xs);
   line-height: 1.6;
 }

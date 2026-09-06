@@ -16,11 +16,19 @@
   max-width: 1440px;
 }
 
-/* 화면 제목은 큰 제목(`--fs-2xl`)이라 명조다 (#136) */
+/*
+ * 화면 제목은 큰 제목(`--fs-2xl`)이라 명조다 (#136).
+ *
+ * **폭에 따라 커지지 않는다.** 전에는 768 부터 `1.75rem` 이 되는 미디어 쿼리가 있었고, 그
+ * 값은 스케일 아홉이 지우기로 한 다섯 중 하나다. 위(`--fs-3xl`)로 보내면 이야기 제목과 같은
+ * 크기가 되어 *작품 하나* 와 *목록 한 화면* 의 위계가 사라지므로, 아래(`--fs-2xl`)로 보냈다 —
+ * 그러면 기본 폭의 값과 같아져 **덮어쓰기 자체가 사라진다.** `tokens.css` 가 "폭마다 크기를
+ * 바꾸는 자리는 이야기 제목 하나뿐" 이라고 적어 둔 것과 실제가 이제 같다 (F-9).
+ */
 .headline {
   margin: 0 0 var(--sp-6);
   font-family: var(--font-read);
-  font-size: 1.5rem;
+  font-size: var(--fs-2xl);
   line-height: 1.35;
 }
 
@@ -42,7 +50,7 @@
   background: var(--bg);
   color: var(--fg-muted);
   font: inherit;
-  font-size: 0.875rem;
+  font-size: var(--fs-base);
   cursor: pointer;
 }
 
@@ -65,9 +73,16 @@
   margin-bottom: var(--sp-4);
 }
 
+/*
+ * 구역 제목이다 — `--fs-xl` 이 서는 자리 그대로다 (#136).
+ *
+ * **한 단계 커졌다** (`1.125rem` → `1.25rem`). 그 값은 지우기로 한 다섯 중 하나이고, 아래
+ * (`--fs-lg`)로 보내면 카드 제목·강조된 UI 와 같은 크기가 되어 *구역* 과 *그 안의 카드* 를
+ * 크기로 가르지 못한다. 가까운 쪽이 아니라 **역할이 같은 쪽**을 골랐다.
+ */
 .sectionTitle {
   margin: 0;
-  font-size: 1.125rem;
+  font-size: var(--fs-xl);
 }
 
 /*
@@ -83,7 +98,7 @@
   padding: var(--sp-3) 0 var(--sp-3) var(--sp-3);
   margin: calc(var(--sp-3) * -1) 0;
   color: var(--fg-muted);
-  font-size: 0.875rem;
+  font-size: var(--fs-base);
   text-decoration: none;
   white-space: nowrap;
 }
@@ -123,7 +138,14 @@
   display: block;
 }
 
-/* NEW 배지는 커버 좌상단 (4d) */
+/*
+ * NEW 배지는 커버 좌상단 (4d).
+ *
+ * **`0.6875rem` 은 스케일 아홉에도 지우기로 한 다섯에도 없던 값이다** — #136 이 분포를 셀 때
+ * 보이지 않았다는 뜻이고, 그래서 이 자리가 이 PR 이 드러낸 어긋남이다. 가장 작은 단계
+ * (`--fs-xs`)로 한 칸 올렸다: `--fs-sm` 이 "배지" 의 자리이지만 그것은 목록에서 읽는 상태
+ * 배지이고, 이쪽은 **커버 그림 위에 얹히는 표시**라 390 의 2열 카드에서 그림을 덮는다.
+ */
 .badge {
   position: absolute;
   top: var(--sp-2);
@@ -132,7 +154,7 @@
   border-radius: var(--r-sm);
   background: var(--fg);
   color: var(--bg);
-  font-size: 0.6875rem;
+  font-size: var(--fs-xs);
   font-weight: 700;
   letter-spacing: 0.04em;
 }
@@ -164,7 +186,7 @@
 
 .cardTitle {
   margin: 0;
-  font-size: 0.9375rem;
+  font-size: var(--fs-md);
   font-weight: 600;
   line-height: 1.35;
 }
@@ -172,13 +194,18 @@
 .cardMeta {
   margin: 0;
   color: var(--fg-muted);
-  font-size: 0.8125rem;
+  font-size: var(--fs-sm);
 }
 
+/*
+ * **읽는 글이라 `--fg-muted` 다** (#159). 이 클래스가 그리는 것은 작품 소개 · 인물 한 줄 ·
+ * 이어하기의 마지막 장면 요약이다 — 무엇을 이어서 볼지 여기서 고른다. `--fg-subtle` 은
+ * 장식(구분선 · 아이콘 · 비활성)에만 쓴다.
+ */
 .cardDesc {
   margin: 0;
-  color: var(--fg-subtle);
-  font-size: 0.8125rem;
+  color: var(--fg-muted);
+  font-size: var(--fs-sm);
   line-height: 1.45;
 }
 
@@ -224,7 +251,7 @@
   margin: 0;
   padding: var(--sp-6) 0;
   color: var(--fg-muted);
-  font-size: 0.875rem;
+  font-size: var(--fs-base);
 }
 
 .errorBlock {
@@ -241,7 +268,7 @@
 .errorMessage {
   margin: 0;
   flex: 1 1 16rem;
-  font-size: 0.875rem;
+  font-size: var(--fs-base);
 }
 
 /* 스켈레톤 줄의 길이 — 실제 문장이 고르지 않다는 사실만 흉내 낸다 */
@@ -275,7 +302,7 @@
   min-height: 40px;
   padding: 0 var(--sp-4);
   font-weight: 500;
-  font-size: 0.875rem;
+  font-size: var(--fs-base);
 }
 
 .button:disabled {
@@ -297,24 +324,25 @@
   margin-top: var(--sp-4);
 }
 
-/* ── Footer AI 고지 — 광고처럼 강조하지 않되 항상 확인 가능 (1k) ── */
+/*
+ * ── Footer AI 고지 — 광고처럼 강조하지 않되 항상 확인 가능 (1k) ──
+ *
+ * **강조하지 않는 것과 읽히지 않는 것은 다르다** (#159). 서버가 정한 고지 문장(R11.1)이고
+ * 읽히라고 내놓은 것이라 `--fg-muted` 로 올렸다 — 크기(`--fs-sm`)가 이미 물러나 있다.
+ */
 .footer {
   margin-top: var(--sp-16);
   padding-top: var(--sp-6);
   border-top: 1px solid var(--border);
-  color: var(--fg-subtle);
-  font-size: 0.8125rem;
-  line-height: 1.5;
+  color: var(--fg-muted);
+  font-size: var(--fs-sm);
+  line-height: var(--lh-normal);
 }
 
 /* ── 768 Tablet — 그리드는 그대로 2열, 여백만 넓힌다 ─────────── */
 @media (min-width: 768px) {
   .page {
     padding: var(--sp-8) var(--sp-6) var(--sp-16);
-  }
-
-  .headline {
-    font-size: 1.75rem;
   }
 
   .continueList {

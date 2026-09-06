@@ -49,18 +49,30 @@
   margin: 0 auto;
 }
 
-/* 404 라는 숫자. 제목이 아니라 표시다 — 읽는 순서에서 뒤로 물러난다 */
+/*
+ * 404 라는 숫자. 제목이 아니라 표시다 — 읽는 순서에서 뒤로 물러난다.
+ *
+ * **그래도 읽는 값이라 `--fg-muted` 다** (#159). 무엇이 잘못됐는지 사용자가 옮겨 적을 수 있는
+ * 유일한 값이고(문의할 때 이 숫자를 말한다), 뒤로 물러나는 일은 크기 · 자간 · 자리가 한다.
+ */
 .code {
   margin: 0;
-  color: var(--fg-subtle);
+  color: var(--fg-muted);
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 0.875rem;
+  font-size: var(--fs-base);
   letter-spacing: 0.08em;
 }
 
+/*
+ * **한 단계 작아졌다** (`1.3125rem` → `--fs-xl`, #136).
+ *
+ * 지우기로 한 다섯 중 하나였고, 위(`--fs-2xl`)는 화면 제목의 자리이며 그 단계는 명조를
+ * 집어 든다. 이 판은 전용 화면으로도 서지만 `.inset` 으로 **다른 화면 안의 한 덩어리**로도
+ * 선다 (#122) — 그때 그 화면에는 이미 제목이 있다. 화면 제목을 둘로 만들지 않는다.
+ */
 .headline {
   margin: 0;
-  font-size: 1.3125rem;
+  font-size: var(--fs-xl);
   font-weight: 400;
   line-height: 1.4;
 }
@@ -68,7 +80,7 @@
 .body {
   margin: 0;
   color: var(--fg-muted);
-  font-size: 0.9375rem;
+  font-size: var(--fs-md);
   line-height: 1.7;
 }
 
@@ -97,7 +109,7 @@
   background: var(--bg);
   color: var(--fg);
   font: inherit;
-  font-size: 1rem;
+  font-size: var(--fs-lg);
   text-align: center;
   text-decoration: none;
   cursor: pointer;
