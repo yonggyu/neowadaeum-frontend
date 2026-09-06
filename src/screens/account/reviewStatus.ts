@@ -23,6 +23,30 @@ export const REVIEW_STATUS_LABEL: Record<VisibleReviewStatus, string> = {
   suspended: '정지됨',
 }
 
+/**
+ * 배지가 갖는 결 — **여섯이다** (#135).
+ *
+ * `REVIEW_STATUS_LABEL` 이 일곱 값에 여섯 문구를 내는 것과 같은 접힘이다. 라벨이 같은 두
+ * 상태가 서로 다른 색을 가지면 화면이 *자동인지 사람인지*를 색으로 말하게 되고, 그것은
+ * 문구로 말하지 않기로 한 것을 옆문으로 내보내는 일이다 (F-5).
+ *
+ * **`reviewPhase` 를 쓰지 않는 이유** — 그쪽은 다섯이다. `pending` 과 `in_review` 를 한
+ * 칸(`waiting`)으로 접는데, 그 접힘은 *우측 패널이 같은 것을 그린다*는 뜻이지 *같아 보여도
+ * 된다*는 뜻이 아니다. 배지에서 둘은 갈려야 한다: 접수됨은 아직 아무 일도 일어나지 않은
+ * 것이고 검수 중은 사람이 보고 있는 것이다. 두 물음이 다르므로 표도 둘이다.
+ */
+export type ReviewTone = 'draft' | 'pending' | 'inReview' | 'approved' | 'rejected' | 'suspended'
+
+export const REVIEW_STATUS_TONE: Record<VisibleReviewStatus, ReviewTone> = {
+  draft: 'draft',
+  pending: 'pending',
+  auto_rejected: 'rejected',
+  in_review: 'inReview',
+  approved: 'approved',
+  rejected: 'rejected',
+  suspended: 'suspended',
+}
+
 /** 화면 문구는 **"링크 공유"** 다 (3f · 6c). 계약의 값 이름(`unlisted`)을 그대로 쓰지 않는다. */
 export const VISIBILITY_LABEL: Record<Visibility, string> = {
   private: '비공개',

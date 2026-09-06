@@ -17,7 +17,8 @@ import { draftPathOf } from './draftLink'
 import { ErrorNotice } from './ErrorNotice'
 import styles from './MyStoriesScreen.module.css'
 import { formatRelativeTime } from './relativeTime'
-import { REVIEW_STATUS_LABEL, VISIBILITY_LABEL } from './reviewStatus'
+import { VISIBILITY_LABEL } from './reviewStatus'
+import { ReviewStatusBadge } from './ReviewStatusBadge'
 
 /**
  * 내 이야기 — 3탭 (와이어프레임 1i · 3g).
@@ -153,7 +154,7 @@ function AuthoredTab() {
           <div className={styles.cardBody}>
             <h2 className={styles.cardTitle}>{story.title}</h2>
             <div className={styles.badges}>
-              <span className={shared.badge}>{REVIEW_STATUS_LABEL[story.reviewStatus]}</span>
+              <ReviewStatusBadge status={story.reviewStatus} />
               <span className={shared.badge}>{VISIBILITY_LABEL[story.visibility]}</span>
             </div>
             <p className={shared.meta}>

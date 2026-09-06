@@ -15,7 +15,7 @@
   display: flex;
   align-items: flex-end;
   justify-content: center;
-  background: rgb(0 0 0 / 45%);
+  background: var(--scrim);
 }
 
 /* **높이를 고정하지 않는다.** 내용이 바뀌면 판도 바뀌고, 화면보다 길어지면 안에서 스크롤한다 */

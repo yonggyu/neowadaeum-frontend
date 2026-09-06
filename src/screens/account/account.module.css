@@ -159,6 +159,84 @@
   white-space: nowrap;
 }
 
+/*
+ * ── 검수 상태 배지 (#135) ───────────────────────────────────────────────────────
+ *
+ * `.badge` **위에** 붙는다. `.badge` 는 공개 범위(`VISIBILITY_LABEL`)도 쓰는 뉴트럴 판이고,
+ * 색과 점이 붙는 것은 검수 상태 여섯뿐이다 — 한 카드에 배지 둘이 나란히 설 때 색을 가진
+ * 쪽이 검수 상태라는 것이 그 자체로 구분이 된다. 둘 다 칠하면 그 구분이 사라진다.
+ *
+ * **색만으로 말하지 않는다.** 7px 점이 함께 오고 `접수됨` 은 점선 테두리를 갖는다 —
+ * 색각 이상과 흑백 인쇄에서도 여섯이 갈려야 한다. 점은 장식이라 `::before` 에 둔다:
+ * 읽어 주는 쪽에는 라벨 문구 하나만 간다.
+ *
+ * **값을 여기서 정하지 않는다.** 전부 `src/styles/tokens.css` 의 토큰이고, 다크는 그 파일의
+ * 미디어 쿼리 하나가 같은 이름을 다시 정의한다 (#138) — 이 파일이 색 때문에
+ * `prefers-color-scheme` 을 열면 값의 정본이 둘이 된다.
+ */
+.statusBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+  border-color: var(--badge-border);
+  background: var(--badge-bg);
+  color: var(--badge-fg);
+}
+
+.statusBadge::before {
+  content: '';
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--badge-dot);
+}
+
+.statusDraft {
+  --badge-fg: var(--status-draft-fg);
+  --badge-bg: var(--status-draft-bg);
+  --badge-border: var(--status-draft-border);
+  --badge-dot: var(--status-draft-dot);
+}
+
+/* 점선은 *아직 아무 일도 일어나지 않았다* 를 말한다 — 판정 넷만 실선을 갖는다 */
+.statusPending {
+  --badge-fg: var(--status-pending-fg);
+  --badge-bg: var(--status-pending-bg);
+  --badge-border: var(--status-pending-border);
+  --badge-dot: var(--status-pending-dot);
+
+  border-style: dashed;
+}
+
+.statusInReview {
+  --badge-fg: var(--status-in-review-fg);
+  --badge-bg: var(--status-in-review-bg);
+  --badge-border: var(--status-in-review-border);
+  --badge-dot: var(--status-in-review-dot);
+}
+
+.statusApproved {
+  --badge-fg: var(--status-approved-fg);
+  --badge-bg: var(--status-approved-bg);
+  --badge-border: var(--status-approved-border);
+  --badge-dot: var(--status-approved-dot);
+}
+
+.statusRejected {
+  --badge-fg: var(--status-rejected-fg);
+  --badge-bg: var(--status-rejected-bg);
+  --badge-border: var(--status-rejected-border);
+  --badge-dot: var(--status-rejected-dot);
+}
+
+.statusSuspended {
+  --badge-fg: var(--status-suspended-fg);
+  --badge-bg: var(--status-suspended-bg);
+  --badge-border: var(--status-suspended-border);
+  --badge-dot: var(--status-suspended-dot);
+}
+
 /* 로딩 · 오류 · 비어 있음 — 1k 상태 매트릭스의 셋 */
 .status {
   padding: var(--sp-12) 0;
