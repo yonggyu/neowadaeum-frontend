@@ -15,6 +15,8 @@ coverage/
 
 # ── 생성물 ───────────────────────────────────────────────────
 # 계약에서 만들어지는 타입. 소스가 아니라 산출물이며, 계약이 진실의 원천이다.
+# 그래서 새 체크아웃에는 이 파일이 없다 — 없는 채로 typecheck·build 를 돌리면
+# scripts/require-generated-types.mjs 가 그 사실 하나만 말하고 멈춘다 (#143).
 src/api/schema.d.ts
 
 # CI 가 계약을 받아 두는 자리 (.github/workflows/ci.yml). 로컬에서는 형제 경로를 쓴다.
