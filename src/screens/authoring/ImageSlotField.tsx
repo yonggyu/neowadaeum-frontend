@@ -1,13 +1,19 @@
 import { useEffect, useRef, useState } from 'react'
 
-import { uploadDraftImage, type ImageSlot } from '../../api/endpoints/draftImages'
+import {
+  readDraftImage,
+  uploadDraftImage,
+  type ImageSlot,
+} from '../../api/endpoints/draftImages'
 import {
   ACTION_LABEL,
   acceptNote,
   actionsFor,
   sizeNote,
   slotBody,
+  slotImageUrl,
   statusNote,
+  type RestoredImage,
   type SlotAction,
 } from './imageSlotView'
 import {
@@ -37,10 +43,15 @@ import css from './wizard.module.css'
  * 셋을 묶어 두었고(#112), 그것이 *"확정되지 않은 키를 원고에 적지 않는다"* (§13-65)를
  * 구조로 지키는 방식이다. 여기서는 걸음마다 화면 상태만 옮긴다.
  *
- * **미리보기는 로컬에서 만든다.** 응답에 이미지 주소가 없고(I-8) 버킷이 비공개라 볼 수 있는
- * URL 이 존재하지 않는다 — 키 앞에 오리진을 붙이는 코드는 반드시 깨진 그림을 그린다. 그래서
- * `URL.createObjectURL` 로 그리고, **원고를 다시 열었을 때는 그림 없이** 자리를 그린다
- * (`slotBody` 의 주석).
+ * **`src` 에 객체 키가 오는 경로는 없다** (I-8). 버킷이 비공개라 키로 열리는 주소가 존재하지
+ * 않는다 — 키 앞에 오리진을 붙이는 코드는 반드시 깨진 그림을 그린다. 그리는 것은 언제나 우리가
+ * `URL.createObjectURL` 로 만든 `blob:` 이고, 바이트의 출처만 둘이다: **방금 고른 파일**과,
+ * **서버가 중계해 준 것**(`readDraftImage`, §13-78).
+ *
+ * **되받기가 화면을 새로 만들지 않는다.** 받아 온 그림은 방금 고른 미리보기와 **같은 칸**에
+ * 같은 모양으로 들어가고, 못 받으면 지금까지의 자리(*"올라간 이미지"* 한 줄) 그대로다 —
+ * 받는 중을 알리는 표시도, 못 받았다는 문구도 두지 않는다. 아트보드에 없는 상태를 화면이
+ * 지어내지 않는다는 뜻이고, 그래서 이 변경은 **캔버스를 기다리지 않는다.**
  */
 export interface ImageSlotFieldProps {
   draftId: string
@@ -92,6 +103,11 @@ export function ImageSlotField({
    * 방금 올린 미리보기를 계속 그리면 화면은 남의 초상을 이 사람의 것으로 보여 준다.
    */
   const [known, setKnown] = useState(objectKey)
+  /*
+   * 서버에서 되받아 그리고 있는 그림. **키를 함께 든다** — 자리에 다른 사람의 키가 오는 순간
+   * 이 그림은 남의 것이 되고, 그 판정은 `slotImageUrl` 이 키를 대조해서 한다.
+   */
+  const [restored, setRestored] = useState<RestoredImage | null>(null)
 
   const fileRef = useRef<HTMLInputElement>(null)
   const abortRef = useRef<AbortController | null>(null)
@@ -101,6 +117,8 @@ export function ImageSlotField({
    * 그림이 깨진다. 만드는 자리와 거두는 자리를 `replacePreview` 하나로 모은다.
    */
   const previewRef = useRef<string | null>(null)
+  /* 되받은 그림의 URL. 위와 같은 이유로 ref 다 — 만드는 자리와 거두는 자리가 붙어 있어야 한다. */
+  const restoredRef = useRef<string | null>(null)
 
   function replacePreview(next: Picked | null): void {
     if (previewRef.current !== null) URL.revokeObjectURL(previewRef.current)
@@ -114,11 +132,16 @@ export function ImageSlotField({
       abortRef.current?.abort()
       if (previewRef.current !== null) URL.revokeObjectURL(previewRef.current)
       previewRef.current = null
+      if (restoredRef.current !== null) URL.revokeObjectURL(restoredRef.current)
+      restoredRef.current = null
     },
     [],
   )
 
   const busy = isBusy(state)
+  /** 지금 이 자리가 가리키는 확정된 키. `uploaded` 가 아니면 `null` 이다 (§13-65). */
+  const savedKey = objectKeyOf(state)
+  const hasPicked = picked !== null
   useEffect(() => {
     onBusyChange(busyKey, busy)
   }, [busy, busyKey, onBusyChange])
@@ -136,6 +159,56 @@ export function ImageSlotField({
     previewRef.current = null
     setPicked(null)
   }, [objectKey, known, busy])
+
+  /*
+   * **확정된 키가 있으면 그 바이트를 되받아 그린다** (`readDraftImage`, §13-78).
+   *
+   * 여기까지 오기 전에는 작성자가 *올렸다는 사실*만 알고 **무엇을 올렸는지는 몰랐다** —
+   * 바꾸려면 지금 것이 무엇인지 모르는 채로 다시 고르는 수밖에 없었다.
+   *
+   * **방금 고른 파일이 있으면 부르지 않는다.** 그 바이트는 이미 브라우저에 있고, 사용자가
+   * 지금 보고 싶은 것도 그쪽이다 — 부르면 같은 그림을 위해 요청이 한 번 더 나간다.
+   *
+   * **실패해도 화면을 바꾸지 않는다.** `404`(올린 적 있는데 지금 없다)든 네트워크든 마찬가지다.
+   * 이 자리의 `failed` 는 *업로드가 실패했다* 는 뜻이고, 되받기 실패를 거기 실으면 사용자가
+   * 하지 않은 일이 화면에 남는다. 그래서 못 받으면 지금까지의 자리 그대로 둔다 — 새 문구를
+   * 짓지 않는 이유이기도 하다 (F-4 의 대상이 아니고, 아트보드에도 없는 상태다).
+   */
+  useEffect(() => {
+    function drop(): void {
+      if (restoredRef.current !== null) URL.revokeObjectURL(restoredRef.current)
+      restoredRef.current = null
+      setRestored(null)
+    }
+    if (savedKey === null || hasPicked) {
+      drop()
+      return
+    }
+    // 이미 그 키의 그림을 들고 있으면 다시 부르지 않는다. 교체를 취소하면(`cancel`) 원고의
+    // 값으로 되돌아오는데, 그때 같은 바이트를 한 번 더 받아 올 이유가 없다.
+    if (restoredRef.current !== null && restored?.key === savedKey) {
+      return
+    }
+    const controller = new AbortController()
+    // StrictMode 가 마운트 효과를 두 번 돌린다. 정리에서 이 깃발을 내려 **먼저 시작한 쪽이
+    // 늦게 도착해도 URL 을 만들지 않게** 한다 — 만들면 아무도 거두지 않는 자리가 생긴다.
+    let live = true
+    void readDraftImage(draftId, savedKey, controller.signal)
+      .then((bytes) => {
+        if (!live) return
+        const url = URL.createObjectURL(bytes)
+        if (restoredRef.current !== null) URL.revokeObjectURL(restoredRef.current)
+        restoredRef.current = url
+        setRestored({ key: savedKey, url })
+      })
+      .catch(() => {
+        // 취소도 실패도 여기서 끝난다 — 위의 이유로 화면에 옮기지 않는다.
+      })
+    return () => {
+      live = false
+      controller.abort()
+    }
+  }, [draftId, savedKey, hasPicked, restored])
 
   async function start(file: File): Promise<void> {
     /*
@@ -213,7 +286,12 @@ export function ImageSlotField({
     fileRef.current?.click()
   }
 
-  const body = slotBody(state, picked !== null)
+  /*
+   * 그릴 그림 하나. 방금 고른 것이 먼저고, 없으면 되받은 것이며, **되받은 것은 그 키가 지금
+   * 키일 때만** 그려진다 (`slotImageUrl`).
+   */
+  const imageUrl = slotImageUrl(picked?.url ?? null, restored, savedKey)
+  const body = slotBody(state, imageUrl !== null)
   const size = sizeNote(state, picked?.bytes ?? null)
 
   return (
@@ -230,12 +308,13 @@ export function ImageSlotField({
       <div className={css.imageRow}>
         <div className={slotClass(slot, state)}>
           {/*
-           * **미리보기는 방금 고른 파일에서만 나온다.** 이 `src` 에 객체 키가 오는 경로는
-           * 없다 (I-8). `alt` 가 비어 있는 것은 장식이어서가 아니라, 바로 아래·옆의 글이
-           * 같은 것을 말하기 때문이다 — 읽어 주면 같은 말을 두 번 듣는다.
+           * **이 `src` 에 객체 키가 오는 경로는 없다** (I-8). 방금 고른 파일이든 서버가 중계한
+           * 바이트든, 들어가는 것은 우리가 만든 `blob:` 하나다. `alt` 가 비어 있는 것은
+           * 장식이어서가 아니라, 바로 아래·옆의 글이 같은 것을 말하기 때문이다 — 읽어 주면
+           * 같은 말을 두 번 듣는다.
            */}
-          {body.image && picked !== null ? (
-            <img className={css.imagePreview} src={picked.url} alt="" />
+          {body.image && imageUrl !== null ? (
+            <img className={css.imagePreview} src={imageUrl} alt="" />
           ) : null}
           {/*
            * 실패는 **읽어 주게** 한다 (`role="alert"`) — 자리 안의 글이 곧 서버가 준 문구이고
