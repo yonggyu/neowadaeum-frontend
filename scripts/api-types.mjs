@@ -10,7 +10,8 @@
  * **값이 없으면 실패시킨다.**
  */
 import { spawnSync } from 'node:child_process'
-import { pathToFileURL } from 'node:url'
+
+import { isEntryPoint } from './entry-point.mjs'
 
 const OUTPUT = 'src/api/schema.d.ts'
 
@@ -50,6 +51,10 @@ function main() {
 
 // 테스트가 이 파일을 import 해 `requireContractSource` 만 부른다. 진입점으로 실행됐을 때만
 // 타입을 만든다.
-if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href) {
+//
+// 판정은 `entry-point.mjs` 가 든다 (#148). 여기서 `process.argv[1]` 을 그대로 비교했었고,
+// 그래서 경로에 심볼릭 링크가 하나라도 끼면 이 줄이 `false` 가 되어 **아무것도 하지 않고
+// `exit 0`** 이었다 — 계약이 바뀌어도 타입은 낡은 채로 남았고 아무 출력도 없었다.
+if (isEntryPoint(import.meta.url)) {
   main()
 }
