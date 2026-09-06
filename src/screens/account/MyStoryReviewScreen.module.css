@@ -159,7 +159,7 @@
 
 .panelTitle {
   margin: 0 0 var(--sp-2);
-  font-size: var(--fs-read);
+  font-size: var(--fs-2lg);
   line-height: 1.4;
 }
 

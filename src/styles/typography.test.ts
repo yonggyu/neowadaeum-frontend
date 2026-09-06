@@ -25,7 +25,7 @@ const SCALE = [
   '--fs-base',
   '--fs-md',
   '--fs-lg',
-  '--fs-read',
+  '--fs-2lg',
   '--fs-xl',
   '--fs-2xl',
   '--fs-3xl',
@@ -187,17 +187,42 @@ describe('#170 — 셋째 글자체, 등폭', () => {
   })
 })
 
+describe('#169 — 크기 토큰의 이름은 크기만 말한다', () => {
+  /** 크기 낱말 여섯과 그 앞의 숫자 한 자리(`2xl` · `3xl` · `2lg`). 역할은 여기를 지나지 못한다 */
+  const SIZE_ONLY = /^--fs-[2-9]?(xs|sm|base|md|lg|xl)$/
+
+  it('169_스케일_이름에_역할이_들어가지_않는다', () => {
+    // `--fs-read` 가 *읽는 자리* 라는 역할을 이름으로 말했는데, 그 단계에는 Story 본문
+    // 하나와 UI 여덟이 함께 서 있었다. **이름이 규칙을 만든다** — 역할을 말하는 이름은
+    // 다음 사람이 크기가 아니라 역할을 근거로 단계를 고르게 하고, 그 판단은 실제 분포와
+    // 계속 갈린다. 자리를 말하는 것은 글자체(`--font-ui` · `--font-read`)의 몫이다.
+    const names = new Set<string>()
+    for (const name of ROOT.keys()) if (name.startsWith('--fs-')) names.add(name)
+    for (const [, source] of cssFiles()) {
+      for (const match of uncommented(source).matchAll(/var\((--fs-[\w-]+)\)/g)) {
+        const name = match[1]
+        if (name) names.add(name)
+      }
+    }
+    expect([...names].filter((name) => !SIZE_ONLY.test(name))).toStrictEqual([])
+    // 위 검사는 이름이 하나도 없어도 통과한다. 선언과 사용이 **같은 아홉**임을 함께 못박는다 —
+    // 화면이 선언에 없는 단계를 부르기 시작하면 그것도 여기서 걸린다.
+    expect([...names].sort()).toStrictEqual([...SCALE].sort())
+  })
+})
+
 describe('#136 — 명조가 걸리는 자리', () => {
-  it('136_Story_본문이_명조와_읽는_크기_행간을_쓴다', () => {
-    // `--fs-read` 는 이 앱에서 *읽으라고 내놓은 유일한 크기*이고, 그 이름이 가리키는 자리가
-    // 여기다. 셋이 함께 걸리지 않으면 토큰의 이름과 실제가 어긋난다.
+  it('136_Story_본문이_명조와_크기와_행간을_함께_쓴다', () => {
+    // 읽는 자리라고 말하는 것은 **글자체**다 (#169). 크기(`--fs-2lg`)는 여기 말고도 여덟
+    // 자리가 함께 쓰는 한 단계일 뿐이라 그것만으로는 이 자리가 아니다 — 셋이 함께 걸려야
+    // 본문이 본문으로 선다.
     const play = uncommented(
       readFileSync(new URL('../screens/play/play.module.css', import.meta.url), 'utf8'),
     )
     const body = /\.narration,\s*\.dialogue\s*\{([^}]*)\}/.exec(play)?.[1]
     expect(body).toBeDefined()
     expect(body).toContain('var(--font-read)')
-    expect(body).toContain('var(--fs-read)')
+    expect(body).toContain('var(--fs-2lg)')
     expect(body).toContain('var(--lh-read)')
   })
 

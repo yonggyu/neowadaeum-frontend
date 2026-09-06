@@ -154,9 +154,10 @@
 /*
  * Story 본문 — **여기가 명조를 쓰는 자리다** (#136).
  *
- * `--fs-read` 는 이 앱에서 *읽으라고 내놓은 유일한 크기*이고, 그 이름이 가리키는 자리가
- * 이 두 줄이다. 그전까지 이 문단들은 크기를 적지 않아 `body` 의 기본값(1rem)을 받고
- * 있었다 — 토큰의 이름과 실제가 어긋나 있었다는 뜻이다.
+ * **읽는 자리라고 말하는 것은 `--font-read` 다** (#169). 크기(`--fs-2lg`)는 여기 말고도
+ * 여덟 자리가 함께 쓰는 한 단계일 뿐이라 그 이름으로 이 자리를 가리킬 수 없다 — 그전까지
+ * 이 문단들은 크기를 적지 않아 `body` 의 기본값(1rem)을 받고 있었고, #136 이 그것을 스케일
+ * 안으로 들여왔다.
  *
  * `--lh-read` 는 여기 있던 `1.75` 에 이름을 준 것뿐이라 **행간은 바뀌지 않는다.**
  */
@@ -164,7 +165,7 @@
 .dialogue {
   margin: 0;
   font-family: var(--font-read);
-  font-size: var(--fs-read);
+  font-size: var(--fs-2lg);
   line-height: var(--lh-read);
 }
 
@@ -341,7 +342,7 @@
 
 .noticeMessage {
   margin: 0;
-  font-size: var(--fs-read);
+  font-size: var(--fs-2lg);
   line-height: 1.6;
 }
 
@@ -590,7 +591,7 @@
   background: none;
   color: inherit;
   font: inherit;
-  font-size: var(--fs-read);
+  font-size: var(--fs-2lg);
   text-align: left;
   text-decoration: none;
   cursor: pointer;

@@ -80,7 +80,7 @@
   padding: 0 var(--sp-3);
   border: 1px solid var(--border);
   border-radius: var(--r-md);
-  font-size: var(--fs-read);
+  font-size: var(--fs-2lg);
   cursor: pointer;
 }
 
