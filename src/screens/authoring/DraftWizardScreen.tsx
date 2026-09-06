@@ -27,7 +27,14 @@ import {
 } from './outline'
 import { StepOutline } from './StepOutline'
 import { PreviewPanel, StepPublish } from './StepPreview'
-import { conditionSources, readValues, writeValues, type StepValues } from './stepFields'
+import {
+  conditionSources,
+  flagFieldPaths,
+  flagPrecheckFields,
+  readValues,
+  writeValues,
+  type StepValues,
+} from './stepFields'
 import { usePrecheck, type PrecheckHandle } from './usePrecheck'
 import { usePreviewSession, type PreviewHandle } from './usePreviewSession'
 import { StepBasics, StepCharacters, StepWorld } from './WizardSteps'
@@ -192,6 +199,13 @@ function Wizard({ draft: loaded, metadata }: { draft: Draft; metadata: Authoring
     if (!flags.includes(removed)) {
       setOutline(clearFlagConditions(outline, metadata.conditionTemplates, removed))
     }
+    /*
+     * **자리의 뜻이 달라진다** (#130) — 줄 하나가 빠지면 `flags[2]` 가 가리키는 이름이 다른
+     * 이름이 된다. 인물의 `restack` 과 같은 이유로 옛 결과를 버리고 남은 줄을 다시 물어본다:
+     * 버리지 않으면 고치지도 않은 이름에 밑줄이 남고, 지운 줄의 밑줄이 영영 사라지지 않는다.
+     */
+    precheck.forget(flagFieldPaths(values.flags.length))
+    for (const pending of flagPrecheckFields(flags)) precheck.check(pending.field, pending.value)
     setDirty(true)
   }
 

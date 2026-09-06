@@ -64,12 +64,45 @@ export function characterFieldPaths(count: number): string[] {
  * `flags[0]` — `characterField` 와 **같은 이유**의 표기다: 계약 `PrecheckRequest.fields` 의
  * 예시가 `characters[0].name` 이고, 그 형식이 곧 DOM id 여서 라벨과 입력이 서로를 가리킨다.
  *
- * **검수(precheck)에 이 경로를 보내지 않는다.** 계약이 플래그를 검수 대상으로 요구하지
- * 않았고 (#125 의 물음 2), 7차 아트보드도 그 자리를 그리지 않았다 — 없는 화면을 지어내지
- * 않는다. 여기 있는 것은 **한 줄을 식별하는 이름**뿐이다.
+ * **검수(precheck)에도 이 경로를 보낸다** (#130). #125 는 보내지 않았다 — 그때는 계약이
+ * 플래그를 검수 대상으로 요구하지 않았기 때문이고, 정정본 §13-75 가 그 사이에 **L1 에
+ * `flags[]` 를 걸었다.** 같은 절이 *"L0 은 화면이 넘긴 필드 지도를 검사하므로 화면이 안
+ * 넘기는 칸은 L0 도 지나지 않는다"* 고 적었으므로, 넘기지 않는 동안 작성자는 다섯 스텝을
+ * 다 지나고 제출한 뒤에야 이름 하나로 반려된다.
+ *
+ * **자리는 화면의 줄이다.** §13-75 #4 — *"경로는 밑줄을 그을 자리를 가리키는 값"* 이고,
+ * 이 레포에서 그 자리는 DOM id 다 (`SidePanel` 의 *해당 필드로 이동* 이 이 id 를 찾는다).
+ * L1 은 같은 표기를 쓰되 **선언 목록의 자리**로 센다 (서버 `SubmissionService.fieldsOf`) —
+ * 빈 줄과 중복을 접은 뒤의 자리이므로 두 쪽의 **번호는 어긋날 수 있다.** 어긋나면 안 되는
+ * 것은 번호가 아니라 **검사되는 값의 집합**이고, 그것을 `flagPrecheckFields` 가 맞춘다.
  */
 export function flagField(index: number): string {
   return `${FIELD.flags}[${index}]`
+}
+
+/** 플래그 `count` 줄이 차지하는 경로 전부. 줄이 빠져 자리의 뜻이 달라질 때 옛 결과를 버린다. */
+export function flagFieldPaths(count: number): string[] {
+  return Array.from({ length: Math.max(0, count) }, (_, index) => flagField(index))
+}
+
+/**
+ * 실시간 검수에 넘길 플래그 칸 — **선언으로 남는 줄만** (#130, §13-75).
+ *
+ * **빈 줄을 넘기지 않는다.** 서버가 빈 항목을 건너뛰므로 (§13-73 #4) L1 도 그 줄을 걸지
+ * 않고, 넘기면 §13-71 이 인물에서 금지한 것과 같은 일이 된다 — 작성자가 **비어 있는 칸**에
+ * 밑줄을 보게 된다. "추가" 가 빈 줄을 먼저 만드는 화면이라 그 상태는 예외가 아니라 기본값이다.
+ *
+ * **같은 이름이 둘이면 둘 다 넘긴다.** 두 줄이 화면에 서 있고 둘 다 밑줄을 받아야 한다 —
+ * 서버가 세는 값의 집합은 그래도 같다(중복은 같은 문자열이다). 후보 목록을 이름으로 접는
+ * 것(`conditionSources`, #144)과 다른 자리다: 저쪽이 세는 것은 *고를 수 있는 값*이고
+ * 여기가 세는 것은 *밑줄을 그을 자리*다.
+ */
+export function flagPrecheckFields(
+  flags: readonly string[],
+): readonly { readonly field: string; readonly value: string }[] {
+  return flags.flatMap((flag, index) =>
+    isDeclared(flag) ? [{ field: flagField(index), value: flag }] : [],
+  )
 }
 
 
@@ -325,13 +358,30 @@ export function removeFlag(flags: readonly string[], index: number): string[] {
  * #98)는 것이 #131 이 걷어 낸 것이다. 저장하는 쪽을 다듬어 맞추는 길도 있었지만 그것은
  * 작성자가 친 것을 화면이 고치는 것이고, §13-73(S-7)이 문자 집합을 좁히지 않기로 한 판단과
  * 어긋난다.
+ *
+ * **같은 이름은 한 줄이다** (#144). 이름이 같은 항목 둘이면 드롭다운에 글자가 똑같은 항목이
+ * 두 줄 섰고, **그 두 줄이 내는 결과는 하나였다** — 계약이 받는 것은 이름이므로
+ * (`ConditionParams`) 두 번째 줄은 고를 것이 하나 더 있다고 말하는 **거짓 정보**다.
+ *
+ * 접는 것이 화면의 판단이 아닌 이유는 서버가 이미 같은 것을 하기 때문이다: `DraftStateSchema`
+ * 가 `payload.flags[]` 와 `characters[].name` 을 **집합**으로 읽어 `state_schema` 로 발행하고
+ * (§13-69 · §13-73 #2), 조건이 가리킬 수 있는 이름은 그 화이트리스트의 원소다. 즉 선언이
+ * 둘이어도 **선언된 이름은 하나**이며, 접은 목록이 그 사실을 그대로 옮긴 것이다.
+ *
+ * **#131 의 대응은 그대로다.** 지키기로 한 것은 후보가 `writeValues` 가 싣는 이름과 *글자
+ * 하나까지 같다*는 것이고, 접는 것은 글자를 바꾸지 않는다 — 남는 이름은 처음 나온 자리의 것
+ * 그대로다(서버의 `LinkedHashSet` 과 같은 순서). 다듬는 것과 세지 않는 것이 다른 것처럼,
+ * **두 번 세지 않는 것과 다듬는 것도 다르다.**
  */
 export function conditionSources(values: StepValues): ConditionSources {
   return {
-    characters: values.characters.map((character) => character.name).filter(isDeclared),
-    flags: values.flags.filter(isDeclared),
+    characters: declaredNames(values.characters.map((character) => character.name)),
+    flags: declaredNames(values.flags),
   }
 }
+
+/** 선언으로 남는 이름을 처음 나온 순서로 (#144). `Set` 이 서버의 `LinkedHashSet` 과 같은 자리다. */
+const declaredNames = (names: readonly string[]): string[] => [...new Set(names.filter(isDeclared))]
 
 /**
  * 이 이름이 **원고의 선언으로 남는가.**
