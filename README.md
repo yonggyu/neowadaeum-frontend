@@ -23,6 +23,27 @@ npm run dev               # http://localhost:5173
 **포트는 5173 에 고정돼 있다.** 백엔드의 `app.cors.allowed-origins` 가 이 오리진을 알고 있어야
 하며, 포트가 매번 바뀌면 그 목록이 맞을 수 없다.
 
+### 이미지로 띄우려면
+
+```bash
+mkdir -p _contract/docs
+cp ../neowadaeum-backend/docs/openapi.yaml _contract/docs/   # 계약은 이 레포에 없다
+docker build -t neowadaeum-frontend:local .
+
+docker run --rm -p 8080:8080 \
+  -e API_BASE_URL=http://localhost:8080 \
+  -e GOOGLE_OAUTH_CLIENT_ID=<클라이언트 ID> \
+  -e PUBLIC_ORIGIN=https://<이 앱의 오리진> \
+  neowadaeum-frontend:local
+```
+
+**이미지는 설정을 담지 않는다.** 값은 컨테이너가 뜰 때 온다 — 진입점이 `/config.js` 를 써
+내리고 `index.html` 의 OG 자리를 채운다. 그래서 **같은 이미지가 어디서든 돌고**, 스테이징에서
+검증한 SHA 를 그대로 운영에 올릴 수 있다. 근거는 ADR-0012 에 있다.
+
+**값이 없으면 뜨지 않는다.** `PUBLIC_ORIGIN` 만 선택이며, 없으면 `og:url` · `og:image` 두
+태그를 내지 않는다. `latest` 태그를 만들지 않는다 — 게시는 `v*` 태그가 한다.
+
 ### 백엔드를 함께 띄우려면
 
 백엔드 레포에서 `dev` 프로파일로 띄운다. **AI 키 없이 돈다** — `FixedStoryProvider` 가 정해진
