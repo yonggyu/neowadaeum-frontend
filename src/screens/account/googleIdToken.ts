@@ -84,6 +84,7 @@
  */
 
 import { issueLoginNonce } from '../../api/endpoints/auth'
+import { readRuntimeConfig } from '../../runtimeConfig'
 
 /** 로그인 수단이 서지 않았다는 사실. 서버 오류가 아니므로 `ApiError` 와 섞지 않는다. */
 export class GoogleSignInUnavailableError extends Error {
@@ -104,8 +105,14 @@ export class GoogleSignInUnavailableError extends Error {
  * "안 됐다" 만 남고, 창이 안 뜬 것인지 사용자가 닫은 것인지 설정이 빠진 것인지 구분할 수 없다.
  */
 export const SIGN_IN_FAILURE = {
-  /** 빌드에 클라이언트 ID 가 없다. 사용자 사정이 아니라 설정 누락이므로 키 이름을 그대로 말한다. */
-  missingClientId: 'VITE_GOOGLE_CLIENT_ID is required — set it in .env (see .env.example)',
+  /**
+   * 클라이언트 ID 가 오지 않았다. 사용자 사정이 아니라 설정 누락이므로 **키 이름을 그대로 말한다.**
+   *
+   * 그 이름은 이제 컨테이너 환경변수의 이름이다 (#188) — 읽는 사람이 고칠 자리를 그대로 가리켜야
+   * 하고, 값은 빌드가 아니라 `/config.js` 로 온다.
+   */
+  missingClientId:
+    'GOOGLE_OAUTH_CLIENT_ID is required — 컨테이너 환경변수로 준다 (dev 는 .env, see .env.example)',
   /** 브라우저가 아니다 (SSR · 러너). 스크립트를 꽂을 문서가 없다. */
   noDocument: 'Google 로그인은 브라우저에서만 할 수 있어요.',
   /** GIS 라이브러리를 받지 못했다 — 네트워크 · 차단기 · Google 장애. */
@@ -185,13 +192,16 @@ function identityServices(): IdentityServices | undefined {
  * 앱이 뜨면 안 되고, 여기는 화면 계층이라 모듈을 읽는 순간 던지면 `LoginScreen` 의 import 가
  * 통째로 실패해 **빈 화면**이 된다. 빈 화면은 "무엇이 빠졌는가" 를 말하지 않는다 —
  * 버튼을 눌렀을 때 키 이름이 적힌 실패가 뜨는 쪽이 알아채기 쉽다.
+ *
+ * **읽는 곳이 빌드 시점의 `import.meta.env` 에서 런타임 설정으로 옮겨졌다 (#188, ADR-0012).**
+ * 바뀐 것은 값의 **출처**뿐이다 — *늦게 던진다* 는 위의 판단은 그대로다.
  */
 function requiredClientId(): string {
-  const configured = import.meta.env.VITE_GOOGLE_CLIENT_ID
-  if (typeof configured !== 'string' || configured.trim() === '') {
+  const configured = readRuntimeConfig('GOOGLE_OAUTH_CLIENT_ID')
+  if (configured === undefined) {
     throw new GoogleSignInUnavailableError(SIGN_IN_FAILURE.missingClientId)
   }
-  return configured.trim()
+  return configured
 }
 
 /**

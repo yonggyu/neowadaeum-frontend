@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { ApiError } from '../../api/client'
+import { RUNTIME_CONFIG_GLOBAL } from '../../runtimeConfig'
 
 /**
  * Google Identity Services 로 ID 토큰을 받는 자리 (#83, #185).
@@ -143,24 +144,34 @@ async function untilPrompted(): Promise<void> {
   }
 }
 
+/**
+ * 진입점이 `/config.js` 로 놓는 자리를 테스트가 대신 놓는다 (#188).
+ *
+ * **이미 놓인 것 위에 얹는다** — `vitest.setup.ts` 의 픽스처(API 오리진)를 여기서 다시 적으면
+ * 같은 가짜 값이 두 곳이 되고, 그중 하나만 고쳐도 통과한다.
+ */
+function stubRuntimeConfig(values: Record<string, string | undefined>): void {
+  const placed = (globalThis as Record<string, unknown>)[RUNTIME_CONFIG_GLOBAL]
+  vi.stubGlobal(RUNTIME_CONFIG_GLOBAL, { ...(placed as object), ...values })
+}
+
 beforeEach(() => {
   // 감시 타이머가 진짜로 흐르면 테스트가 2분을 기다린다. 시간은 우리가 넘긴다.
   vi.useFakeTimers()
-  vi.stubEnv('VITE_GOOGLE_CLIENT_ID', CLIENT_ID)
+  stubRuntimeConfig({ GOOGLE_OAUTH_CLIENT_ID: CLIENT_ID })
   issueLoginNonce.mockReset()
   issueLoginNonce.mockResolvedValue({ nonce: NONCE, expiresInSeconds: 120 })
 })
 
 afterEach(() => {
   vi.useRealTimers()
-  vi.unstubAllEnvs()
   vi.unstubAllGlobals()
   vi.restoreAllMocks()
 })
 
 describe('설정 — 기본값을 두지 않는다 (${VAR:기본값} 금지)', () => {
   it('클라이언트_ID_가_없으면_실패한다__빠뜨린_설정으로_로그인이_도는_것처럼_보이지_않는다', async () => {
-    vi.stubEnv('VITE_GOOGLE_CLIENT_ID', undefined)
+    stubRuntimeConfig({ GOOGLE_OAUTH_CLIENT_ID: undefined })
     const appended = stubDocument()
     stubIdentityServices()
     const { requestGoogleIdToken, SIGN_IN_FAILURE } = await loadModule()
@@ -173,7 +184,7 @@ describe('설정 — 기본값을 두지 않는다 (${VAR:기본값} 금지)', (
   })
 
   it('공백뿐이면_설정된_것이_아니다', async () => {
-    vi.stubEnv('VITE_GOOGLE_CLIENT_ID', '   ')
+    stubRuntimeConfig({ GOOGLE_OAUTH_CLIENT_ID: '   ' })
     stubDocument()
     stubIdentityServices()
     const { requestGoogleIdToken, SIGN_IN_FAILURE } = await loadModule()
