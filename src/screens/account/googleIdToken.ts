@@ -1,10 +1,30 @@
 /**
- * Google 이 발급한 ID 토큰을 얻는 자리 (#83).
+ * Google 이 발급한 ID 토큰을 얻는 자리 (#83, #185).
  *
  * 계약의 `POST /auth/oauth/google` 은 `idToken` 을 요구하고, 그것을 만드는 것은 우리 서버가
  * 아니라 Google 이다. **dev 우회가 없다** — 실제 OAuth 앱(클라이언트 ID · 승인된 오리진)이
  * 있어야 토큰이 나온다. 여기서 하는 일은 그 토큰을 받아 **그대로 돌려주는 것 하나**다.
  * 디코드하지 않고, 어디에도 저장하지 않는다 (F-3).
+ *
+ * ## 왜 nonce 를 이 파일이 부르는가 — `LoginScreen` 을 건드리지 않은 이유 (#185)
+ *
+ * 계약이 §13-87 로 **서버가 발급한 nonce** 를 필수로 만들었고, 그 값은 `initialize({ nonce })`
+ * 를 거쳐 **ID 토큰의 클레임**으로만 서버에 간다 — `OAuthLoginRequest` 에 그런 필드는 없다.
+ * 그래서 부르는 자리를 정하는 물음이 남았고, **이 파일 안으로 정했다.**
+ *
+ * - **화면이 들고 있어도 쓸 데가 없는 값이다.** `LoginScreen` 이 nonce 를 받아 넘긴다면 그것은
+ *   화면을 그저 **지나가기만 하는 값**이 된다 — 화면이 그 값으로 할 수 있는 일이 하나도 없고
+ *   (본문에 담는 것을 계약이 금지한다), 대신 GIS 가 왜 그것을 요구하는지를 화면이 알아야 한다.
+ * - **취소가 한 신호로 덮인다.** `signal` 하나가 nonce 왕복과 One Tap 을 함께 끊는다. 화면이
+ *   나눠 들면 끊는 자리가 둘이 된다.
+ * - **발급과 `initialize()` 사이에 아무것도 두지 않는다.** nonce 의 수명이 짧으므로 그 사이는
+ *   짧을수록 좋다. 사이에 화면 계층이 끼면 그 창이 늘어난다.
+ * - **`#83` 이 그은 경계가 그대로 남는다.** 화면 계약(6b 의 버튼 높이 · F-9 의 네 폭)을 건드리지
+ *   않고, `#182`(아무도 `abort()` 하지 않는다)와 같은 파일을 다투지 않는다.
+ *
+ * **치른 값** — 이 파일이 이제 외부 시스템 **둘**(GIS · 우리 계약)에 닿는다. 화면 계층이
+ * `api/` 를 부르는 것은 의존성 방향(바깥 → 안)에 맞지만, "브라우저 SDK 어댑터" 하나였던 책임이
+ * "서버가 받아 줄 ID 토큰을 얻는 일" 로 넓어졌다. 그 이름이 이 파일의 실제 책임이다.
  *
  * ## 왜 One Tap(`prompt`) 인가 — `renderButton` 을 쓰지 않은 이유
  *
@@ -44,11 +64,26 @@
  *
  * ## 하지 않기로 한 것
  *
- * - **`nonce` 를 보내지 않는다.** 계약의 `OAuthLoginRequest` 에 `nonce` 가 없다 — 서버가 검사할
- *   수 없는 값을 토큰에 심으면 재생 공격을 막는 것처럼 보일 뿐 아무것도 막지 못한다.
+ * - **nonce 를 지어내지 않는다.** 서버가 발급한 값을 **가공 없이 그대로** 싣는다 (§13-87).
+ *   자르거나 · 다시 인코딩하거나 · 해시하면 토큰에 실리는 값이 달라져 서버가 대조하지 못한다.
+ *   ADR-0011 이 적어 둔 *"계약에 없는 nonce 를 지어내 보내지 않는다"* 는 **그때 옳았고**, 계약이
+ *   열리면서 그 문장의 전제가 바뀐 것이다 — 지금도 지어내지 않으며, 서버에서 받아 온다.
+ * - **`LOGIN_NONCE_INVALID` 에 자동으로 다시 시도하지 않는다** (#185). 회복은 *nonce 부터 다시*
+ *   이므로 다시 부르는 것은 **서버에 상태를 하나 더 만드는 일**이고, 그 경로에는 인증 경로 셋이
+ *   함께 쓰는 IP 기준 한도가 걸려 있다 (백엔드 S-8). `#142` 가 *"다시 부르는 것이 새로 만드는
+ *   것인 자리에서는 열지 않는다"* 로 판정한 것과 같은 종류다. 사용자가 로그인을 다시 누르면
+ *   이 함수가 처음부터 도므로 **회복 경로는 이미 있다** — 코드가 몰래 한 번 더 태우지 않는다.
+ * - **`expiresInSeconds` 를 소비하지 않는다** (#185). 쓸 수 있는 길이 둘인데 둘 다 값보다 비싸다:
+ *   남은 시간이 지났다고 **스스로 한 번 더 받으면** 위의 자동 재시도가 되고, 보내기 전에
+ *   **미리 실패시키면** 서버가 하지 않은 말을 화면이 짓게 된다. 계약이 준 사실을 버리지 않도록
+ *   `AuthNonceResponse` 를 통째로 받아 두고 여기서 `nonce` 만 꺼낸다 — 쓸 이유가 생기면 그때
+ *   값이 이미 와 있다.
  * - **`auto_select` 를 켜지 않는다.** 사용자가 버튼을 누른 결과로만 계정이 정해진다.
  * - **토큰을 로그에 남기지 않는다.** 성공·실패 어느 쪽에서도 `console` 을 부르지 않는다.
+ *   nonce 도 같다 — 로그에 남기지 않고 어떤 저장소에도 두지 않는다 (F-3).
  */
+
+import { issueLoginNonce } from '../../api/endpoints/auth'
 
 /** 로그인 수단이 서지 않았다는 사실. 서버 오류가 아니므로 `ApiError` 와 섞지 않는다. */
 export class GoogleSignInUnavailableError extends Error {
@@ -119,6 +154,8 @@ type IdentityServices = {
     id: {
       initialize(config: {
         client_id: string
+        /** 서버가 발급한 값 그대로. GIS 가 이것을 ID 토큰의 `nonce` 클레임에 넣는다 (§13-87). */
+        nonce: string
         callback: (response: CredentialResponse) => void
         auto_select: boolean
         cancel_on_tap_outside: boolean
@@ -206,6 +243,33 @@ function loadIdentityServices(): Promise<IdentityServices> {
   return pending
 }
 
+/**
+ * 서버가 발급한 로그인 nonce 하나 (§13-87).
+ *
+ * **값을 가공하지 않는다** — `AuthNonceResponse.nonce` 를 그대로 꺼내 그대로 `initialize` 로
+ * 넘긴다. 여기서 손대면 ID 토큰에 실리는 값이 달라져 서버가 대조하지 못한다.
+ *
+ * **서버가 답한 실패는 그대로 올린다** (F-4). `ApiError` 가 `message` 를 들고 있으므로
+ * `LoginScreen` 이 서버의 문장을 그대로 보여 준다 — 이 모듈이 대신 문구를 짓지 않는다.
+ * 옮기는 것은 **취소 하나**뿐이다: `AbortSignal` 이 끊은 요청은 브라우저의 영어 `AbortError`
+ * 로 거절되는데, 그것은 아무의 말도 아닌 문장이라 화면에 그대로 둘 수 없다. 이 모듈이 다른
+ * 자리에서 이미 쓰는 말로 바꾼다.
+ */
+async function requestLoginNonce(signal: AbortSignal): Promise<string> {
+  // 이미 끊긴 신호로 서버에 상태를 만들지 않는다 — 쓰이지 않을 nonce 는 IP 한도만 태운다 (S-8).
+  if (signal.aborted) {
+    throw new GoogleSignInUnavailableError(SIGN_IN_FAILURE.aborted)
+  }
+  try {
+    return (await issueLoginNonce(signal)).nonce
+  } catch (error) {
+    if (signal.aborted) {
+      throw new GoogleSignInUnavailableError(SIGN_IN_FAILURE.aborted)
+    }
+    throw error
+  }
+}
+
 /** 부르면 ID 토큰 하나를 준다. 화면은 이 모양만 안다. */
 export type GoogleIdTokenProvider = (signal: AbortSignal) => Promise<string>
 
@@ -217,7 +281,11 @@ export type GoogleIdTokenProvider = (signal: AbortSignal) => Promise<string>
  */
 export const requestGoogleIdToken: GoogleIdTokenProvider = async (signal) => {
   const clientId = requiredClientId()
+  // **GIS 를 먼저 받고 nonce 를 나중에 받는다.** 순서가 뒤바뀌면 스크립트를 받지 못한 왕복마다
+  // 서버에 쓰이지 않을 nonce 가 하나씩 남고, 인증 경로 셋이 함께 쓰는 IP 한도를 그만큼 태운다
+  // (백엔드 S-8). 이 순서면 실패는 Google 쪽에서 끝난다.
   const google = await loadIdentityServices()
+  const nonce = await requestLoginNonce(signal)
 
   return new Promise<string>((resolve, reject) => {
     if (signal.aborted) {
@@ -254,6 +322,8 @@ export const requestGoogleIdToken: GoogleIdTokenProvider = async (signal) => {
 
     google.accounts.id.initialize({
       client_id: clientId,
+      // 받은 값을 **그대로** 싣는다 (§13-87). 이 한 줄이 ID 토큰의 `nonce` 클레임이 된다.
+      nonce,
       auto_select: false,
       cancel_on_tap_outside: true,
       callback: (response) => {
