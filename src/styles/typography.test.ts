@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs'
+import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 
 import { cssFiles, declarations, rootBlock, uncommented } from './cssTokens'
@@ -446,6 +446,38 @@ describe('#136 — 받아 오는 자리는 index.html 하나다', () => {
   })
 })
 
+/**
+ * **아홉을 아는 자리가 다섯이다** (#177).
+ *
+ * 스케일 이름을 손으로 적은 자리는 여기 말고도 셋이다 — 구역마다 자기 CSS 만 보는 가드가
+ * `screens/account` · `screens/authoring` · `screens/admin` 에 있고, 각자 같은 아홉을 자기
+ * 배열로 들고 있다. **이름을 손으로 적는 것은 의도다**: 검사 대상(`tokens.css`)에서 이름을
+ * 얻으면 *열째가 생기는 것* 을 아무도 못 잡는다.
+ *
+ * 대가가 이것이다 — `#169` 가 `--fs-read` 를 `--fs-2lg` 로 바꿨을 때 넷 중 셋만 따라왔고,
+ * **관리자 가드는 지금 그 단계를 한 자리도 쓰지 않아 초록이었다.** 없는 이름을 허용한 채로
+ * 여덟 달 뒤 관리자 화면이 `--fs-2lg` 를 집어 드는 날 이유 없이 빨개진다 — 실패가 원인에서
+ * 가장 먼 자리에서 나타난다.
+ *
+ * 그래서 정본은 넷이 각자 손으로 적은 그대로 두고, **서로 같은 목록인지만** 여기서 본다.
+ * 갈라지는 순간 어느 파일이 갈라졌는지가 실패에 그대로 나온다.
+ */
+describe('#177 — 아홉을 아는 가드가 서로 갈라지지 않는다', () => {
+  it('177_스케일을_손으로_적은_가드가_전부_같은_아홉을_든다', () => {
+    const guards = scaleGuards()
+    // 읽는 방식이 어느 날 아무것도 잡지 못하게 되면 이 검사는 조용히 통과한다. 파일 목록을
+    // 여기 적지 않는 것이 요점이다 — 새 구역 가드가 생기면 **적지 않아도** 함께 걸린다.
+    expect(guards.length).toBeGreaterThanOrEqual(4)
+    // **첫 파일이 정본이라는 뜻이 아니다.** 넷이 서로 같기만 하면 되고, 하나를 골라 나머지와
+    // 맞대는 것은 어긋난 파일의 이름과 두 목록을 vitest 의 diff 가 그대로 보여 주게 하려는
+    // 것뿐이다 — 개수만 세면(`new Set(...).size`) *어디가* 갈라졌는지가 사라진다.
+    const yardstick = guards[0]?.[1]
+    expect(Object.fromEntries(guards)).toStrictEqual(
+      Object.fromEntries(guards.map(([path]) => [path, yardstick])),
+    )
+  })
+})
+
 // ── 읽는 도구 ────────────────────────────────────────────────────────────────
 
 /** `1.0625rem` → `1.0625`. rem 이 아닌 표기가 섞이면 그 자리에서 던진다 */
@@ -494,3 +526,30 @@ function bySelector(css: string): Map<string, string> {
 }
 
 const count = (text: string, needle: string): number => text.split(needle).length - 1
+
+/**
+ * `SCALE` 을 손으로 적은 테스트 파일들 — 경로(`src/` 아래)와 그 아홉. `--fs-` 접두사를 떼어
+ * 맞춘다: 여기는 토큰 이름(`--fs-xs`)을, 구역 가드는 단계 이름(`xs`)을 적기 때문이다.
+ */
+function scaleGuards(): [string, string][] {
+  const root = new URL('..', import.meta.url).pathname.replace(/\/$/, '')
+  const found: [string, string][] = []
+  const walk = (dir: string): void => {
+    for (const entry of readdirSync(dir).sort()) {
+      const path = `${dir}/${entry}`
+      if (statSync(path).isDirectory()) {
+        walk(path)
+        continue
+      }
+      if (!entry.endsWith('.test.ts')) continue
+      const declared = /const SCALE = \[([^\]]*)\]/.exec(uncommented(readFileSync(path, 'utf8')))
+      if (declared === null) continue
+      const steps = [...(declared[1] ?? '').matchAll(/'([^']+)'/g)].map((one) =>
+        (one[1] ?? '').replace(/^--fs-/, ''),
+      )
+      found.push([`src${path.slice(root.length)}`, steps.join(' ')])
+    }
+  }
+  walk(root)
+  return found
+}
