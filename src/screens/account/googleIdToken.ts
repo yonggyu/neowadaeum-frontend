@@ -113,6 +113,19 @@ export const SIGN_IN_FAILURE = {
    */
   missingClientId:
     'GOOGLE_OAUTH_CLIENT_ID is required — 컨테이너 환경변수로 준다 (dev 는 .env, see .env.example)',
+  /**
+   * 값은 있는데 Google 클라이언트 ID 의 모양이 아니다 (#184).
+   *
+   * **`missingClientId` 와 합치지 않는다.** 빠뜨린 것과 잘못 적은 것은 고치는 자리가 같아도
+   * 고치는 방법이 다르다 — 앞은 *넣어라*, 뒤는 *넣은 것을 다시 보라* 다. 합치면 값을 넣은
+   * 사람이 자기가 넣었다는 사실 때문에 앞의 문구를 읽고 넘어간다.
+   *
+   * **값을 싣지 않는다.** 시크릿은 아니지만(브라우저에 그대로 실린다) 이 레포는 값이 아니라
+   * 키만 다루고, 그 규칙은 로그와 화면에도 선다 (S-11 · 보안 hard-stop).
+   */
+  malformedClientId:
+    'GOOGLE_OAUTH_CLIENT_ID 의 모양이 Google 클라이언트 ID 가 아니다 — ' +
+    '<숫자>-<해시>.apps.googleusercontent.com 인지, 값이 잘리지 않았는지 확인한다',
   /** 브라우저가 아니다 (SSR · 러너). 스크립트를 꽂을 문서가 없다. */
   noDocument: 'Google 로그인은 브라우저에서만 할 수 있어요.',
   /** GIS 라이브러리를 받지 못했다 — 네트워크 · 차단기 · Google 장애. */
@@ -185,6 +198,32 @@ function identityServices(): IdentityServices | undefined {
 }
 
 /**
+ * Google 클라이언트 ID 로 **쓸 수 있는 모양** (#184).
+ *
+ * **완전한 검증이 아니다.** 이 검사가 잡으려는 것은 하나 — **잘리거나 빠뜨린 값**이다.
+ * 값이 있는지만 보면 그런 값이 그대로 Google 까지 가고, 실패는 **우리 코드에서 가장 먼 곳**
+ * — 남의 도메인의 `401 invalid_client` 페이지 — 에서 나타난다. 그 페이지의 문구는 우리가
+ * 고칠 수 없고 `F-4` 의 대상도 아니다(서버가 준 오류가 아니다). 여기서는 부르기 전에 판정한다.
+ *
+ * **어디까지 조이는지가 이 상수의 실제 판단이다.**
+ *
+ * - **접미사만 보지 않는다.** 실제로 걸린 값은 `.apps.googleusercontent.com` 으로 끝나고 있었다.
+ *   눈으로 한 판정이 정확히 그것이었고, 그래서 통과했다.
+ * - **해시 길이를 32 로 못 박지 않는다.** 관측된 값은 32자지만, 그 수를 적으면 Google 이
+ *   형식을 바꾸는 날 **멀쩡한 값이 거절된다** — 그 실패는 이번 것보다 나쁘다. 우리 코드가
+ *   맞다고 믿는 쪽이 틀린 경우이고, 증상은 *로그인 전체가 막히는 것*이다.
+ * - **그래서 하한만 둔다.** `20` 은 관측값(32)과 걸린 값(8) 사이에서 고른 수이며 정확한 수가
+ *   아니다 — 형식이 다소 바뀌어도 살아남고 잘린 값은 잡는 자리를 노린 것이다. 조이는 것이
+ *   목적이 아니므로 대문자도 받는다.
+ *
+ * **`docker/40-neowadaeum-config.sh` 가 같은 판정을 한 번 더 한다.** 배포는 컨테이너가 뜰 때
+ * 걸러야 사람이 버튼을 누르기 전에 드러나고, dev 는 진입점을 지나지 않으므로 이 자리가 필요하다.
+ * **정본은 여기다** — 두 곳이 갈라지면 같은 값이 배포와 dev 에서 다르게 판정된다
+ * (`PUBLIC_ORIGIN` 이 같은 이유로 두 곳에 있고, 진입점이 그 사실을 주석에 적어 두었다).
+ */
+const CLIENT_ID_SHAPE = /^\d+-[a-zA-Z0-9]{20,}\.apps\.googleusercontent\.com$/
+
+/**
  * 클라이언트 ID.
  *
  * **기본값을 두지 않는다** (`${VAR:기본값}` 금지 — 보안 hard-stop). `src/api/config.ts` 의
@@ -200,6 +239,11 @@ function requiredClientId(): string {
   const configured = readRuntimeConfig('GOOGLE_OAUTH_CLIENT_ID')
   if (configured === undefined) {
     throw new GoogleSignInUnavailableError(SIGN_IN_FAILURE.missingClientId)
+  }
+  // **빠뜨린 것과 잘못 적은 것을 나눈다** (#184). 잘못 적은 것이 *적기는 한 것* 으로
+  // 취급되면, 그 값은 우리 코드를 그대로 지나 남의 도메인에서 실패한다.
+  if (!CLIENT_ID_SHAPE.test(configured)) {
+    throw new GoogleSignInUnavailableError(SIGN_IN_FAILURE.malformedClientId)
   }
   return configured
 }

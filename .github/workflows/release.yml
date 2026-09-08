@@ -45,8 +45,14 @@ env:
   # 진입점이 이 이름들을 요구한다 (docker/40-neowadaeum-config.sh). 아래 확인에서만 쓰는
   # **명백히 가짜인** 값이다 — `.invalid` 는 RFC 2606 이 예약해 둔 TLD 라 이름이 절대 풀리지
   # 않는다. 운영 값은 이 레포 어디에도 적지 않는다 (S-11).
+  #
+  # **클라이언트 ID 만 `.invalid` 를 쓰지 못한다** (#184). 진입점이 이제 그 값의 **모양**을
+  # 보는데(정본은 `src/screens/account/googleIdToken.ts` 의 `CLIENT_ID_SHAPE`), Google 의
+  # 형식은 `.apps.googleusercontent.com` 으로 끝난다. `.invalid` 를 쓴 근거는 *이름이 풀리지
+  # 않는다* 인데 **클라이언트 ID 는 애초에 DNS 조회 대상이 아니라** 그 근거가 여기엔 서지 않는다.
+  # 대신 자리표시자임이 값 자체로 드러나게 둔다 — 0 열둘과 `smoketest` 다.
   CHECK_API_BASE_URL: "http://api.invalid"
-  CHECK_GOOGLE_OAUTH_CLIENT_ID: "check.apps.googleusercontent.invalid"
+  CHECK_GOOGLE_OAUTH_CLIENT_ID: "000000000000-smoketestsmoketestsmoketest00000.apps.googleusercontent.com"
   CHECK_PUBLIC_ORIGIN: "https://app.invalid"
 
 jobs:

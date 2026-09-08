@@ -25,7 +25,12 @@ import { RUNTIME_CONFIG_GLOBAL } from '../../runtimeConfig'
  * 값을 언제 · 어떻게 다루는가** 하나라, 계약 호출은 세워 두고 흐름만 본다.
  */
 
-const CLIENT_ID = 'test-client-id.apps.googleusercontent.com'
+/**
+ * **실제 클라이언트 ID 의 모양이다** (#184). 이 파일이 쓰던 `test-client-id.…` 은 접미사만
+ * 맞고 앞이 Google 의 것이 아니었다 — 픽스처가 실제와 다른 모양이면 모양을 보는 검사가
+ * 생기는 순간 픽스처 쪽이 먼저 깨진다. 값은 **명백히 가짜**로 둔다 (S-11).
+ */
+const CLIENT_ID = '000000000000-testclientidtestclientid00000000.apps.googleusercontent.com'
 const ID_TOKEN = 'header.payload.signature'
 /** 서버가 준 값. **다듬을 자리가 있는 모양**으로 둔다 — 가공하면 이 값과 달라진다. */
 const NONCE = ' server/issued+nonce= '
@@ -192,6 +197,68 @@ describe('설정 — 기본값을 두지 않는다 (${VAR:기본값} 금지)', (
     await expect(requestGoogleIdToken(new AbortController().signal)).rejects.toThrowError(
       SIGN_IN_FAILURE.missingClientId,
     )
+  })
+
+  it('모양이_아니면_실패한다__잘린_값이_Google_까지_가서_남의_401_로_드러나지_않는다_184', async () => {
+    // 실제로 걸린 값과 같은 모양이다 — 접미사는 맞고 **해시만 잘렸다**. 눈으로 한 판정이
+    // 정확히 접미사였고, 그래서 통과했다.
+    stubRuntimeConfig({
+      GOOGLE_OAUTH_CLIENT_ID: '000000000000-abcdefgh.apps.googleusercontent.com',
+    })
+    const appended = stubDocument()
+    stubIdentityServices()
+    const { requestGoogleIdToken, SIGN_IN_FAILURE } = await loadModule()
+
+    await expect(requestGoogleIdToken(new AbortController().signal)).rejects.toThrowError(
+      SIGN_IN_FAILURE.malformedClientId,
+    )
+    // 부르기 전에 판정한다 — GIS 를 받으러 가지도 않는다.
+    expect(appended).toHaveLength(0)
+  })
+
+  it('빠뜨린_것과_잘못_적은_것을_나눈다__넣은_사람이_무엇을_잘못했는지_안다_184', async () => {
+    stubRuntimeConfig({ GOOGLE_OAUTH_CLIENT_ID: '내가 넣은 값' })
+    stubDocument()
+    stubIdentityServices()
+    const { requestGoogleIdToken, SIGN_IN_FAILURE } = await loadModule()
+
+    const failure = await requestGoogleIdToken(new AbortController().signal).catch(
+      (error: unknown) => error,
+    )
+    expect(failure).toBeInstanceOf(Error)
+    expect((failure as Error).message).toBe(SIGN_IN_FAILURE.malformedClientId)
+    expect((failure as Error).message).not.toBe(SIGN_IN_FAILURE.missingClientId)
+  })
+
+  it('실패_문구에_값을_싣지_않는다__이_레포는_값이_아니라_키만_다룬다_S11', async () => {
+    const wrong = '000000000000-abcdefgh.apps.googleusercontent.com'
+    stubRuntimeConfig({ GOOGLE_OAUTH_CLIENT_ID: wrong })
+    stubDocument()
+    stubIdentityServices()
+    const { requestGoogleIdToken, SIGN_IN_FAILURE } = await loadModule()
+
+    const failure = await requestGoogleIdToken(new AbortController().signal).catch(
+      (error: unknown) => error,
+    )
+    expect((failure as Error).message).not.toContain(wrong)
+    expect((failure as Error).message).not.toContain('abcdefgh')
+    expect(SIGN_IN_FAILURE.malformedClientId).not.toContain(wrong)
+  })
+
+  it('모양을_32자로_못박지_않는다__Google_이_형식을_바꾸는_날_멀쩡한_값이_거절되지_않는다_184', async () => {
+    // 하한만 둔다. 관측값(32)보다 짧지만 잘린 값(8)보다 충분히 긴 해시는 통과해야 한다 —
+    // 여기서 조이면 그 실패는 *로그인 전체가 막히는 것* 이고, 이번 결함보다 나쁘다.
+    stubRuntimeConfig({
+      GOOGLE_OAUTH_CLIENT_ID: '1-abcdefghijklmnopqrstuvwx.apps.googleusercontent.com',
+    })
+    stubDocument()
+    const gis = stubIdentityServices()
+    const { requestGoogleIdToken } = await loadModule()
+
+    void requestGoogleIdToken(new AbortController().signal).catch(() => {})
+    await untilPrompted()
+
+    expect(gis.config?.client_id).toBe('1-abcdefghijklmnopqrstuvwx.apps.googleusercontent.com')
   })
 
   it('설정한_클라이언트_ID_를_그대로_넘긴다__그리고_auto_select_를_켜지_않는다', async () => {
