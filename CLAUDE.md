@@ -196,6 +196,9 @@ npm run typecheck && npm run lint && npm test
 
 이슈 → 브랜치(`<타입>/#<번호>-<슬러그>`) → 커밋(타입검사 통과 시점마다) → PR.
 **`frontend` / `dev` / `main` 에 직접 푸시하지 않는다.** 커밋은 Conventional Commits + 이슈 번호.
+**태그는 게시이지 배포가 아니다** — `main` 에서 태그로 가는 조건은 README `§브랜치` 가 들고
+그 정본은 백엔드 `docs/git-workflow.md` §8.7 이다. 번호는 레포마다 각자 세고 **조합은 백엔드
+`docs/releases.md`** 가 든다 (#193).
 **PR 800줄 — `src/**` 기준이다.** 테스트·설정·생성물(`src/api/schema.d.ts`)은 세지 않는다.
 브랜치 수명 3일.
 
