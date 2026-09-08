@@ -32,7 +32,7 @@ import {
   REVIEW_STATUS_LABEL,
   reviewPhase,
   triggersHumanReview,
-  VISIBILITY_HINT,
+  VISIBILITY_CHANGE_HINT,
   VISIBILITY_LABEL,
   VISIBILITY_OPTIONS,
   visibilityBlockedReason,
@@ -615,7 +615,7 @@ function VisibilityForm({
               />
               <span className={styles.optionText}>
                 <span className={styles.optionLabel}>{VISIBILITY_LABEL[option]}</span>
-                <span className={shared.meta}>{reason ?? VISIBILITY_HINT[option]}</span>
+                <span className={shared.meta}>{reason ?? VISIBILITY_CHANGE_HINT[option]}</span>
               </span>
             </label>
           )

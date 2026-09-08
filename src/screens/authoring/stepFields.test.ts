@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import type { DraftPayload } from '../../api/endpoints/authoring'
 import {
+  carriesImage,
   addFlag,
   characterField,
   conditionSources,
@@ -438,5 +439,36 @@ describe('conditionSources — 같은 이름은 한 줄이다 (#144)', () => {
     for (const candidate of conditionSources(values).flags) {
       expect(saved['flags']).toContain(candidate)
     }
+  })
+})
+
+
+describe('carriesImage — 사람만 판정할 수 있는 것을 나르는가 (§13-83, #178)', () => {
+  const base = readValues({} as DraftPayload)
+
+  it('커버만_있어도_참이다', () => {
+    expect(carriesImage({ ...base, coverImage: 'cover-key' })).toBe(true)
+  })
+
+  it('초상만_있어도_참이다__한쪽만_보면_다른_쪽이_검수_없이_나가는_길이_된다', () => {
+    expect(
+      carriesImage({
+        ...base,
+        characters: [{ ...emptyCharacter(), portraitImage: 'portrait-key' }],
+      }),
+    ).toBe(true)
+  })
+
+  it('인물이_여럿이면_하나만_있어도_참이다__초상은_인물_수만큼_있다', () => {
+    expect(
+      carriesImage({
+        ...base,
+        characters: [emptyCharacter(), { ...emptyCharacter(), portraitImage: 'portrait-key' }],
+      }),
+    ).toBe(true)
+  })
+
+  it('둘_다_없으면_거짓이다__그_원고는_R8_6_그대로다', () => {
+    expect(carriesImage({ ...base, coverImage: null, characters: [emptyCharacter()] })).toBe(false)
   })
 })
