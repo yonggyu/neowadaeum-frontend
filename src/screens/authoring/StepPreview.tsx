@@ -5,7 +5,7 @@ import { submitDraft, type Visibility } from '../../api/endpoints/authoring'
 import { usePlaySession } from '../../hooks/usePlaySession'
 import { myStoryPath, ROUTES } from '../../routes/routes'
 import {
-  VISIBILITY_HINT,
+  submitVisibilityHint,
   VISIBILITY_LABEL,
   VISIBILITY_OPTIONS,
 } from '../account/reviewStatus'
@@ -30,9 +30,12 @@ const VISIBILITY_FIELD = (visibility: Visibility): string => `visibility-${visib
 export function StepPublish({
   draftId,
   preview,
+  carriesImage,
 }: {
   draftId: string
   preview: PreviewHandle
+  /** 이 원고가 커버나 초상을 나르는가 (§13-83) — 고지가 갈리는 유일한 조건이다. */
+  carriesImage: boolean
 }) {
   const navigate = useNavigate()
   const [visibility, setVisibility] = useState<Visibility>('private')
@@ -81,7 +84,7 @@ export function StepPublish({
             />
             <span className={css.radioText}>
               <span>{VISIBILITY_LABEL[option]}</span>
-              <span className={css.meta}>{VISIBILITY_HINT[option]}</span>
+              <span className={css.meta}>{submitVisibilityHint(option, carriesImage)}</span>
             </span>
           </label>
         ))}

@@ -195,6 +195,20 @@ export interface StepValues {
   readonly flags: readonly string[]
 }
 
+/**
+ * 이 원고가 **사람만 판정할 수 있는 것**을 나르는가 (§13-83, #178).
+ *
+ * 커버든 초상이든 하나면 참이다 — 계약이 *"이미지를 실은 제출"* 로 묶어 말하고 값이 무엇인지는
+ * 보지 않는다(그것은 업로드가 확정한 객체 키다). **한쪽만 보면 다른 쪽이 검수 없이 나가는
+ * 길이 되고**, 초상은 인물 수만큼 있어 커버보다 오히려 많다.
+ */
+export function carriesImage(values: StepValues): boolean {
+  return (
+    values.coverImage !== null ||
+    values.characters.some((character) => character.portraitImage !== null)
+  )
+}
+
 const text = (value: unknown): string => (typeof value === 'string' ? value : '')
 
 const nullableText = (value: unknown): string | null =>

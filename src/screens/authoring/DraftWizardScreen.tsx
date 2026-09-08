@@ -28,6 +28,7 @@ import {
 import { StepOutline } from './StepOutline'
 import { PreviewPanel, StepPublish } from './StepPreview'
 import {
+  carriesImage,
   conditionSources,
   flagFieldPaths,
   flagPrecheckFields,
@@ -333,7 +334,7 @@ function Wizard({ draft: loaded, metadata }: { draft: Draft; metadata: Authoring
               sources={conditionSources(values)}
             />
           ) : null}
-          {step === 5 ? <StepPublish draftId={draft.draftId} preview={preview} /> : null}
+          {step === 5 ? <StepPublish draftId={draft.draftId} preview={preview} carriesImage={carriesImage(values)} /> : null}
 
           {/*
            * 검수 자체가 실패한 경우. **결과를 지우지 않는다** — 검사가 실패했다는 것은
