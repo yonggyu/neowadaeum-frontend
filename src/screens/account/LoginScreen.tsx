@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 import { ApiError, setAccessToken } from '../../api/client'
@@ -27,6 +27,32 @@ export function LoginScreen() {
   const [submitting, setSubmitting] = useState(false)
   const [failure, setFailure] = useState<unknown>(null)
 
+  /**
+   * 이 화면이 띄운 One Tap 과 그 뒤의 로그인 요청을 함께 걷는 신호 (#182).
+   *
+   * **`ref` 에 둔다.** 이 레포에는 관례가 둘 있다 — effect 안의 지역 변수(`ConsentScreen` ·
+   * `useResource`)와 `ref`(`ImageSlotField` · `usePlaySession`). 앞의 것은 *effect 가 만든
+   * 요청*에만 맞고 `signIn()` 은 effect 가 아니라 **이벤트 핸들러**다. 같은 모양이
+   * `ImageSlotField.start` 에 이미 있으므로 그것을 따른다.
+   *
+   * **신호는 하나다.** One Tap 을 걷는 것과 로그인 요청을 끊는 것을 나누지 않는다 — 둘을
+   * 무의미하게 만드는 사건이 *화면을 떠났다* 하나이기 때문이다. 나누면 같은 사건에
+   * 반응하는 신호가 둘이 되고, 어느 쪽이 무엇을 덮는지 다음 사람이 매번 확인해야 한다.
+   */
+  const signInRef = useRef<AbortController | null>(null)
+
+  /*
+   * 화면에서 사라지면 걷는다.
+   *
+   * 걷지 않으면 `googleIdToken.ts` 가 갖춰 둔 정리 경로에 아무도 닿지 않는다 — **Google 이
+   * 그린 창이 남고**, 거기서 고른 계정의 콜백이 이미 떠난 화면의 `setStep` · `navigate` 로
+   * 돌아온다. 감시 타이머가 2분이라 그동안 약속과 리스너가 살아 있다.
+   *
+   * **단계 전환(`signIn` → `consent`)에서는 걷지 않는다.** 그 전환은 토큰이 이미 도착한
+   * 뒤에만 일어나고, 그 시점의 One Tap 은 스스로 끝나 리스너를 거둔 상태다. 걷을 것이 없다.
+   */
+  useEffect(() => () => signInRef.current?.abort(), [])
+
   /** 토큰이 도착하는 유일한 자리. 메모리에만 둔다 — 저장소에 쓰지 않는다 (F-3). */
   function enter(tokens: TokenResponse): void {
     setAccessToken(tokens.accessToken)
@@ -36,10 +62,16 @@ export function LoginScreen() {
   async function signIn(): Promise<void> {
     setSubmitting(true)
     setFailure(null)
+    const controller = new AbortController()
+    signInRef.current = controller
+
     let idToken: string
     try {
-      idToken = await requestGoogleIdToken(new AbortController().signal)
+      idToken = await requestGoogleIdToken(controller.signal)
     } catch (error) {
+      // 걷힌 것은 실패가 아니다 — 사용자가 떠난 것이고, 그것을 "로그인에 실패했어요" 로
+      // 그리면 하지 않은 일이 화면에 남는다. 화면도 이미 없다 (`ImageSlotField.start` 와 같다).
+      if (controller.signal.aborted) return
       setFailure(error)
       setSubmitting(false)
       return
@@ -47,8 +79,11 @@ export function LoginScreen() {
 
     try {
       // 기존 회원은 `idToken` 만 보낸다. 매번 동의를 다시 받으면 동의 이력이 로그인 이력이 된다.
-      enter(await loginWithOAuth({ idToken }))
+      // **같은 신호를 넘긴다** — 넘기지 않으면 떠난 뒤 도착한 응답이 `enter()` 를 지나
+      // `navigate` 로 사용자를 라이브러리까지 끌고 간다 (#182).
+      enter(await loginWithOAuth({ idToken }, controller.signal))
     } catch (error) {
+      if (controller.signal.aborted) return
       // 최초 로그인이면 서버가 "가입 정보가 더 필요하다"고 답한다 — 실패가 아니라 다음 단계다.
       // **`idToken` 은 서버가 되돌려 주지 않는다.** 방금 받은 값을 그대로 들고 간다 (F-3 —
       // 어디에도 저장하지 않으므로 이 컴포넌트가 살아 있는 동안만 존재한다).
@@ -58,7 +93,7 @@ export function LoginScreen() {
       }
       setFailure(error)
     } finally {
-      setSubmitting(false)
+      if (!controller.signal.aborted) setSubmitting(false)
     }
   }
 
