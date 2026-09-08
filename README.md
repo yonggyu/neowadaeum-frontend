@@ -23,6 +23,27 @@ npm run dev               # http://localhost:5173
 **포트는 5173 에 고정돼 있다.** 백엔드의 `app.cors.allowed-origins` 가 이 오리진을 알고 있어야
 하며, 포트가 매번 바뀌면 그 목록이 맞을 수 없다.
 
+### 이미지로 띄우려면
+
+```bash
+mkdir -p _contract/docs
+cp ../neowadaeum-backend/docs/openapi.yaml _contract/docs/   # 계약은 이 레포에 없다
+docker build -t neowadaeum-frontend:local .
+
+docker run --rm -p 8080:8080 \
+  -e API_BASE_URL=http://localhost:8080 \
+  -e GOOGLE_OAUTH_CLIENT_ID=<클라이언트 ID> \
+  -e PUBLIC_ORIGIN=https://<이 앱의 오리진> \
+  neowadaeum-frontend:local
+```
+
+**이미지는 설정을 담지 않는다.** 값은 컨테이너가 뜰 때 온다 — 진입점이 `/config.js` 를 써
+내리고 `index.html` 의 OG 자리를 채운다. 그래서 **같은 이미지가 어디서든 돌고**, 스테이징에서
+검증한 SHA 를 그대로 운영에 올릴 수 있다. 근거는 ADR-0012 에 있다.
+
+**값이 없으면 뜨지 않는다.** `PUBLIC_ORIGIN` 만 선택이며, 없으면 `og:url` · `og:image` 두
+태그를 내지 않는다. `latest` 태그를 만들지 않는다 — 게시는 `v*` 태그가 한다.
+
 ### 백엔드를 함께 띄우려면
 
 백엔드 레포에서 `dev` 프로파일로 띄운다. **AI 키 없이 돈다** — `FixedStoryProvider` 가 정해진
@@ -38,11 +59,27 @@ npm run dev               # http://localhost:5173
 API 타입을 손으로 적지 않는다. 백엔드의 `docs/openapi.yaml` 에서 만든다.
 
 ```bash
-npm run api:types         # → src/api/schema.d.ts (커밋하지 않는다 — 산출물이다)
+OPENAPI_SOURCE=/절대경로/neowadaeum-backend/docs/openapi.yaml npm run api:types
+# → src/api/schema.d.ts (커밋하지 않는다 — 산출물이다)
 ```
 
-기본 경로는 `../neowadaeum-backend/docs/openapi.yaml` 이다. 두 레포를 나란히 클론했다면 그대로
-쓰면 되고, 아니면 `.env` 의 `OPENAPI_SOURCE` 를 고친다.
+**`OPENAPI_SOURCE` 는 필수이며 기본값이 없다.** 값이 없으면 스크립트가 실패한다
+(`scripts/api-types.mjs`). 기본값을 두면 상대경로가 실행 위치에 따라 다른 곳을 가리키고,
+그 자리에 **다른 계약 레포가 있으면 실패하지 않고 조용히 틀린 타입**이 생긴다 — 어느 계약을
+읽는지가 조용히 정해지는 자리를 남기지 않는다. `npm` 은 `.env` 를 읽지 않으므로 셸에
+내보내거나 명령 앞에 붙인다. 매번 적기 싫으면 `export` 해 둔다.
+
+**CI 도 같은 일을 한다** — 백엔드(공개 레포)를 `_contract/` 로 체크아웃해 타입을 만든 뒤 검사한다.
+ref 를 고정하지 않으므로 **계약이 바뀌면 여기서 빨간불이 난다.** 오래된 계약 위에서 조용히
+초록인 것보다 어긋난 순간 멈추는 편이 싸다.
+
+**생성물이 없으면 `npm run typecheck` · `npm run build` 가 그 사실 하나만 말하고 멈춘다** (#143).
+`src/api/schema.d.ts` 는 커밋하지 않으므로 **새로 체크아웃한 워크트리에는 없다.** 그대로
+`tsc` 를 돌리면 화면 파일마다 `implicitly has an 'any' type` 이 쏟아져 **증상이 원인을 가린다** —
+읽는 사람은 자기 코드가 깨진 줄 안다. 두 명령의 앞에 `scripts/require-generated-types.mjs` 가
+있어 없는 것과 할 일을 함께 말하고 0 이 아닌 코드로 끝난다. **여기서 대신 만들어 주지 않는다** —
+`OPENAPI_SOURCE` 가 없으면 같은 실패가 한 단계 뒤에서 다시 나기 때문이다 (#40).
+`npm test` 에는 붙이지 않는다 — 러너는 타입을 지우고 돌므로 생성물 없이도 전체 셋이 통과한다.
 
 **계약과 화면이 어긋나면 계약이 이긴다.** 계약이 틀렸다고 판단되면 프론트에서 우회하지 말고
 백엔드 레포에 이슈를 연다 — 우회는 두 곳에 서로 다른 진실을 만든다.
@@ -57,6 +94,9 @@ npm run lint        # ESLint
 npm test            # Vitest
 npm run api:types   # 계약 → 타입
 ```
+
+`typecheck` · `build` 는 생성물(`src/api/schema.d.ts`)이 있어야 돈다. 없으면 시작하기 전에
+멈추고 무엇을 하면 되는지 말한다 (#143).
 
 ## 브랜치
 
@@ -75,13 +115,23 @@ CI 잡 이름 셋(`build` · `test` · `gitleaks`)은 **브랜치 보호의 필�
 백엔드와 같은 이름을 쓰므로 두 레포의 보호 설정을 한 규칙으로 읽을 수 있다. **이름을 바꾸면
 보호가 조용히 헐거워진다.**
 
-## 아직 없는 것
+**CI 는 base 가 무엇이든 모든 PR 에서 돈다** (#51). 800줄 상한이 넘치면 화면 단위로 자르라고
+정하고 그 방법이 스택이므로, base 가 기능 브랜치인 PR 도 검사받아야 한다. base 가 재조준되면
+(부모가 머지될 때) 다시 돈다 — 검사한 base 가 바뀌었기 때문이다.
 
-- **디자인.** 화면은 디자인 이후에 만든다. `src/App.tsx` 는 자리 표시자이며 그럴듯한 목업을
-  미리 넣지 않았다 — 디자인 없이 만든 화면은 디자인이 나오면 전부 다시 만들게 되고, 그
-  사이에 누군가는 그것을 확정된 것으로 읽는다
-- **lockfile.** 첫 로컬 `npm install` 에서 생성해 커밋한다. 그 뒤 CI 의 `npm install` 을
-  `npm ci` 로 바꾼다 — **그것이 진짜 고정이다**
+**`frontend` 로 머지하면 연결 이슈가 자동으로 닫힌다** (#3). GitHub 은 기본 브랜치 머지만
+처리하므로 `.github/workflows/close-linked-issues.yml` 이 그 자리를 대신한다. 백엔드에 같은
+워크플로가 있다.
+
+## 화면
+
+**경로의 정본은 `src/routes/routes.ts` 다.** 여기에 목록을 옮겨 적지 않는다 — 옮겨 적은 목록은
+반드시 먼저 낡고, 낡은 목록은 없는 것보다 나쁘다. 화면 구현은 `src/screens/<영역>/` 에 있고
+영역은 라우트가 나뉘는 단위와 같다.
+
+화면은 **와이어프레임 없이 만들지 않는다.** 각 화면 파일 첫머리의 주석이 자기가 따르는
+와이어프레임 번호(`1k` · `2f` · `3h` · `6a`~`6d` …)를 적어 두며, 그것이 그 화면의 근거다.
+반응형은 `CLAUDE.md` 의 **F-9** 가 정한 네 폭(390 · 768 · 1024 · 1440)에서 모두 성립해야 한다.
 
 ## 보안
 

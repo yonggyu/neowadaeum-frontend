@@ -1,0 +1,1175 @@
+/*
+ * 작품 만들기 마법사 골격 — Step 진행바 · 임시 저장 표시 · 2열 (와이어프레임 6a).
+ *
+ * 숫자는 `src/styles/tokens.css` 의 변수를 쓴다. 여기서 새로 정하는 값은 둘뿐이고 둘 다
+ * 6a 가 값으로 적은 것이다 — 2열의 컬럼 폭과 390 하단 고정 바의 높이. 브레이크포인트만
+ * 숫자로 적는다(미디어 쿼리가 var() 를 읽지 못한다): 390 / 768 / 1024 / 1440 (F-9).
+ *
+ * 원고 목록과 파일을 나눈 이유는 `drafts.module.css` 머리에 적었다.
+ */
+
+/* ── 마법사 — 셸이 붙지 않는다. 세로를 이 화면이 직접 채운다 ─────────────────── */
+
+.screen {
+  /*
+   * 390 하단 고정 바의 높이 (6a). 바 자신과, 바에 가려지지 않아야 하는 본문이 같은 값을
+   * 읽는다 — 두 곳에 적으면 어긋나고, 어긋난 쪽은 마지막 버튼이 가려지는 형태로 나타난다.
+   * 터치 대상 높이는 화면마다 다르므로(CLAUDE.md) 토큰으로 올리지 않고 여기 둔다.
+   */
+  --wizard-bar-h: 72px;
+
+  display: flex;
+  min-height: 100dvh;
+  flex-direction: column;
+}
+
+/* 진행바까지 한 덩어리로 고정한다 — 6a "Step 진행바는 어느 폭에서도 상단 고정" */
+
+.wizardHead {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  padding-bottom: var(--sp-3);
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+}
+
+.wizardHeadRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  max-width: 900px;
+  min-height: var(--nav-h);
+  margin: 0 auto;
+  padding: 0 var(--sp-4);
+}
+
+.exit {
+  color: inherit;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.exit:focus-visible,
+.button:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.stepLabel {
+  color: var(--fg-muted);
+  font-size: var(--fs-sm);
+  text-align: center;
+}
+
+.saveState {
+  color: var(--fg-muted);
+  font-size: var(--fs-sm);
+  text-align: right;
+}
+
+.saveFailed {
+  color: var(--danger);
+}
+
+.progress {
+  display: flex;
+  gap: var(--sp-1);
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 0 var(--sp-4);
+  list-style: none;
+}
+
+.tick {
+  flex: 1 1 0;
+  height: 3px;
+  border-radius: var(--r-sm);
+  background: var(--bg-sunken);
+}
+
+.tickOn {
+  background: var(--fg);
+}
+
+/* 진행바 칸의 이름은 읽히되 보이지 않는다 — 6a 의 진행바에는 글자가 없다 */
+
+.srOnly {
+  position: absolute;
+  overflow: hidden;
+  clip-path: inset(50%);
+  width: 1px;
+  height: 1px;
+  white-space: nowrap;
+}
+
+/*
+ * ~767 · 768~1023 은 1열이다 (6a). 카드 최대 900px 중앙은 어느 폭에서도 같다.
+ * 아래 여백은 하단 고정 바의 높이에서 온다.
+ */
+
+.wizardBody {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: var(--sp-6);
+  width: 100%;
+  max-width: 900px;
+  margin: 0 auto;
+  padding: var(--sp-6) var(--sp-4) calc(var(--wizard-bar-h) + var(--sp-6));
+}
+
+.main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+
+/* 입력이 아직 없다는 사실을 그리는 자리. Step 화면이 붙으면 통째로 사라진다 */
+
+.placeholder {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  padding: var(--sp-6);
+  border: 1px dashed var(--border);
+  border-radius: var(--r-lg);
+}
+
+.placeholderTitle {
+  margin: 0;
+  font-size: var(--fs-lg);
+  line-height: var(--lh-snug);
+}
+
+/* ── Step 1~3 의 입력 (3d) ───────────────────────────────────────────────────── */
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  margin: 0;
+  padding: 0;
+  border: 0; /* fieldset 의 기본 테두리를 걷는다 — 장르 칩 묶음이 fieldset 이다 */
+}
+
+.fieldHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-2);
+}
+
+/*
+ * `label` · `legend` · `span` 말고 `h2` · `p` 에도 붙는다 (7차 `A-1` 의 플래그 절). 그 둘은
+ * UA 여백을 들고 오므로 `margin` 을 여기서 걷는다 — 붙는 자리마다 다시 걷으면 언젠가 하나를
+ * 빠뜨리고, 빠뜨린 줄만 다른 간격으로 선다.
+ */
+
+.fieldLabel {
+  margin: 0;
+  padding: 0;
+  color: var(--fg-muted);
+  font-size: var(--fs-sm);
+}
+
+/* 3d — "독자에게 보입니다" · "AI에게만 전달됩니다". 라벨과 한 줄에 붙어야 대상이 읽힌다 */
+
+.fieldHint {
+  color: var(--fg-muted);
+}
+
+/*
+ * 라벨 한 줄로는 부족한 사실을 필드 바로 아래에 붙인다 — 인물의 페르소나가 **비어 있어도
+ * 되고, 비면 한 줄 소개가 대신 간다**는 것 (계약 `DraftCharacter`, 백엔드 #350). 라벨 옆에
+ * 이어 붙이면 390 에서 라벨 줄이 두 줄로 접히고 글자 수 자리와 다툰다.
+ */
+
+.fieldGroup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+}
+
+.fieldNote {
+  margin: 0;
+  color: var(--fg-muted);
+  font-size: var(--fs-sm);
+  line-height: var(--lh-normal);
+}
+
+/* 글자 수와 "확인 중" 이 같은 자리를 쓴다 — 둘이 동시에 필요한 순간이 없다 (3d) */
+
+.fieldMeta {
+  color: var(--fg-muted);
+  font-size: var(--fs-sm);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.control {
+  width: 100%;
+  min-height: 48px;
+  padding: var(--sp-3);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--bg);
+  color: var(--fg);
+  font: inherit;
+  line-height: var(--lh-relaxed);
+  resize: vertical;
+}
+
+.control:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+
+/*
+ * 차단은 **두 단계 중 하나**다 (3d · 정정본 13-33). 주황 "진행 가능한 경고" 를 위한 색을
+ * 여기 두지 않는다 — 있으면 언젠가 누군가 쓴다.
+ */
+
+.controlBlocked {
+  border: 2px solid var(--danger);
+}
+
+.fieldBlocked {
+  gap: var(--sp-2);
+}
+
+.nearLimit {
+  margin: 0;
+  color: var(--danger);
+  font-size: var(--fs-sm);
+  line-height: var(--lh-normal);
+}
+
+.fieldFindings {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+}
+
+/* 문제 구간을 원문 위에 다시 그린다 — input 안에는 밑줄을 그을 수 없다 (3d) */
+
+.highlight {
+  margin: 0;
+  color: var(--fg-muted);
+  font-size: var(--fs-md);
+  line-height: var(--lh-relaxed);
+  word-break: break-word;
+}
+
+.mark {
+  border-radius: var(--r-sm);
+  background: var(--danger-wash-strong);
+  color: inherit;
+}
+
+.blockedMessage {
+  margin: 0;
+  color: var(--danger);
+  font-size: var(--fs-md);
+  line-height: var(--lh-normal);
+}
+
+/* 장르 칩 — 다중 선택 (3d) */
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  margin-top: var(--sp-1);
+}
+
+.chip {
+  min-height: 40px;
+  padding: 0 var(--sp-4);
+  border: 1px solid var(--border);
+  border-radius: var(--r-xl);
+  background: var(--bg);
+  color: var(--fg-muted);
+  font: inherit;
+  cursor: pointer;
+}
+
+.chip:focus-visible,
+.iconButton:focus-visible,
+.jump:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.chipOn {
+  border-color: var(--fg);
+  color: var(--fg);
+}
+
+/*
+ * 그림 자리 — **비율로만** 고정한다 (CLAUDE.md · 1k). 커버는 160, 초상은 96, 비율은 둘 다 2:3
+ * (7차 `UploadStates` — *"같은 컴포넌트를 씁니다. 폭만 다릅니다"*). **높이를 px 로 박지 않는다.**
+ *
+ * 390 에서도 슬롯이 폭을 다 쓰지 않는다 (`ImageUploadMobile`) — 2:3 이라 전폭으로 늘리면
+ * 240px 짜리가 520px 이 되어 한 화면에 제목도 소개도 들어오지 않는다. 그래서 폭이 상수다.
+ */
+
+.imageSlot {
+  display: flex;
+  position: relative; /* 미리보기 그림과 그 위의 한 줄이 같은 칸을 쓴다 */
+  flex-direction: column;
+  align-items: center;
+  align-self: flex-start; /* 세로 flex 안에서 폭까지 늘어나지 않게 — 비율이 무너진다 */
+  justify-content: center;
+  gap: var(--sp-2);
+  width: 96px;
+  aspect-ratio: var(--ratio-cover);
+  overflow: hidden;
+  padding: var(--sp-2);
+  border: 1px dashed var(--border);
+  border-radius: var(--r-md);
+  background: var(--bg-sunken);
+}
+
+.cover {
+  width: 160px;
+}
+
+/* 무엇이 들어 있는 자리는 실선이다 — 비어 있는 자리의 점선과 한눈에 갈린다 (아트보드 ②③⑤) */
+
+.slotFilled {
+  border-style: solid;
+}
+
+/*
+ * 실패 (아트보드 ④). **그림을 그리지 않는다** — 확정이 400 이면 서버가 그 객체를 지웠고,
+ * 우리 브라우저에 남은 파일을 그 자리에 그리면 화면이 "올라갔다" 고 말하는 셈이 된다.
+ */
+
+.slotFailed {
+  /*
+   * **넘쳐도 자른다는 뜻이 아니다.** 실패한 자리에는 그림이 없으므로(`slotBody`) 잘라 둘
+   * 이유가 없고, 서버가 준 문구는 길이를 우리가 정하지 않는다 — 96px 짜리 초상 자리에서
+   * 잘리면 화면은 **서버가 한 말의 절반**만 보여 준다 (F-4).
+   */
+  overflow: visible;
+  border: 2px solid var(--danger);
+  background: var(--danger-wash);
+}
+
+.slotFailed > .imageSlotNote {
+  color: var(--danger);
+}
+
+.imageSlotNote {
+  color: var(--fg-muted);
+  font-size: var(--fs-xs);
+  line-height: var(--lh-snug);
+  text-align: center;
+}
+
+.imagePreview {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* 그림 위에 오는 한 줄 — 진행 중에만 온다. 바탕이 없으면 밝은 사진 위에서 읽히지 않는다 */
+
+.overNote {
+  position: relative;
+  padding: var(--sp-1) var(--sp-2);
+  border-radius: var(--r-sm);
+  background: var(--bg);
+}
+
+/*
+ * 진행 막대 — **퍼센트가 없다.** `fetch` 는 업로드 진행률을 알려 주지 않으므로(`putToStorage`)
+ * 62% 같은 숫자는 화면이 지어낸 값이 된다. 정해지지 않은 진행으로 그리고, 크기는 아래 줄이
+ * 서버가 준 상한에 대고 말한다.
+ */
+
+.uploadBar {
+  position: relative;
+  width: 100%;
+  height: 4px;
+  overflow: hidden;
+  border-radius: var(--r-sm);
+  background: var(--border);
+}
+
+.uploadBar > i {
+  display: block;
+  width: 40%;
+  height: 100%;
+  animation: slide 1.2s ease-in-out infinite;
+  background: var(--fg);
+}
+
+@keyframes slide {
+  0% {
+    transform: translateX(-100%);
+  }
+
+  100% {
+    transform: translateX(250%);
+  }
+}
+
+/*
+ * 자리와 버튼 — 390 은 세로(슬롯 아래 전폭 버튼 둘), 768 부터 가로 (아트보드).
+ *
+ * **버튼을 그림 위에 겹치지 않는다** (`ImageUploadMobile` — *"슬롯 위에 겹치면 48px 터치
+ * 대상이 이미지 안에 갇힙니다"*).
+ */
+
+.imageRow {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  margin-top: var(--sp-1);
+}
+
+.imageControls {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: var(--sp-2);
+  min-width: 0;
+}
+
+.imageActions {
+  display: flex;
+  gap: var(--sp-2);
+}
+
+/* Mobile 은 개수와 무관하게 세로 full-width (1k) — 버튼이 하나든 둘이든 폭을 나눠 갖는다 */
+
+.imageActions > .button {
+  flex: 1 1 0;
+}
+
+/* 등장인물 카드 (3d · 6a) */
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  padding: var(--sp-4);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+}
+
+.cardBlocked {
+  border: 2px solid var(--danger);
+  background: var(--danger-wash);
+}
+
+.cardHead,
+.cardActions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+}
+
+.iconButton {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 var(--sp-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--bg);
+  color: var(--fg-muted);
+  font: inherit;
+  cursor: pointer;
+}
+
+.iconButton:disabled {
+  color: var(--fg-subtle);
+  cursor: default;
+}
+
+.cardBody {
+  display: flex;
+  gap: var(--sp-3);
+}
+
+.cardFields {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: var(--sp-3);
+  min-width: 0;
+}
+
+.addCharacter {
+  width: 100%;
+  border-style: dashed;
+}
+
+/*
+ * ── Step 3 의 플래그 절 (7차 `A-1` · #125) ────────────────────────────────────
+ *
+ * **인물 카드의 값을 나눠 쓰지 않는다.** 두 목록이 같은 단계에 있지만 그리는 것이 다르다 —
+ * 인물은 초상과 세 칸을 든 카드이고 플래그는 **한 줄**이다. 여기서 새로 정하는 값은 없다:
+ * 입력 48px 은 `.control`, 지우기 44px 은 `.iconButton` 이 이미 든 값이고 D-3 이 *"인물
+ * 카드의 버튼과 같은 크기"* 라고 적은 것이 그 뜻이다.
+ *
+ * 네 폭에서 모양이 같다 (F-9). 한 줄에 입력 하나와 버튼 하나뿐이라 1440 에서 벌릴 것이
+ * 없고, 좌측 컬럼의 폭(460 → 520)이 이미 그 차이를 만든다 — 폭이 넓다고 벌리지 않는다.
+ */
+
+/* 인물 목록과 플래그 절을 가르는 선 (D-1). `hr` 의 기본 테두리를 걷고 한 줄만 남긴다 */
+
+.divider {
+  width: 100%;
+  height: 0;
+  margin: var(--sp-4) 0 0;
+  border: 0;
+  border-top: 1px solid var(--border);
+}
+
+.flagSection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+
+/*
+ * 절의 제목은 `h2` 다 — 이 단계가 두 목록을 들게 되면서 낭독기에 목차가 필요해졌다. 하지만
+ * **보이는 것은 인물의 라벨과 같은 한 줄**이어야 한다 (D-2 가 그 둘을 짝으로 그렸다).
+ * 그래서 굵기만 걷는다 — 크기와 색과 여백은 `.fieldLabel` 의 것을 그대로 쓴다.
+ */
+
+.flagTitle {
+  font-weight: inherit;
+}
+
+.flagList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.flagRow {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+}
+
+/*
+ * D-3 — 한 줄에 입력 하나 + 지우기 하나. 390 에서도 둘이 같은 줄에 선다: 버튼이 44px 고정이고
+ * 입력이 남은 폭을 갖는다. `min-width: 0` 이 없으면 input 의 기본 폭이 flex 를 밀어내 버튼이
+ * 화면 밖으로 나간다.
+ */
+
+.flagLine {
+  display: flex;
+  gap: var(--sp-2);
+  align-items: flex-start;
+}
+
+.flagLine > .control {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/*
+ * 줄 아래의 한 줄 — 왼쪽은 이 이름을 가리키는 자리(D-4), 오른쪽은 남은 글자.
+ *
+ * 가리키는 곳이 없으면 왼쪽이 빈 칸이고 글자 수만 오른쪽에 남는다. 그때 자리가 접히지 않게
+ * `justify-content` 가 아니라 왼쪽이 늘어나는 쪽으로 둔다 — 접히면 줄마다 높이가 달라진다.
+ */
+
+.flagMeta {
+  display: flex;
+  gap: var(--sp-2);
+  align-items: baseline;
+}
+
+.flagMeta > .fieldNote {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.addFlag {
+  width: 100%;
+}
+
+/*
+ * 빈 상태 (D-7) — **다음 단계를 여기로 가져온다.**
+ *
+ * 플래그는 이 마법사에서 유일하게 *무엇에 쓰이는지 화면 안에서 보이지 않는* 값이다. 그래서
+ * 비었을 때만 Step 4 의 조건 목록을 그대로 보여 주고, 잠긴 둘의 이유는 `templateBlockedReason`
+ * 이 준 문장 그대로다.
+ */
+
+.flagEmpty {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  padding: var(--sp-4);
+  border: 1px dashed var(--border);
+  border-radius: var(--r-lg);
+}
+
+.templatePeek {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.templateRow {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  padding: var(--sp-3);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--bg);
+  line-height: var(--lh-normal);
+}
+
+/*
+ * 잠긴 둘 — **흐리게 하되 읽히게 둔다.** 이유가 붙어 있는 줄이라 그 이유까지 흐려지면 무엇을
+ * 하라는 것인지 보이지 않는다. 그래서 `opacity` 로 통째로 덮지 않고 바탕과 글자만 낮춘다.
+ */
+
+.templateLocked {
+  border-style: dashed;
+  background: var(--bg-sunken);
+  color: var(--fg-muted);
+}
+
+/* 우측 패널의 미리보기 (6a — Step 1·2) */
+
+.previewCard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  padding: var(--sp-3);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--bg);
+}
+
+/*
+ * 카드 미리보기 안의 제목 한 줄. `1.125rem` 은 스케일 아홉의 어느 단계도 아니었으므로
+ * (#136 이 그 다섯을 지웠다) 위아래 중 하나를 골라야 했다 — 위(`--fs-xl`)는 구역 제목이라
+ * 카드 안의 한 줄이 쓸 자리가 아니고, 아래(`--fs-2lg`)는 **원고 목록의 제목
+ * (`drafts.module.css` 의 `.rowTitle`)과 내 작품의 패널 제목이 이미 서 있는 자리**다.
+ * 크기가 가까워서가 아니라 그 셋이 같은 일을 해서 여기로 온다.
+ */
+.previewTitle {
+  margin: 0;
+  font-size: var(--fs-2lg);
+  line-height: var(--lh-tight);
+}
+
+.jump {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--focus);
+  font: inherit;
+  font-size: var(--fs-sm);
+  text-align: left;
+  cursor: pointer;
+}
+
+/*
+ * 우측 패널 — **1024 부터만 있다** (6a: 768 은 *"검수는 필드 아래 인라인, 미리보기는 Step 5로
+ * 이동"*). 아래로 흘러내린 패널을 두면 같은 오류가 필드 아래와 패널에서 두 번 보인다.
+ */
+
+.side {
+  display: none;
+  flex-direction: column;
+  gap: var(--sp-3);
+  padding: var(--sp-4);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  background: var(--bg-sunken);
+}
+
+.sideTitle {
+  margin: 0;
+  font-size: var(--fs-base);
+  font-weight: 600;
+}
+
+.findings {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.finding {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  padding: var(--sp-3);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--bg);
+}
+
+/*
+ * 패널 안의 절 (7차 `A-1` D-8) — Step 3 은 검수와 "이 원고가 선언한 이름" 둘을 든다.
+ *
+ * **`aside` 를 둘로 나누지 않는다.** 1024 부터 `.wizardBody` 가 2열 grid 이므로 grid 항목이
+ * 셋이 되면 둘째 패널이 다음 행의 좌측 컬럼으로 떨어진다 — 본문 아래에 패널이 끼어든다.
+ */
+
+.sideBlock {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+
+.sideBlock + .sideBlock {
+  padding-top: var(--sp-3);
+  border-top: 1px solid var(--border);
+}
+
+/* 이름 한 줄 — 라벨 위, 이름들 아래. 좁은 컬럼(320px)에서 가로로 놓으면 이름이 잘린다 */
+
+.declaredRow {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+}
+
+.declaredNames {
+  font-size: var(--fs-md);
+  line-height: var(--lh-relaxed);
+  word-break: break-word;
+}
+
+/*
+ * 이전/다음. ~767 에서 하단 고정 바가 된다 (6a "390 — 1열 + 하단 고정 바").
+ *
+ * 셸의 탭바와 겹치지 않는다 — 이 화면에는 셸이 붙지 않는다(라우터가 그렇게 정했다).
+ * 그래서 `--tabbar-total-h` 를 여기서 더하지 않는다: 더하면 아무것도 없는 자리만큼 바가
+ * 떠오른다.
+ */
+
+.wizardNav {
+  display: flex;
+  gap: var(--sp-2);
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 10;
+  min-height: var(--wizard-bar-h);
+  padding: var(--sp-3) var(--sp-4) calc(var(--sp-3) + env(safe-area-inset-bottom, 0px));
+  border-top: 1px solid var(--border);
+  background: var(--bg);
+}
+
+.wizardNav > .button {
+  flex: 1 1 0;
+}
+
+/* ── 공통 조각 ───────────────────────────────────────────────────────────────── */
+
+/* 화면 제목은 큰 제목(`--fs-2xl`)이라 명조다 (#136) */
+.pageTitle {
+  margin: 0;
+  font-family: var(--font-read);
+  font-size: var(--fs-2xl);
+  line-height: var(--lh-tight);
+}
+
+.body {
+  margin: 0;
+  color: var(--fg-muted);
+  line-height: var(--lh-loose);
+}
+
+/*
+ * **읽는 줄이다** (#159). 걸린 곳이 없다는 안내 · 장르 요약 · 검수가 막은 자리의 설명이
+ * 전부 이 자리를 쓴다 — `--fg-subtle` 로는 그 문장들을 읽으라고 내놓은 뜻이 없다.
+ */
+.meta {
+  margin: 0;
+  color: var(--fg-muted);
+  font-size: var(--fs-base);
+  line-height: var(--lh-relaxed);
+}
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+  padding: 0 var(--sp-4);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--bg);
+  color: var(--fg);
+  font: inherit;
+  text-align: center;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.button:disabled {
+  color: var(--fg-subtle);
+  cursor: default;
+}
+
+.primary {
+  border-color: var(--fg);
+  background: var(--fg);
+  color: var(--bg);
+}
+
+.primary:disabled {
+  border-color: var(--border);
+  background: var(--bg-sunken);
+  color: var(--fg-subtle);
+}
+
+.status {
+  padding: var(--sp-12) 0;
+  color: var(--fg-muted);
+  text-align: center;
+}
+
+/*
+ * ── Step 4 — 챕터 & 엔딩 (3e) ─────────────────────────────────────────────────
+ *
+ * 카드·필드·버튼은 Step 1~3 의 것을 그대로 쓴다. 여기 새로 나는 자리는 넷뿐이다 —
+ * 목록의 머리(제목 + 다시 생성·추가) · 초안 생성 중 · 기본 엔딩 라디오 · 우측 흐름 요약.
+ */
+
+.listHead {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.rowActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+}
+
+/* 3e — "직접 작성하기" 는 점선이다. 초안을 받는 길이 굵은 쪽이라는 것을 형태가 말한다 */
+
+.dashed {
+  border-style: dashed;
+}
+
+/*
+ * 초안 생성 중 (3e). **min-height 만 둔다** — 문구가 한 줄이 되든 두 줄이 되든 상자가
+ * 접히지 않게 하되, 높이를 px 로 박아 안을 잘라 내지 않는다 (CLAUDE.md 반응형).
+ */
+
+.outlineIntro {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  align-items: center;
+  justify-content: center;
+  min-height: 280px;
+  padding: var(--sp-8) var(--sp-4);
+  border: 1px dashed var(--border);
+  border-radius: var(--r-lg);
+  text-align: center;
+}
+
+.outlineIntroTitle {
+  margin: 0;
+  font-size: var(--fs-xl);
+  line-height: var(--lh-normal);
+}
+
+/* 생성 중이라는 것을 움직임으로 말한다. 남은 시간을 지어내지 않는다 — 계약이 주지 않는다 */
+
+.dots {
+  display: inline-flex;
+  gap: var(--sp-1);
+}
+
+.dots i {
+  width: var(--sp-1);
+  height: var(--sp-1);
+  border-radius: 50%;
+  background: var(--fg-subtle);
+  animation: wizard-fade 1.4s ease-in-out infinite;
+}
+
+.dots i:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.dots i:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes wizard-fade {
+  0%,
+  100% {
+    opacity: 0.25;
+  }
+
+  50% {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dots i {
+    animation: none;
+  }
+
+  /* 움직임 없이도 "진행 중" 이 보여야 한다 — 막대를 채워 둔다 */
+
+  .uploadBar > i {
+    width: 100%;
+    animation: none;
+  }
+}
+
+/* 기본 엔딩 — 라디오. 터치 대상은 행 전체이고 높이는 3d 의 설정 행과 같은 48px 이다 */
+
+/*
+ * 템플릿이 선언한 칸들 (§13-56).
+ *
+ * **어느 폭에서도 세로 한 줄이다.** 칸의 개수는 서버가 정하므로(`parameters[]`) 열 수를
+ * 화면이 미리 정할 수 없고, 390 에서 두 칸을 가로로 놓으면 인물 이름이 잘린다. 왼쪽 선은
+ * 이 칸들이 위의 조건에 딸린 것임을 말한다 — 들여쓰기만으로는 1440 에서 읽히지 않는다.
+ */
+.conditionParams {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  margin-top: var(--sp-2);
+  padding-left: var(--sp-3);
+  border-left: 2px solid var(--border);
+}
+
+.radioRow {
+  display: flex;
+  gap: var(--sp-3);
+  align-items: center;
+  min-height: 48px;
+  cursor: pointer;
+}
+
+/* 우측 패널 Step 4 — 챕터·엔딩 흐름 (6a "Step 4 — 챕터·엔딩 흐름") */
+
+.flow {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.flowRow {
+  display: flex;
+  gap: var(--sp-2);
+  align-items: baseline;
+  line-height: var(--lh-normal);
+}
+
+.flowNo {
+  flex: none;
+  color: var(--fg-muted);
+  font-size: var(--fs-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.flowTitle {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  font-size: var(--fs-md);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 기본 엔딩 표식 (3e 의 "기본 엔딩" 칩) */
+
+.flowBadge {
+  flex: none;
+  padding: 0 var(--sp-2);
+  border: 1px solid var(--fg);
+  border-radius: var(--r-xl);
+  font-size: var(--fs-xs);
+  line-height: var(--lh-relaxed);
+}
+
+/*
+ * ── Step 5 — 미리보기와 공개 설정 (3e · 6a) ───────────────────────────────────
+ */
+
+/* 라디오 옆에 라벨과 부연이 두 줄로 선다 (3f 의 세 줄 그대로) */
+
+.radioText {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+}
+
+.previewIntro,
+.previewEnd {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  align-items: flex-start;
+  padding: var(--sp-4);
+  border: 1px dashed var(--border);
+  border-radius: var(--r-md);
+}
+
+.previewEnd {
+  margin-top: var(--sp-6);
+}
+
+.previewHead {
+  display: flex;
+  gap: var(--sp-2);
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+/*
+ * 미리보기 무대. **`PlayStage` 는 자기 컨테이너를 만들지 않으므로** 여백과 Visual 높이 상한을
+ * 여기서 준다 — 라우트(`play.module.css` 의 `.screen`)가 쓰는 값은 전체 화면의 것이라
+ * 1440 에서 좌우 88px 이고, 380px 패널에 그대로 들어오면 본문이 설 자리가 없다.
+ *
+ * 높이는 `min-height` 만 둔다 (CLAUDE.md — Story 영역에 fixed height 금지).
+ */
+
+.previewStage {
+  --pad: var(--sp-4);
+  --visual-cap: 140px;
+
+  display: flex;
+  flex-direction: column;
+  min-height: 320px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--bg);
+}
+
+/* ── 768 Tablet — 1열 유지. 하단 고정 바를 걷고 본문 흐름으로 되돌린다 (6a) ──── */
+
+@media (min-width: 768px) {
+  .wizardHeadRow,
+  .progress {
+    padding-left: var(--sp-6);
+    padding-right: var(--sp-6);
+  }
+
+  .wizardBody {
+    padding: var(--sp-8) var(--sp-6) var(--sp-16);
+  }
+
+  .wizardNav {
+    position: static;
+    min-height: 0;
+    padding: var(--sp-4) 0 0;
+    border-top: 1px dashed var(--border);
+  }
+
+  /* 6a Desktop — 다음이 이전보다 넓다. 어느 쪽이 앞으로 가는 길인지가 폭으로 보인다 */
+
+  .wizardNav > .primary {
+    flex: 1.6 1 0;
+  }
+
+  /* 이미지 자리는 옆으로 — 슬롯 왼쪽, 버튼과 안내가 오른쪽 (`ImageUpload` 1440) */
+
+  .imageRow {
+    flex-direction: row;
+    align-items: flex-start;
+    gap: var(--sp-4);
+  }
+
+  /* 옆으로 서면 버튼이 폭을 나눠 가질 이유가 없다 — 글자만큼만 차지한다 */
+
+  .imageActions > .button {
+    flex: 0 0 auto;
+  }
+}
+
+@media (max-width: 767px) {
+  /* Mobile 은 개수와 무관하게 세로 full-width (1k) */
+
+  .listHead > .button,
+  .rowActions,
+  .rowActions > * {
+    width: 100%;
+  }
+}
+
+/*
+ * ── 1024 Laptop — 2열 460 / 320, 우측 sticky (6a) ────────────────────────────
+ *
+ * 컬럼 사이 간격을 `gap` 으로 두지 않는다. 6a 가 적은 460/320 · 520/380 은 **컬럼 폭**이고,
+ * 그 합이 카드 폭이다 — gap 을 더하면 1440 에서 900 을 넘어가 "카드 최대 900px" 이 깨진다.
+ * 사이의 여백은 좌측 컬럼의 padding 이 만든다 (6a 의 점선 구분선 자리).
+ */
+
+/* Step 5 의 패널만 좁은 폭에서도 선다 — 미리보기는 걷어 낼 자리가 없다 (DraftWizardScreen) */
+
+@media (max-width: 1023px) {
+  .sideAlways {
+    display: flex;
+    order: -1;
+  }
+}
+
+@media (min-width: 1024px) {
+  .wizardBody {
+    display: grid;
+    grid-template-columns: 460px 320px;
+    justify-content: center;
+    column-gap: 0;
+    padding-left: var(--sp-8);
+    padding-right: var(--sp-8);
+  }
+
+  .main {
+    padding-right: var(--sp-6);
+  }
+
+  .side {
+    display: flex;
+    position: sticky;
+    /* 헤더(내비 높이 + 진행바 + 아래 여백)만큼 내려서 붙는다 — 진행바를 덮지 않는다 */
+    top: calc(var(--nav-h) + var(--sp-6));
+    align-self: start;
+  }
+}
+
+/* ── 1440 Desktop — 2열 520 / 380. 둘의 합이 6a 의 카드 최대 900px 이다 ──────── */
+
+@media (min-width: 1440px) {
+  .wizardBody {
+    grid-template-columns: 520px 380px;
+  }
+}

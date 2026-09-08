@@ -1,0 +1,203 @@
+/*
+ * 신고 — 와이어프레임 3c · 5d · 6c. 껍데기(자리 · 폭 · 버튼)는 `styles/sheet.module.css` 다.
+ * 여기 있는 것은 시트 안쪽뿐이고, 폭에 따라 달라지는 것도 **사유 4종의 배치 하나**다 (6c) —
+ * 내용 · 순서 · 문구는 네 폭에서 완전히 같다 (F-9).
+ */
+
+.body {
+  display: flex;
+  flex-direction: column;
+  margin-top: var(--sp-3);
+}
+
+.groupLabel {
+  margin: var(--sp-4) 0 var(--sp-2);
+  color: var(--fg-muted);
+  font-size: var(--fs-sm);
+}
+
+/* ── 대상 — 무엇을 신고하는지 보이지 않으면 안 된다 (5d) ─────────────────────── */
+
+.targets {
+  display: flex;
+  gap: var(--sp-2);
+}
+
+.target,
+.single {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  margin: 0;
+  font-size: var(--fs-lg);
+}
+
+.target {
+  flex: 1 1 0;
+  min-height: 56px;
+  padding: var(--sp-2) var(--sp-3);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--bg);
+  color: var(--fg);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+/* 굵어진 테두리만큼 안쪽을 되돌린다 — 고른 칸만 1px 커지면 옆 칸과 어긋난다 */
+.target[aria-pressed='true'] {
+  border: 2px solid var(--fg);
+  padding: calc(var(--sp-2) - 1px) calc(var(--sp-3) - 1px);
+}
+
+.hint {
+  color: var(--fg-muted);
+  font-size: var(--fs-xs);
+  /* 제목은 사용자 값이다 — 공백 없는 긴 제목이 390 에서 가로 스크롤을 만들지 않게 한다 */
+  overflow-wrap: anywhere;
+}
+
+.note {
+  margin: var(--sp-2) 0 0;
+  color: var(--fg-muted);
+  font-size: var(--fs-sm);
+  line-height: var(--lh-normal);
+}
+
+/* ── 사유 — Mobile 세로 4 / Desktop 2×2 (6c) ────────────────────────────────── */
+
+.reasons {
+  display: grid;
+  gap: var(--sp-2);
+}
+
+.reason {
+  display: flex;
+  gap: var(--sp-3);
+  align-items: center;
+  min-height: 48px;
+  padding: 0 var(--sp-3);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  font-size: var(--fs-2lg);
+  cursor: pointer;
+}
+
+.reason:has(:checked) {
+  border: 2px solid var(--fg);
+  padding: 0 calc(var(--sp-3) - 1px);
+}
+
+/* 진짜 radio 다 — 화살표 키로 넘어가고 그룹으로 읽힌다. 동그라미는 브라우저 기본형이다 */
+.radio {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: var(--fg);
+}
+
+/* ── 상세 (선택 · 200자) ────────────────────────────────────────────────────── */
+
+.detail {
+  min-height: 72px;
+  padding: var(--sp-3);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--bg);
+  color: var(--fg);
+  font: inherit;
+  font-size: var(--fs-lg);
+  line-height: var(--lh-relaxed);
+  resize: vertical;
+}
+
+/*
+ * 남은 글자 수 — **읽는 값이라 `--fg-muted` 다** (#159). 200자에서 잘리는 입력이고, 이 숫자를
+ * 읽지 못하면 언제 잘리는지 알 수 없다. 장식이 아니라 값이라 `tabular-nums` 가 붙어 있다.
+ */
+.counter {
+  margin: var(--sp-1) 0 0;
+  color: var(--fg-muted);
+  font-size: var(--fs-xs);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.failure,
+.confirmText {
+  margin: var(--sp-2) 0 0;
+  font-size: var(--fs-md);
+  line-height: var(--lh-relaxed);
+}
+
+.target:focus-visible,
+.detail:focus-visible,
+.reason:has(:focus-visible) {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/* ── 접수 · 중복 — 접수 번호가 들어갈 자리가 없다 (5d) ────────────────────── */
+
+.result {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  align-items: center;
+  padding: var(--sp-8) 0 var(--sp-4);
+  text-align: center;
+}
+
+.mark {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--fg);
+  border-radius: 50%;
+  font-size: var(--fs-xl);
+}
+
+/*
+ * 접수 · 중복의 한 줄 제목 — **한 단계 커졌다** (`1.1875rem` → `--fs-xl`, #136).
+ *
+ * 지우기로 한 다섯 중 하나였다. 아래(`--fs-lg`)로 보내면 시트 본문(`.target` · `.detail`)과
+ * 같은 크기가 되어 이 판에서 제목이 사라진다 — 시트가 결과 하나만 남기고 비는 상태라 그
+ * 한 줄이 유일한 제목이다. 화면 제목(`--fs-2xl`)이 아닌 것은 시트 안의 구역이기 때문이다.
+ */
+.resultTitle {
+  margin: 0;
+  font-size: var(--fs-xl);
+  line-height: var(--lh-normal);
+}
+
+.resultBody {
+  margin: 0;
+  color: var(--fg-muted);
+  line-height: var(--lh-normal);
+}
+
+.resultAction {
+  width: 100%;
+  margin-top: var(--sp-2);
+}
+
+@media (min-width: 768px) {
+  /* 사유 4종만 2×2 다. 나머지는 폭이 넓어져도 같은 순서로 같은 자리에 있다 */
+  .reasons {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .reason {
+    min-height: 44px;
+    font-size: var(--fs-lg);
+  }
+
+  .confirmText {
+    flex: 1 1 100%;
+    margin: 0;
+  }
+}
