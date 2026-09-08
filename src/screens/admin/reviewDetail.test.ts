@@ -1,0 +1,321 @@
+import { describe, expect, it } from 'vitest'
+
+import type {
+  ManuscriptEnding,
+  ManuscriptGenre,
+  ReasonCount,
+  ReviewHistoryEntry,
+} from '../../api/endpoints/admin'
+import { genreSectionKey } from '../library/sections'
+import { REPORT_REASONS } from '../report/report'
+import {
+  AUTO_CHECK_VERDICT_LABEL,
+  authorLabel,
+  coverFact,
+  DEFAULT_DETAIL_PANEL,
+  endingBadges,
+  GENRE_ABSENCE_HINT,
+  genreChips,
+  hasNote,
+  HISTORY_REASON_LABEL,
+  HISTORY_STAGE_LABEL,
+  HISTORY_VERDICT_LABEL,
+  panelInStatus,
+  panelsFor,
+  PREVIEW_STALENESS_HINT,
+  previewAbsenceHint,
+  previewChoices,
+  previewParagraphs,
+  reasonCountsForDisplay,
+  REPORT_REASON_LABEL,
+  REPORT_STATUS_LABEL,
+  reportTargetLabel,
+} from './reviewDetail'
+import { REJECT_REASON_LABEL } from './reviewQueue'
+
+/**
+ * 테스트 데이터에 **실제로 걸릴 법한 문자열을 넣지 않는다** (S-11 — 이 레포는 공개다).
+ * 전부 무해한 더미다.
+ */
+function ending(overrides: Partial<ManuscriptEnding> = {}): ManuscriptEnding {
+  return {
+    endingNo: 1,
+    label: '더미 엔딩',
+    epilogueText: '더미 에필로그',
+    secret: false,
+    defaultEnding: false,
+    ...overrides,
+  }
+}
+
+function historyEntry(overrides: Partial<ReviewHistoryEntry> = {}): ReviewHistoryEntry {
+  return {
+    stage: 'human',
+    verdict: 'reject',
+    reasons: [],
+    reviewedAt: '2026-09-01T00:00:00Z',
+    note: null,
+    ...overrides,
+  }
+}
+
+describe('F6_작성자는_표시명_하나뿐이다', () => {
+  it('표시명이_없으면_없다고만_적는다 — 서버가 이름을 지어내지 않으므로 화면도 짓지 않는다', () => {
+    // 계약 `ReviewManuscript` 에 `playerRef` 가 아예 없다 (backend I-3). 이 함수가 받는
+    // 값도 표시명 하나뿐이라, 식별자를 대신 넣을 자리가 코드에 없다.
+    expect(authorLabel(null)).toBe('표시명 없음')
+  })
+
+  it('표시명이_있으면_그대로_적는다', () => {
+    expect(authorLabel('더미 작성자')).toBe('더미 작성자')
+  })
+})
+
+describe('R14_5_감사가_걸린_문은_필요할_때만_연다', () => {
+  it('신고_면은_suspended_에서만_열린다 — 신고가 없는 작품에 열람 기록만 남기지 않는다', () => {
+    expect(panelsFor('suspended')).toContain('reports')
+    expect(panelsFor('in_review')).not.toContain('reports')
+    expect(panelsFor('approved')).not.toContain('reports')
+  })
+
+  it('지난_판정은_어디서나_열린다 — 감사를 남기지 않고 세 갈래 모두에서 판정에 쓰인다', () => {
+    for (const status of ['in_review', 'suspended', 'approved'] as const) {
+      expect(panelsFor(status)).toContain('history')
+      expect(panelsFor(status)).toContain('manuscript')
+    }
+  })
+
+  it('열려_있던_면이_사라지면_기본으로_돌아간다 — 빈 패널을 열어 두지 않는다', () => {
+    expect(panelInStatus('reports', 'in_review')).toBe(DEFAULT_DETAIL_PANEL)
+    expect(panelInStatus('reports', 'suspended')).toBe('reports')
+    expect(panelInStatus('history', 'in_review')).toBe('history')
+  })
+})
+
+describe('§13-62_신고는_집계와_목록까지다', () => {
+  it('많은_사유부터_그리고_동률은_신고_화면의_순서다', () => {
+    const counts: ReasonCount[] = [
+      { reason: 'other', count: 2 },
+      { reason: 'real_person', count: 5 },
+      { reason: 'inappropriate', count: 2 },
+    ]
+
+    expect(reasonCountsForDisplay(counts).map((each) => each.reason)).toEqual([
+      'real_person',
+      'inappropriate',
+      'other',
+    ])
+  })
+
+  it('서버가_준_배열을_흐트러뜨리지_않는다', () => {
+    const counts: ReasonCount[] = [
+      { reason: 'other', count: 1 },
+      { reason: 'inappropriate', count: 9 },
+    ]
+
+    reasonCountsForDisplay(counts)
+
+    expect(counts.map((each) => each.reason)).toEqual(['other', 'inappropriate'])
+  })
+
+  it('사유_문구는_신고_화면과_같다 — 이용자가 고른 이름과 검수자가 읽는 이름이 갈라지지 않는다', () => {
+    for (const reason of REPORT_REASONS) {
+      expect(REPORT_REASON_LABEL[reason.value]).toBe(reason.label)
+    }
+  })
+
+  it('대상_턴이_null_인_것은_정상이다 — 작품 신고에는 턴이 없다', () => {
+    // 계약이 *"키를 생략하지 않는다"* 고 적었으므로 키 존재 여부로 분기하지 않는다.
+    expect(reportTargetLabel(null)).toBe('작품 전체')
+    expect(reportTargetLabel(3)).toBe('3번째 장면')
+  })
+
+  it('처리_상태는_계약의_넷_그대로다', () => {
+    expect(Object.keys(REPORT_STATUS_LABEL).sort()).toEqual([
+      'actioned',
+      'dismissed',
+      'open',
+      'reviewing',
+    ])
+  })
+})
+
+describe('R8_7_사유는_카테고리_이름까지다', () => {
+  it('이력의_사유_문구가_판정_화면과_같다 — 같은 카테고리가 화면마다 다른 이름을 갖지 않는다', () => {
+    expect(HISTORY_REASON_LABEL.minor_sexual).toBe(REJECT_REASON_LABEL.MINOR_SEXUAL)
+    expect(HISTORY_REASON_LABEL.hate_speech).toBe(REJECT_REASON_LABEL.HATE_SPEECH)
+    expect(Object.keys(HISTORY_REASON_LABEL)).toHaveLength(
+      Object.keys(REJECT_REASON_LABEL).length,
+    )
+  })
+
+  it('문구가_카테고리_이름을_넘지_않는다 — 어디가 왜 걸렸는지를 덧붙이면 우회 사전이 된다 (S-11)', () => {
+    for (const label of Object.values(HISTORY_REASON_LABEL)) {
+      expect(Object.values(REJECT_REASON_LABEL)).toContain(label)
+    }
+  })
+})
+
+describe('§13-63_자동과_사람을_섞지_않는다', () => {
+  it('단계를_구분해_적는다 — 자동 통과는 사람이 본 것이 아니다 (R8.6)', () => {
+    expect(HISTORY_STAGE_LABEL.auto).not.toBe(HISTORY_STAGE_LABEL.human)
+  })
+
+  it('보류는_아무것도_바꾸지_않았다는_기록이다', () => {
+    expect(HISTORY_VERDICT_LABEL.hold).toBe('보류')
+  })
+
+  it('note_는_비어_있으면_그리지_않는다 — 자동 판정에는 사람이 없어 null 이다', () => {
+    expect(hasNote(historyEntry({ stage: 'auto', verdict: 'pass', note: null }))).toBe(false)
+    expect(hasNote(historyEntry({ note: '   ' }))).toBe(false)
+    expect(hasNote(historyEntry({ note: '두 번째 검수자와 확인 필요' }))).toBe(true)
+  })
+})
+
+describe('§13-42_자동_검수의_hold_는_사람이_봐야_한다는_표식이다', () => {
+  it('보류를_판단이_끝난_것처럼_적지_않는다', () => {
+    expect(AUTO_CHECK_VERDICT_LABEL.hold).toBe('사람이 봐야 함')
+  })
+})
+
+describe('엔딩 표식', () => {
+  it('계약의_boolean_둘만_읽는다 — 조건식은 계약에 없고 화면이 추측하지 않는다', () => {
+    expect(endingBadges(ending())).toEqual([])
+    expect(endingBadges(ending({ secret: true }))).toEqual(['숨은 엔딩'])
+    expect(endingBadges(ending({ secret: true, defaultEnding: true }))).toEqual([
+      '숨은 엔딩',
+      '기본 엔딩',
+    ])
+  })
+})
+
+describe('§13-68_미리보기는_저장된_원문을_읽는다', () => {
+  it('R5_1_모양이면_문단으로_읽는다 — 검수는 독자가 볼 것을 보는 자리다', () => {
+    const raw = JSON.stringify([
+      { type: 'narration', speakerName: null, text: '더미 나레이션' },
+      { type: 'dialogue', speakerName: '더미 화자', text: '더미 대사' },
+    ])
+
+    expect(previewParagraphs(raw)).toEqual([
+      { speakerName: null, text: '더미 나레이션' },
+      { speakerName: '더미 화자', text: '더미 대사' },
+    ])
+  })
+
+  it('모양이_어긋나면_null_이다 — 조용히 아무것도 그리지 않는 대신 원문으로 되돌아간다', () => {
+    expect(previewParagraphs('문단 배열이 아닌 문자열')).toBeNull()
+    expect(previewParagraphs('{"type":"narration"}')).toBeNull()
+    expect(previewParagraphs(JSON.stringify([{ speakerName: null }]))).toBeNull()
+    expect(previewParagraphs(JSON.stringify(['문단이 객체가 아니다']))).toBeNull()
+  })
+
+  it('I1_선택지는_서버가_발급한_choiceId_와_문구를_그대로_읽는다', () => {
+    const raw = JSON.stringify([
+      { choiceId: 'dummy-choice-1', order: 1, text: '더미 선택지 하나', disabled: false },
+      { choiceId: 'dummy-choice-2', order: 2, text: '더미 선택지 둘', disabled: false },
+    ])
+
+    expect(previewChoices(raw)).toEqual([
+      { choiceId: 'dummy-choice-1', text: '더미 선택지 하나' },
+      { choiceId: 'dummy-choice-2', text: '더미 선택지 둘' },
+    ])
+  })
+
+  it('choiceId_가_없는_모양은_null_이다 — 키를 화면이 지어내지 않는다', () => {
+    expect(previewChoices(JSON.stringify([{ text: '더미 선택지' }]))).toBeNull()
+    expect(previewChoices('선택지 배열이 아닌 문자열')).toBeNull()
+  })
+
+  it('빈_배열은_빈_결과지_실패가_아니다', () => {
+    expect(previewParagraphs('[]')).toEqual([])
+    expect(previewChoices('[]')).toEqual([])
+  })
+})
+
+describe('§13-68_미리보기가_없으면_없다고_적는다', () => {
+  it('previewedAt_이_null_이면_어느_쪽인지_아는_것처럼_적지_않는다', () => {
+    expect(previewAbsenceHint(null)).toBe(
+      '미리보기 기록이 없어요 — 돌린 적이 없거나 보관 기간이 지났어요.',
+    )
+  })
+
+  it('previewedAt_이_있으면_돌린_것은_확실하다 — 남은 턴이 없다고 적는다', () => {
+    expect(previewAbsenceHint('2026-09-01T00:00:00Z')).toBe(
+      '남은 미리보기 턴이 없어요 — 보관 기간이 지나 파기됐어요.',
+    )
+  })
+
+  it('있을_때는_시각을_말하고_판단은_검수자에게_남긴다 — 오래된 미리보기는 지금 원고와 다르다', () => {
+    expect(PREVIEW_STALENESS_HINT).toContain('마지막으로 확인한 상태')
+  })
+})
+
+
+/**
+ * 장르와 커버 (#134, backend #368 · 정정본 §13-77).
+ *
+ * **화면을 그리지 않고 판정만 확인한다** — 러너에 DOM 이 없다. 여기서 못박는 것은 *무엇을
+ * 그리는가*가 아니라 *무엇을 지어내지 않는가*이며, 그 둘이 어긋나는 자리가 곧 표류다.
+ */
+function genre(overrides: Partial<ManuscriptGenre> = {}): ManuscriptGenre {
+  return { key: 'dummy-one', label: '더미 장르 하나', ...overrides }
+}
+
+describe('genreChips — 라벨도 순서도 서버의 것이다 (§13-77)', () => {
+  it('라벨을_그대로_쓴다 — 화면이 키를 우리말로 옮기지 않는다', () => {
+    // 계약이 `label` 을 함께 주는 이유가 이것이다. 화면에 표를 두면 표시 문구의 정본이
+    // 하나 더 생기고, 라이브러리가 여는 섹션 이름과 검수자가 본 이름이 갈라진다.
+    expect(genreChips([genre({ label: '더미 라벨' })])[0]?.label).toBe('더미 라벨')
+  })
+
+  it('모르는_키가_와도_지어내지_않는다 — 서버가 준 라벨이 그대로 나온다', () => {
+    // 표가 없으므로 "매핑에 없는 키" 라는 갈래 자체가 코드에 없다.
+    const chips = genreChips([genre({ key: 'dummy-unknown', label: '더미 새 장르' })])
+    expect(chips[0]).toEqual({
+      key: 'dummy-unknown',
+      label: '더미 새 장르',
+      sectionKey: 'genre:dummy-unknown',
+    })
+  })
+
+  it('정렬하지_않는다 — `display_order` 가 순서이고 화면이 다시 줄을 세우지 않는다', () => {
+    const chips = genreChips([
+      genre({ key: 'dummy-b', label: '나 더미' }),
+      genre({ key: 'dummy-a', label: '가 더미' }),
+    ])
+    expect(chips.map((chip) => chip.key)).toEqual(['dummy-b', 'dummy-a'])
+  })
+
+  it('섹션_키는_라이브러리와_같은_형식이다 — 검수자가 값으로 대조한다', () => {
+    // `genreSectionKey` 하나가 그 형식의 정본이다. 두 곳에 적으면 대조하려던 값이 갈라진다.
+    expect(genreChips([genre({ key: 'dummy-two' })])[0]?.sectionKey).toBe(
+      genreSectionKey('dummy-two'),
+    )
+  })
+
+  it('비어_있으면_빈_상자를_두지_않는다 — 계약이 적은 것까지만 말한다', () => {
+    expect(genreChips([])).toEqual([])
+    expect(GENRE_ABSENCE_HINT.length).toBeGreaterThan(0)
+  })
+})
+
+describe('S11_커버는_객체_키를_화면으로_흘리지_않는다', () => {
+  it('키를_받아도_문장에_담지_않는다 — 객체 키는 저장소 구조를 드러낸다 (S-11)', () => {
+    // 값은 무해한 더미다 (S-11 — 이 레포는 공개다). 확인하는 것은 이 함수가 **무엇을 받든**
+    // 그것을 돌려주지 않는다는 사실이다.
+    const fact = coverFact('dummy-key-segment/dummy-object')
+    expect(JSON.stringify(fact)).not.toContain('dummy-key-segment')
+    expect(JSON.stringify(fact)).not.toContain('dummy-object')
+  })
+
+  it('커버가_있으면_판정의_이해관계를_함께_적는다 — 승인이 이 커버를 옮긴다 (§13-74)', () => {
+    const fact = coverFact('dummy-key-segment/dummy-object')
+    expect(fact.note).not.toBeNull()
+  })
+
+  it('커버가_없는_원고가_정상이다 — 결함처럼 적지 않는다 (§13-78)', () => {
+    // 커버를 올리지 않은 원고는 정상이며 `null` 이다. 덧붙이는 문장을 두지 않는다.
+    expect(coverFact(null).note).toBeNull()
+    expect(coverFact(null).status.length).toBeGreaterThan(0)
+  })
+})

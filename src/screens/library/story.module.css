@@ -1,0 +1,189 @@
+/*
+ * 히어로가 이끄는 세로 한 컬럼 화면 — Landing(1i)과 Story Detail(1h) 둘이 쓴다.
+ *
+ * Library 는 이 규칙을 쓰지 않는다. 그리드로 훑는 화면과, 작품 하나를 위에서 아래로 읽히는
+ * 화면은 리듬이 다르다 — 같은 파일에 두면 한쪽을 고칠 때마다 다른 쪽을 확인해야 한다.
+ * 공통 어휘(카드 · 커버 · 버튼 · 상태 · 고지)는 discovery.module.css 에 있고 여기서 겹치지 않는다.
+ */
+
+/* Visual 은 비율로만 고정한다 — Mobile 4:5, 768 부터 16:9 (1k) */
+.hero {
+  aspect-ratio: var(--ratio-visual-tall);
+  border-radius: var(--r-lg);
+  background: var(--bg-sunken);
+  overflow: hidden;
+}
+
+/* ── Story Detail (1h · 4d) ─────────────────────────────────── */
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  margin: var(--sp-6) 0 var(--sp-2);
+  color: var(--fg-muted);
+  font-size: var(--fs-sm);
+}
+
+/*
+ * 이야기 제목 — 이 앱에서 가장 큰 글자이고(768 부터 `--fs-3xl`) 명조를 쓴다 (#136).
+ * 크기가 폭에 따라 커지는 자리는 지금 여기 하나뿐이다.
+ *
+ * **기본 폭이 한 단계 작아졌다** (`1.75rem` → `--fs-2xl`). 그 값은 지우기로 한 다섯 중
+ * 하나이고, 위로 보내면 390 에서 이미 `--fs-3xl` 이 되어 768 부터 커진다는 규칙 자체가
+ * 사라진다 — "기본 폭에서 한 단계 아래" 가 이 자리의 형태다.
+ */
+.title {
+  margin: 0 0 var(--sp-2);
+  font-family: var(--font-read);
+  font-size: var(--fs-2xl);
+  line-height: var(--lh-tight);
+}
+
+.byline {
+  margin: 0 0 var(--sp-4);
+  color: var(--fg-muted);
+  font-size: var(--fs-base);
+  /* 닉네임은 사용자 값이다 — 공백 없는 긴 이름이 390 에서 가로 스크롤을 만들지 않게 한다 */
+  overflow-wrap: anywhere;
+}
+
+.body {
+  max-width: var(--read-width);
+  margin: 0;
+  line-height: var(--lh-loose);
+}
+
+.counts {
+  display: flex;
+  gap: var(--sp-6);
+  margin: var(--sp-6) 0;
+  color: var(--fg-muted);
+  font-size: var(--fs-base);
+}
+
+.detailSection {
+  margin-top: var(--sp-12);
+}
+
+.detailSection > * + * {
+  margin-top: var(--paragraph-gap);
+}
+
+/* Character — Mobile 가로 스크롤 (1h) */
+.characterRow {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 45%;
+  gap: var(--sp-4);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.portrait {
+  aspect-ratio: var(--ratio-visual-tall);
+  border-radius: var(--r-md);
+  background: var(--bg-sunken);
+  overflow: hidden;
+  margin-bottom: var(--sp-2);
+}
+
+/*
+ * Mobile 은 CTA 를 하단 고정 bar 로 (1h).
+ *
+ * 셸의 하단 탭바 **위에** 선다 — 탭바 높이를 토큰에서 읽는다 (F-9). 768 부터 그 토큰이 0 이
+ * 되고 아래 미디어 쿼리가 sticky 자체를 걷는다.
+ */
+.ctaRow {
+  position: sticky;
+  bottom: var(--tabbar-total-h);
+  display: flex;
+  gap: var(--sp-3);
+  margin-top: var(--sp-8);
+  padding: var(--sp-3) 0;
+  background: var(--bg);
+}
+
+.ctaRow > * {
+  flex: 1 1 0;
+}
+
+/* ── Landing (1i) ───────────────────────────────────────────── */
+.landing {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-12);
+  min-height: 60vh;
+  justify-content: center;
+}
+
+.lede {
+  margin: 0;
+  max-width: var(--read-width);
+  color: var(--fg-muted);
+  line-height: var(--lh-relaxed);
+}
+
+.steps {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--sp-6);
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.step {
+  padding-top: var(--sp-4);
+  border-top: 1px solid var(--border);
+}
+
+.stepName {
+  margin: 0 0 var(--sp-2);
+  font-size: var(--fs-lg);
+}
+
+/* ── 768 Tablet — Detail 1열 유지, Character 2열 (1k) ────────── */
+@media (min-width: 768px) {
+  .hero {
+    aspect-ratio: var(--ratio-visual-wide);
+  }
+
+  .title {
+    font-size: var(--fs-3xl);
+  }
+
+  .characterRow {
+    grid-auto-flow: row;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-auto-columns: auto;
+    overflow-x: visible;
+  }
+
+  .steps {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  /* Desktop 폭에서는 CTA 를 하단에 붙여 두지 않는다 — 본문과 같이 흐른다 */
+  .ctaRow {
+    position: static;
+    justify-content: flex-start;
+  }
+
+  .ctaRow > * {
+    flex: 0 0 auto;
+  }
+}
+
+/* ── 1024 Laptop ────────────────────────────────────────────── */
+@media (min-width: 1024px) {
+  .characterRow {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+/* ── 1440 Desktop ───────────────────────────────────────────── */
+@media (min-width: 1440px) {
+  .characterRow {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}

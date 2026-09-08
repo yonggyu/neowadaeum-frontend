@@ -1,5 +1,8 @@
 # ── 의존성 · 빌드 산출물 ─────────────────────────────────────
-node_modules/
+# 슬래시를 붙이지 않는다. `node_modules/` 는 **디렉터리에만** 걸려서, 에이전트 worktree 가
+# 본체의 node_modules 를 심볼릭 링크로 걸어 두면 그 링크가 untracked 로 뜬다 —
+# `git add -A` 한 번이면 링크가 커밋에 들어간다 (#63).
+node_modules
 dist/
 dist-ssr/
 *.local
@@ -12,7 +15,19 @@ coverage/
 
 # ── 생성물 ───────────────────────────────────────────────────
 # 계약에서 만들어지는 타입. 소스가 아니라 산출물이며, 계약이 진실의 원천이다.
+# 그래서 새 체크아웃에는 이 파일이 없다 — 없는 채로 typecheck·build 를 돌리면
+# scripts/require-generated-types.mjs 가 그 사실 하나만 말하고 멈춘다 (#143).
 src/api/schema.d.ts
+
+# CI 가 계약을 받아 두는 자리 (.github/workflows/ci.yml). 로컬에서는 형제 경로를 쓴다.
+_contract/
+
+# tsc -b 의 증분 빌드 캐시. 머신마다 다르고 커밋할 이유가 없다.
+*.tsbuildinfo
+
+# 에이전트 worktree 가 여기 생긴다. 레포의 복사본이라 커밋 대상이 아니고,
+# 안의 dist/ 가 린트에 걸려 실제로 오류 3037개짜리 헛경보를 냈다.
+.claude/
 
 # ── 에디터 · OS ──────────────────────────────────────────────
 .DS_Store

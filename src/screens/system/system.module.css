@@ -1,0 +1,142 @@
+/*
+ * 시스템 알림의 판 — 404 · `unreachable` · `sessionId` 없이 열린 Play (8차 B-1 · B-2 · B-4).
+ *
+ * 판을 함께 쓴다. 마크업이 비슷해서가 아니라 **같은 것을 한다** — 한 문장과 한 동작을 420
+ * 컬럼 하나에 세운다. 8차가 이들을 같은 규격으로 그린 이유가 그것이다.
+ *
+ * 숫자를 새로 정하지 않는다 — 간격 · 반지름 · 색은 `tokens.css` 에서 온다. 브레이크포인트만
+ * 값으로 적는다(미디어 쿼리가 var() 를 읽지 못한다). 390 / 768 / 1024 / 1440 네 폭이 F-9 의
+ * 대상이고, **이 판들이 폭에서 바꿀 것은 여백뿐**이다 — 글 한 줄과 버튼 하나뿐이라 넓어져도
+ * 벌릴 것이 없다.
+ */
+
+/*
+ * 세로 가운데. **높이를 px 로 박지 않는다** — 글자를 키운 기기에서 버튼이 잘린다.
+ *
+ * 빼는 두 값은 이 화면이 서는 두 자리를 함께 만족시키려는 것이다. 셸 안(라이브러리 · 계정)
+ * 에서는 상단 내비와 하단 탭바가 이미 그만큼을 가져갔고, 셸 밖(404 · Play · 작품 만들기)
+ * 에서는 그만큼 덜 차지할 뿐 넘치지 않는다. 반대로 두면 셸 안에서 화면이 넘쳐 스크롤이 생긴다.
+ */
+.screen {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: calc(100dvh - var(--nav-h) - var(--tabbar-total-h));
+  padding: var(--sp-8) var(--sp-4);
+}
+
+/*
+ * 같은 판이 **화면 안의 한 덩어리**로 설 때 (#122 — 화면을 열어 둔 채 서버가 죽은 자리).
+ *
+ * `.screen` 과 달리 뷰포트 높이를 요구하지 않는다 — 이 판의 위아래에는 그 화면의 다른
+ * 것들(제목 · 목록)이 이미 서 있고, 여기서 높이를 다시 재면 그만큼 화면이 넘친다.
+ * 안쪽 컬럼은 그대로 `.column` 이므로 네 폭에서의 모양은 전용 화면과 같다.
+ */
+.inset {
+  padding: var(--sp-12) 0;
+}
+
+/*
+ * 어느 폭에서도 420px 단일 컬럼이고 가운데 정렬이다 (CLAUDE.md 반응형 절).
+ * 390 에서는 좌우 여백을 뺀 358px 이 그 컬럼이 된다 — 두 폭의 차이는 그 여백 하나다.
+ */
+.column {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  width: 100%;
+  max-width: 420px;
+  margin: 0 auto;
+}
+
+/*
+ * 404 라는 숫자. 제목이 아니라 표시다 — 읽는 순서에서 뒤로 물러난다.
+ *
+ * **그래도 읽는 값이라 `--fg-muted` 다** (#159). 무엇이 잘못됐는지 사용자가 옮겨 적을 수 있는
+ * 유일한 값이고(문의할 때 이 숫자를 말한다), 뒤로 물러나는 일은 크기 · 자간 · 자리가 한다.
+ */
+.code {
+  margin: 0;
+  color: var(--fg-muted);
+  font-family: var(--font-mono);
+  font-size: var(--fs-base);
+  letter-spacing: 0.08em;
+}
+
+/*
+ * **한 단계 작아졌다** (`1.3125rem` → `--fs-xl`, #136).
+ *
+ * 지우기로 한 다섯 중 하나였고, 위(`--fs-2xl`)는 화면 제목의 자리이며 그 단계는 명조를
+ * 집어 든다. 이 판은 전용 화면으로도 서지만 `.inset` 으로 **다른 화면 안의 한 덩어리**로도
+ * 선다 (#122) — 그때 그 화면에는 이미 제목이 있다. 화면 제목을 둘로 만들지 않는다.
+ */
+.headline {
+  margin: 0;
+  font-size: var(--fs-xl);
+  font-weight: 400;
+  line-height: var(--lh-snug);
+}
+
+.body {
+  margin: 0;
+  color: var(--fg-muted);
+  font-size: var(--fs-md);
+  line-height: var(--lh-loose);
+}
+
+.icon {
+  width: 32px;
+  height: 32px;
+  color: var(--fg-subtle);
+}
+
+/*
+ * 한 번짜리 동작 — 56px 이다. 목록 행동의 48px 이 아니고 로그인 버튼과 같은 무게이며,
+ * 화면마다 다른 이 높이를 임의로 통일하지 않는다 (CLAUDE.md 반응형 절).
+ *
+ * 어느 폭에서도 세로 full-width 다. 문이 하나뿐이라 나란히 놓을 것이 없다.
+ */
+.action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 56px;
+  margin-top: var(--sp-2);
+  padding: 0 var(--sp-4);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--bg);
+  color: var(--fg);
+  font: inherit;
+  font-size: var(--fs-lg);
+  text-align: center;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.action:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.primary {
+  border-color: var(--fg);
+  background: var(--fg);
+  color: var(--bg);
+}
+
+/* 누른 뒤 — 같은 버튼의 두 번째 상태다. 자리를 옮기거나 크기를 바꾸지 않는다 */
+.action:disabled {
+  border-color: var(--border);
+  background: var(--bg-sunken);
+  color: var(--fg-subtle);
+  cursor: default;
+}
+
+/* 768 부터 여백만 넓어진다. 컬럼 폭은 그대로다 — 넓히면 빈 화면이 된다 */
+@media (min-width: 768px) {
+  .screen {
+    padding: var(--sp-16) var(--sp-8);
+  }
+}

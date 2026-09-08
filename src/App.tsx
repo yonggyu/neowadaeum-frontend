@@ -1,23 +1,24 @@
-import { API_BASE_URL } from './api/config'
+import { BrowserRouter } from 'react-router-dom'
+
+import { useAuthSession } from './auth/useAuthSession'
+import { AppRoutes } from './routes/router'
 
 /**
- * 스캐폴드의 자리 표시자.
+ * 부팅 — 인증 상태를 한 번 복원하고 라우터에 넘긴다.
  *
- * 화면은 디자인(개발 순서 ⑨) 이후에 만든다. 지금 여기 있는 것은 **빌드가 서고 계약 설정이
- * 읽힌다**는 사실 하나뿐이며, 그럴듯한 목업을 미리 넣지 않는다 — 디자인 없이 만든 화면은
- * 디자인이 나오면 전부 다시 만들게 되고, 그 사이에 누군가는 그것을 확정된 것으로 읽는다.
+ * **복원이 끝날 때까지 기다리는 자리를 라우터 안으로 옮겼다** (#41). 여기서 전부 막으면
+ * 인증이 필요 없는 화면(랜딩)까지 `GET /me` 를 기다리는데, 그 화면은 계약상 토큰 없이 열린다 —
+ * 기다릴 이유가 없다. 기다려야 하는 것은 **로그인 여부로 갈리는 라우트**뿐이고, 그 판단은
+ * 가드 하나가 한다. 상태를 두 곳에서 해석하면 그중 한 곳이 먼저 낡는다.
+ *
+ * 상태를 Context 로 올리지 않는다 — 소비자가 가드 하나인 Context 는 추상화가 아니라 짐이다.
  */
 export function App() {
+  const session = useAuthSession()
+
   return (
-    <main>
-      <h1>너와다음</h1>
-      <p>프론트엔드 스캐폴드입니다. 화면은 디자인 이후에 붙습니다.</p>
-      <dl>
-        <dt>API</dt>
-        <dd>
-          <code>{API_BASE_URL}</code>
-        </dd>
-      </dl>
-    </main>
+    <BrowserRouter>
+      <AppRoutes session={session} />
+    </BrowserRouter>
   )
 }

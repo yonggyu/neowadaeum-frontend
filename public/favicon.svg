@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="너와다음">
+  <!--
+    favicon — 헤더의 텍스트 마크(`src/shell/AppShell.tsx` 의 `.brand`, "너와다음")에서 뽑았다.
+    로고를 새로 그리지 않는다 (#137). 탭 하나가 16px 라 네 글자는 읽히지 않으므로 마크의
+    첫 글자만 남긴다 — 같은 서체 계열(`src/styles/tokens.css` 의 body font stack) ·
+    같은 굵기(700)다.
+
+    색을 새로 정하지 않는다. 팔레트는 아직 없고(#135) 여기 두 값은 `src/styles/tokens.css` 의
+    뉴트럴 그대로다 — `fg`(#1a1a1a) 와 `bg`(#ffffff).
+
+    밝은 배경에서는 어두운 타일이, 어두운 배경에서는 흰 글자가 각각 형태를 만든다. 그래서
+    `prefers-color-scheme` 분기를 두지 않는다 — 분기를 두면 브라우저마다 지원이 갈리고,
+    지원하지 않는 쪽에서 어느 한 배경에 잠긴다.
+  -->
+  <rect width="32" height="32" rx="8" fill="#1a1a1a" />
+  <text
+    x="16"
+    y="16"
+    fill="#ffffff"
+    font-family="system-ui, -apple-system, 'Apple SD Gothic Neo', sans-serif"
+    font-size="20"
+    font-weight="700"
+    text-anchor="middle"
+    dominant-baseline="central"
+  >너</text>
+</svg>

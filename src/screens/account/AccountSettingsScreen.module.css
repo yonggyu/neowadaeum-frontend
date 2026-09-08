@@ -1,0 +1,174 @@
+/*
+ * 계정 설정 (와이어프레임 5b · 6d).
+ *
+ * 값을 여기서 새로 정하지 않는다 — 간격 · 반지름 · 색은 전부 `tokens.css` 의 변수다.
+ * 브레이크포인트만 숫자로 적는다(미디어 쿼리가 var() 를 읽지 못한다). F-9 의 네 폭 중
+ * 390 이 기본이고 768 에서 한 번만 달라진다 — 그 위로는 더 벌릴 것이 없다.
+ */
+
+/*
+ * **어느 폭에서도 420px 단일 컬럼이다** (6d). 1024 · 1440 에서 2열로 나누지 않고 사이드
+ * 내비도 두지 않는다 — 항목이 넷뿐이라 폭에 맞춰 늘리면 빈 화면이 된다. 390 에서는
+ * `max-width` 가 걸리지 않으므로 그대로 화면 폭을 쓴다.
+ */
+.column {
+  max-width: 420px;
+  margin: 0 auto;
+}
+
+.sectionTitle {
+  margin: var(--sp-6) 0 var(--sp-2);
+  color: var(--fg-muted);
+  font-size: var(--fs-base);
+  font-weight: 600;
+}
+
+.rows {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/*
+ * 한 줄 — **높이 48px 이상** (6d). 링크(`a`)와 버튼(`button`)과 링크 없는 줄(`span`)이 같은
+ * 모양이어야 해서 버튼의 기본 스타일을 여기서 되돌린다.
+ */
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  width: 100%;
+  min-height: 48px;
+  padding: var(--sp-3) 0;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-size: var(--fs-2lg);
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.row:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/*
+ * 줄 오른쪽에 붙는 값 — `@연우 ›` 또는 `설정하기 ›`.
+ *
+ * 라벨과 값이 한 줄에 있고 값이 길어지면 값 쪽이 줄어든다. 390 에서 표시명이 12자여도
+ * "표시명" 이 밀려나지 않게 하는 것이 이 `min-width: 0` 이다 (F-9).
+ */
+.rowValue {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: var(--sp-2);
+  overflow: hidden;
+  color: var(--fg-muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/*
+ * 표시명 입력 (backend #271).
+ *
+ * **줄과 같은 폭 안에 있다** — 420px 컬럼 하나가 네 폭 모두의 레이아웃이므로 이 폼도
+ * 자기 미디어 쿼리를 갖지 않는다 (6d · F-9). 그것이 이 화면의 규칙이다.
+ */
+.nameForm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  padding: var(--sp-3) 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.nameLabel {
+  color: var(--fg-muted);
+  font-size: var(--fs-sm);
+}
+
+/* `@` 와 입력이 한 덩어리로 보여야 한다 — 붙는 표기이지 사용자가 지우는 글자가 아니다 */
+.nameRow {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+  min-height: 48px; /* 6d — 설정 행의 터치 대상 높이 */
+  padding: 0 var(--sp-3);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--bg);
+}
+
+.nameRow:focus-within {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+
+.namePrefix {
+  color: var(--fg-muted);
+}
+
+.nameInput {
+  width: 100%;
+  min-width: 0;
+  padding: var(--sp-2) 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-size: var(--fs-2lg);
+}
+
+.nameInput:focus {
+  outline: none; /* 테두리는 `.nameRow` 가 그린다 — `@` 와 입력이 한 칸으로 읽혀야 한다 */
+}
+
+.nameInput:disabled {
+  color: var(--fg-muted);
+}
+
+/* 본문 주소가 없는 약관 — 누를 수 없으므로 `›` 도 커서도 주지 않는다 */
+.rowInert {
+  color: var(--fg-muted);
+  cursor: default;
+}
+
+/*
+ * 회원 탈퇴. 구역의 마지막 줄이라 5b 처럼 밑줄이 없지만, 테두리를 지우는 대신 투명하게
+ * 두어 다른 줄과 높이가 어긋나지 않게 한다.
+ */
+.danger {
+  border-bottom-color: transparent;
+  color: var(--danger);
+}
+
+.chevron {
+  color: var(--fg-subtle);
+}
+
+/*
+ * 탈퇴 확인 판이 그리는 세 줄 (5b).
+ *
+ * **판 자체는 여기 없다** — Mobile 전체화면 / Desktop 420px 모달은 `components/confirm.module.css`
+ * 가 그린다(#63). 이 화면에 남는 것은 그 안에 들어가는 내용뿐이다. 목록 표시자를 지우고
+ * 5b 의 가운뎃점을 직접 붙인다.
+ */
+.notice {
+  margin: 0;
+  padding: var(--sp-3);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  color: var(--fg);
+  line-height: var(--lh-relaxed);
+  list-style: none;
+}
+
+.notice > li::before {
+  content: "· ";
+}
