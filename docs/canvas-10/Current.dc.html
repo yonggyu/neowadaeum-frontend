@@ -1,0 +1,53 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=Noto+Serif+KR:wght@400;600;700&display=swap">
+  <style>
+    body { margin: 0; font-family: "IBM Plex Sans KR", system-ui, sans-serif; }
+    a { color: #2b6ca8; } a:hover { color: #1f5180; }
+  </style>
+</helmet>
+
+<div style="position: relative; width: 1440px; height: 1120px; background: #faf8f4; color: #1a1a1a; overflow: hidden">
+
+  <div style="display: flex; align-items: center; justify-content: space-between; height: 56px; padding: 0 24px; border-bottom: 1px solid rgba(0,0,0,.12); box-sizing: border-box">
+    <div style="font-weight: 700; font-size: 15px">너와다음</div>
+    <div style="display: flex; gap: 32px; font-size: 14px; color: rgba(0,0,0,.55)">
+      <div>Library</div><div>My Stories</div><div>계정</div>
+    </div>
+    <div style="display: inline-flex; align-items: center; height: 40px; padding: 0 16px; border: 1px solid #1a1a1a; border-radius: 12px; font-size: 14px">＋ 작품 만들기</div>
+  </div>
+
+  <div style="padding: 32px 32px 64px">
+    <div style="width: 1376px; height: 774px; background: #f0eee9; border-radius: 12px"></div>
+    <div style="font-family: 'Noto Serif KR', serif; font-size: 24px; line-height: 1.4; margin: 0 0 24px">당신의 선택이 다음 이야기를 만든다.</div>
+    <div style="font-size: 14px; line-height: 1.6; color: rgba(0,0,0,.55)">읽고, 고르고, 이어지는 인터랙티브 스토리.</div>
+    <div style="display: flex; gap: 12px; margin-top: 32px; padding: 12px 0">
+      <div style="display: inline-flex; align-items: center; justify-content: center; min-height: 56px; padding: 0 24px; border: 1px solid #1a1a1a; border-radius: 12px; background: #1a1a1a; color: #faf8f4; font-size: 14px; font-weight: 500">이야기 시작하기</div>
+      <div style="display: inline-flex; align-items: center; justify-content: center; min-height: 56px; padding: 0 24px; border: 1px solid #1a1a1a; border-radius: 12px; background: #faf8f4; color: #1a1a1a; font-size: 14px; font-weight: 500">작품 둘러보기</div>
+    </div>
+  </div>
+
+  <div style="position: absolute; left: 0; top: 740px; width: 1440px; border-top: 2px dashed #d64545"></div>
+  <div style="position: absolute; left: 24px; top: 748px; font-size: 12px; font-weight: 600; color: #d64545; letter-spacing: .02em">폴드 740 — 여기까지가 첫 화면이다</div>
+
+  <div style="position: absolute; left: 24px; top: 300px; width: 300px; padding: 16px; background: #faf8f4; border: 1px solid rgba(0,0,0,.12); border-radius: 12px">
+    <div style="font-size: 13px; font-weight: 600; margin-bottom: 8px">첫 화면에 이것뿐이다</div>
+    <div style="font-size: 13px; line-height: 1.6; color: rgba(0,0,0,.55)">히어로가 1376 × 774 다. 16:9 를 폭 전체가 받아서 폴드(740)를 넘는다. 제목 · 소개 · CTA 둘 · 대표 작품 · AI 고지가 전부 아래에 있다.</div>
+  </div>
+
+  <div style="position: absolute; left: 1090px; top: 880px; width: 326px; padding: 16px; background: #faf8f4; border: 1px solid rgba(0,0,0,.12); border-radius: 12px">
+    <div style="font-size: 13px; font-weight: 600; margin-bottom: 8px">이 회색은 채워지지 않는다</div>
+    <div style="font-size: 13px; line-height: 1.6; color: rgba(0,0,0,.55)">코드가 로딩 스켈레톤을 조건 없이 그리고, 계약의 <span style="font-family: ui-monospace, Menlo, monospace">LandingResponse</span> 에는 히어로 필드가 없다. 자리표시자가 아니라 영구히 빈 자리다.</div>
+  </div>
+
+</div>
+</x-dc>
+</body>
+</html>

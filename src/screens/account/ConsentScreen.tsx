@@ -42,7 +42,8 @@ export function ConsentScreen({
   onSignedIn,
 }: {
   idToken: string
-  onSignedIn: (tokens: TokenResponse) => void
+  /** 로그인 성공을 앱의 인증 상태로 들이는 길 (#217) — `LoginScreen.enter` 가 그 자리다. */
+  onSignedIn: (tokens: TokenResponse) => Promise<void>
 }) {
   const terms = useConsentTerms()
 
@@ -175,7 +176,7 @@ function ConsentForm({
 }: {
   idToken: string
   options: ConsentOption[]
-  onSignedIn: (tokens: TokenResponse) => void
+  onSignedIn: (tokens: TokenResponse) => Promise<void>
 }) {
   const [fields, setFields] = useState<BirthDateFields>(EMPTY_BIRTH_DATE)
   const [checks, setChecks] = useState<ConsentChecks>(NO_CONSENTS)
@@ -189,7 +190,9 @@ function ConsentForm({
     setSubmitting(true)
     setFailure(null)
     try {
-      onSignedIn(
+      // **기다린다** (#217). 인증 상태가 서기 전에 이 단계를 끝내면 다음 화면이 가드에
+      // 걸려 되돌아오고, 사용자는 방금 마친 가입이 없던 일이 된 것으로 본다.
+      await onSignedIn(
         await loginWithOAuth({
           idToken,
           birthDate: toBirthDate(fields),

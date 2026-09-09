@@ -21,10 +21,11 @@ import { formatRelativeTime } from '../account/relativeTime'
 import { VISIBILITY_LABEL } from '../account/reviewStatus'
 import { useResource, type Resource } from '../library/useResource'
 import { AdminTabBar } from './AdminTabBar'
+import { CharacterEntry, CoverSlot } from './ReviewImages'
+import { COVER_ABSENT } from './reviewImage'
 import {
   AUTO_CHECK_VERDICT_LABEL,
   authorLabel,
-  coverFact,
   DEFAULT_DETAIL_PANEL,
   DETAIL_PANEL_LABEL,
   endingBadges,
@@ -550,7 +551,6 @@ function Manuscript({ manuscript }: { manuscript: ReviewManuscript }) {
   const now = Date.now()
   // 순서를 여기서 정하지 않는다 — 서버가 `display_order` 로 준 순서가 라이브러리의 순서다
   const genres = genreChips(manuscript.genres)
-  const cover = coverFact(manuscript.coverImageKey)
 
   return (
     <div className={styles.panel}>
@@ -627,15 +627,21 @@ function Manuscript({ manuscript }: { manuscript: ReviewManuscript }) {
       </section>
 
       {/*
-       * 커버는 **사실만 적는다.** 계약이 나르는 것은 객체 키까지이고 버킷은 비공개다 —
-       * 그 값을 `<img src>` 에 넣으면 아무것도 뜨지 않고, 키 자체를 적으면 저장소 구조가
-       * 화면에 드러난다 (S-11). 그래서 `coverFact` 가 키를 받아 **문장만** 돌려주고,
-       * 이 컴포넌트에는 키가 닿지 않는다.
+       * 커버 — **누르면 그린다** (#153, 9차 캔버스 `Main`). `#134` 의 사실 칸을 대체한다.
+       *
+       * 이 자리가 사실만 적던 이유는 계약에 바이트를 주는 길이 없어서였고(§13-77 의
+       * `[결정 필요]`), §13-78 이 그 길을 열었다. 승인이 이 커버를 작품 행으로 옮기므로
+       * (§13-74) 보지 않고 누르는 것이 곧 판정의 구멍이다.
+       *
+       * **미리 부르지 않는다.** 그 문에는 열람 감사가 걸려 있다 (§13-78/4).
        */}
       <section className={styles.block} aria-label="커버">
         <p className={styles.blockHead}>커버</p>
-        <p className={styles.hint}>{cover.status}</p>
-        {cover.note === null ? null : <p className={styles.hint}>{cover.note}</p>}
+        {manuscript.coverImageKey === null ? (
+          <p className={styles.hint}>{COVER_ABSENT}</p>
+        ) : (
+          <CoverSlot storyId={manuscript.storyId} objectKey={manuscript.coverImageKey} />
+        )}
       </section>
 
       {/* `null` 은 작성자가 적지 않았다는 뜻이다 — 화면이 문장을 지어 채우지 않는다 */}
@@ -643,13 +649,19 @@ function Manuscript({ manuscript }: { manuscript: ReviewManuscript }) {
       <Prose head="세계관 소개" text={manuscript.worldIntro} />
       <Prose head="세계관 프롬프트 — 매 턴 모델에게 들어가요" text={manuscript.worldPrompt} />
 
+      {/*
+       * 캐릭터 — **초상을 열 수 있다** (#153). 이 칸은 이름과 `persona` 만 그려서 검수자가
+       * *초상을 봐야 한다는 사실조차* 알 수 없었다 (§13-78/5). 자리를 두는 것 자체가 그
+       * 사실을 말한다.
+       */}
       <section className={styles.block} aria-label="캐릭터">
         <p className={styles.blockHead}>캐릭터 {manuscript.characters.length}</p>
         {manuscript.characters.map((character) => (
-          <div key={character.name} className={styles.entry}>
-            <p className={styles.entryHead}>{character.name}</p>
-            <p className={styles.prose}>{character.persona}</p>
-          </div>
+          <CharacterEntry
+            key={character.name}
+            storyId={manuscript.storyId}
+            character={character}
+          />
         ))}
       </section>
 

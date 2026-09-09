@@ -8,7 +8,10 @@ import {
   REVIEW_STATUS_LABEL,
   REVIEW_STATUS_TONE,
   reviewPhase,
+  submissionEntersReview,
+  submitVisibilityHint,
   triggersHumanReview,
+  VISIBILITY_CHANGE_HINT,
   VISIBILITY_LABEL,
   VISIBILITY_OPTIONS,
   visibilityBlockedReason,
@@ -235,3 +238,44 @@ const read = (file: string): string =>
     .replace(/^\s*\/\/.*$/gm, '')
 
 const screenSource = (): string => read('MyStoryReviewScreen.tsx')
+
+
+describe('§13-83 — 이미지를 실은 제출은 visibility 와 무관하게 검수를 지난다 (#178)', () => {
+  it('이미지가_있으면_private_도_검수를_지난다__예외를_두면_넓히는_길이_사람을_지나지_않는다', () => {
+    expect(submissionEntersReview('private', true)).toBe(true)
+    expect(submissionEntersReview('unlisted', true)).toBe(true)
+  })
+
+  it('이미지가_없으면_R8_6_그대로다__public_만_사람을_기다린다', () => {
+    expect(submissionEntersReview('private', false)).toBe(false)
+    expect(submissionEntersReview('unlisted', false)).toBe(false)
+    expect(submissionEntersReview('public', false)).toBe(true)
+  })
+
+  it('화면이_거짓을_말하지_않는다__이미지를_올린_작성자에게_즉시_사용_이라_적지_않는다', () => {
+    // 이 이슈가 고친 것 그대로다 — 이 문구가 거짓이어서 작성자가 큐에서 기다리게 됐다.
+    expect(submitVisibilityHint('private', true)).not.toContain('검수 없음')
+    expect(submitVisibilityHint('private', true)).not.toContain('즉시')
+    expect(submitVisibilityHint('unlisted', true)).not.toContain('즉시')
+  })
+
+  it('이미지가_없는_작성자에게_과하게_말하지_않는다__그_사람에게_private_은_정말로_즉시다', () => {
+    expect(submitVisibilityHint('private', false)).toContain('즉시')
+    expect(submitVisibilityHint('unlisted', false)).toContain('즉시')
+  })
+
+  it('public_은_이미지와_무관하다__그_줄은_이미_사람을_말하고_있다_R8_6', () => {
+    expect(submitVisibilityHint('public', true)).toBe(submitVisibilityHint('public', false))
+  })
+
+  it('승격_쪽_문구는_그대로다__13_83_이_움직인_것은_제출뿐이다', () => {
+    // `changeStoryVisibility` 는 `unlisted → public` 만 재검수를 걸고 이미지를 말하지 않는다.
+    // 세 줄을 함께 고쳤다면 **맞는 문구를 틀리게** 바꾸는 것이었다.
+    expect(VISIBILITY_CHANGE_HINT.private).toContain('검수 없음')
+    expect(VISIBILITY_CHANGE_HINT.unlisted).toContain('즉시')
+  })
+
+  it('두_화면이_한_상수를_나눠_쓰지_않는다__그것이_이_결함의_뿌리였다', () => {
+    expect(submitVisibilityHint('private', true)).not.toBe(VISIBILITY_CHANGE_HINT.private)
+  })
+})

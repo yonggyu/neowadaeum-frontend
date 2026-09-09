@@ -12,13 +12,16 @@ import { AppRoutes } from './routes/router'
  * 가드 하나가 한다. 상태를 두 곳에서 해석하면 그중 한 곳이 먼저 낡는다.
  *
  * 상태를 Context 로 올리지 않는다 — 소비자가 가드 하나인 Context 는 추상화가 아니라 짐이다.
+ * **다만 쓰는 쪽은 둘이다** (#217): 부팅 복원과 로그인 성공. 그 둘째 길이 없어서 로그인에
+ * 성공해도 가드가 보는 값이 `anonymous` 그대로였고, 보호 라우트가 하나도 열리지 않았다.
+ * 여기서 내려보내는 것이 그 길이며, **소비자는 여전히 가드 하나**라서 위 판단은 그대로 선다.
  */
 export function App() {
-  const session = useAuthSession()
+  const { state, signIn } = useAuthSession()
 
   return (
     <BrowserRouter>
-      <AppRoutes session={session} />
+      <AppRoutes session={state} onSignedIn={signIn} />
     </BrowserRouter>
   )
 }
