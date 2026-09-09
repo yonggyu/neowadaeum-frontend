@@ -362,6 +362,75 @@
   color: var(--danger);
 }
 
+/*
+ * ⑤-a 받는 중 (9차 아트보드 `SlotStates` · `SlotStates390`, #173).
+ *
+ * **새 칸이 아니다** — *"칸을 늘리지 않는다 · ⑤ 안에서 그림 자리만 비운다"*. 폭도 비율도
+ * 버튼도 ⑤ 그대로이고, 아직 오지 않은 그림 대신 **움직이는 면**이 그 자리를 든다. 여기에
+ * 글자를 두지 않는 것도 아트보드의 것이다 (`slotBody`) — *"올라간 이미지"* 를 남기면 받는
+ * 중과 못 받음이 다시 같아 보이고, 그것이 `#173` 이 연 자리다.
+ *
+ * **네 폭이 같다.** 이 자리에서 폭에 따라 바뀌는 것은 아래 버튼줄뿐이고(`.imageRow` ·
+ * `.imageActions`), 슬롯 자신은 390 에서도 96px 이다 — *"바뀌는 것은 버튼이 아래로 내려가
+ * 전폭이 되는 것뿐"* (`SlotStates390`).
+ */
+
+.slotFetching::before,
+.slotFetching::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+}
+
+/*
+ * 비워 둔 면. **자리의 바탕(`--bg-sunken`)을 그대로 쓰면 ⑤-a 가 ① 과 같아 보인다** — 한 칸
+ * 더 진한 뉴트럴이 필요하고, 새 값을 만드는 대신 이미 있는 경계선의 톤을 얹는다. 라이트와
+ * 다크가 각자의 `--border` 를 갖고 있어 두 판에서 같은 만큼 진해진다.
+ */
+
+.slotFetching::before {
+  background: var(--border);
+}
+
+/*
+ * 지나가는 빛 한 줄. **값은 토큰에서 온다** — 아트보드가 흰 55% 로 그린 자리에 `--bg` 를
+ * 쓴다. 흰색을 박아 두면 다크에서 그 자리만 라이트의 계산으로 남는다 (`tokens.css` 의
+ * `--scrim` · `--danger-wash` 가 같은 이유로 토큰이 됐다).
+ */
+
+.slotFetching::after {
+  animation: sweep 1.4s ease-in-out infinite;
+  background: linear-gradient(100deg, transparent 30%, var(--bg) 50%, transparent 70%);
+  opacity: 0.55;
+}
+
+@keyframes sweep {
+  0% {
+    transform: translateX(-100%);
+  }
+
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+/*
+ * ⑤-b 못 받음 (같은 아트보드) — **④ 의 빨강을 쓰지 않는다.**
+ *
+ * ④ 는 *업로드가* 실패한 자리이고 여기는 **사용자가 하지 않은 일**이다. 올린 것은 저장소에
+ * 그대로 있고 실패한 것은 그것을 받아 오는 일뿐이라, `--danger` 를 얹으면 화면이 하지도 않은
+ * 사고를 말하게 된다 — 상태를 말할 뿐인 표시에 *누르면 되돌릴 수 없다* 의 색을 쓰지 않는
+ * 것이기도 하다 (ADR-0010).
+ *
+ * **그래서 이 자리에 새 색이 없다.** 갈라 주는 것은 색이 아니라 **아이콘과 한 줄**이고, 색만
+ * 보고 판단해야 하는 사람이 없어야 한다는 것이 그 규칙의 나머지 절반이다.
+ */
+
+.slotIcon {
+  flex: none;
+  stroke: var(--fg-subtle);
+}
+
 .imageSlotNote {
   color: var(--fg-muted);
   font-size: var(--fs-xs);
@@ -946,6 +1015,16 @@
   .uploadBar > i {
     width: 100%;
     animation: none;
+  }
+
+  /*
+   * ⑤-a 는 빛줄기를 걷고 **비워 둔 면만 남긴다.** 멈춰 세우면 지나가던 빛이 한 자리에 굳어
+   * 그림의 일부처럼 보인다 — 위의 막대와 반대로, 여기서 *받는 중* 을 말하는 것은 움직임이
+   * 아니라 **그림 자리가 비어 있다는 사실** 자체다 (아트보드 ⑤-a).
+   */
+
+  .slotFetching::after {
+    display: none;
   }
 }
 

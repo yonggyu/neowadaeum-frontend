@@ -9,10 +9,12 @@ import {
   ACTION_LABEL,
   acceptNote,
   actionsFor,
+  restoreStateOf,
   sizeNote,
   slotBody,
   slotImageUrl,
   statusNote,
+  type RestoreState,
   type RestoredImage,
   type SlotAction,
 } from './imageSlotView'
@@ -48,10 +50,10 @@ import css from './wizard.module.css'
  * `URL.createObjectURL` 로 만든 `blob:` 이고, 바이트의 출처만 둘이다: **방금 고른 파일**과,
  * **서버가 중계해 준 것**(`readDraftImage`, §13-78).
  *
- * **되받기가 화면을 새로 만들지 않는다.** 받아 온 그림은 방금 고른 미리보기와 **같은 칸**에
- * 같은 모양으로 들어가고, 못 받으면 지금까지의 자리(*"올라간 이미지"* 한 줄) 그대로다 —
- * 받는 중을 알리는 표시도, 못 받았다는 문구도 두지 않는다. 아트보드에 없는 상태를 화면이
- * 지어내지 않는다는 뜻이고, 그래서 이 변경은 **캔버스를 기다리지 않는다.**
+ * **되받기가 칸을 늘리지 않는다.** 받아 온 그림은 방금 고른 미리보기와 **같은 칸**에 같은
+ * 모양으로 들어간다. 받는 중과 못 받음도 새 칸이 아니라 **⑤ 안의 두 자리**이며(9차 아트보드
+ * `SlotStates` ⑤-a · ⑤-b), 어느 것을 그릴지는 `imageSlotView.ts` 의 `RestoreState` 가 정한다 —
+ * 둘이 화면에서 구분되지 않던 것이 `#173` 이다.
  */
 export interface ImageSlotFieldProps {
   draftId: string
@@ -108,6 +110,12 @@ export function ImageSlotField({
    * 이 그림은 남의 것이 되고, 그 판정은 `slotImageUrl` 이 키를 대조해서 한다.
    */
   const [restored, setRestored] = useState<RestoredImage | null>(null)
+  /*
+   * 되받기가 실패한 키 (⑤-b). **키로 든다** — 위와 같은 이유다. 자리에 다른 사람의 키가 오면
+   * 앞 키의 실패는 이 자리의 사실이 아니고, 그것을 boolean 하나로 들면 화면은 **아직 불러 본
+   * 적도 없는 그림을 못 받았다고** 말한다. 판정은 `restoreStateOf` 가 키를 대조해서 한다.
+   */
+  const [restoreFailedKey, setRestoreFailedKey] = useState<string | null>(null)
 
   const fileRef = useRef<HTMLInputElement>(null)
   const abortRef = useRef<AbortController | null>(null)
@@ -169,10 +177,10 @@ export function ImageSlotField({
    * **방금 고른 파일이 있으면 부르지 않는다.** 그 바이트는 이미 브라우저에 있고, 사용자가
    * 지금 보고 싶은 것도 그쪽이다 — 부르면 같은 그림을 위해 요청이 한 번 더 나간다.
    *
-   * **실패해도 화면을 바꾸지 않는다.** `404`(올린 적 있는데 지금 없다)든 네트워크든 마찬가지다.
-   * 이 자리의 `failed` 는 *업로드가 실패했다* 는 뜻이고, 되받기 실패를 거기 실으면 사용자가
-   * 하지 않은 일이 화면에 남는다. 그래서 못 받으면 지금까지의 자리 그대로 둔다 — 새 문구를
-   * 짓지 않는 이유이기도 하다 (F-4 의 대상이 아니고, 아트보드에도 없는 상태다).
+   * **못 받으면 그렇다고 말한다** (⑤-b, #173). `404`(올린 적 있는데 지금 없다)든 네트워크든
+   * 같은 자리로 간다 — 둘을 나누지 않기로 했다 (`B-2`·`B-3`). **이 자리의 `failed`(④)에는
+   * 싣지 않는다**: 저것은 *업로드가 실패했다* 는 뜻이라 사용자가 하지 않은 일이 화면에 남고,
+   * 버튼도 *다시 고르기* 가 되어 올라가 있는 것을 지우라고 권하게 된다.
    */
   useEffect(() => {
     function drop(): void {
@@ -189,6 +197,15 @@ export function ImageSlotField({
     if (restoredRef.current !== null && restored?.key === savedKey) {
       return
     }
+    /*
+     * **못 받은 자리는 저절로 다시 부르지 않는다.** 실패를 상태로 옮긴 순간 이 효과가 다시
+     * 도는데, 여기서 멈추지 않으면 화면은 조용히 재시도를 반복하고 — 서버에 대고 도는
+     * 고리다 — 작성자가 누르는 *다시 불러오기* 는 아무 뜻이 없어진다. 문을 여는 것은
+     * `refetch` 가 이 값을 비우는 것뿐이다.
+     */
+    if (restoreFailedKey === savedKey) {
+      return
+    }
     const controller = new AbortController()
     // StrictMode 가 마운트 효과를 두 번 돌린다. 정리에서 이 깃발을 내려 **먼저 시작한 쪽이
     // 늦게 도착해도 URL 을 만들지 않게** 한다 — 만들면 아무도 거두지 않는 자리가 생긴다.
@@ -202,13 +219,19 @@ export function ImageSlotField({
         setRestored({ key: savedKey, url })
       })
       .catch(() => {
-        // 취소도 실패도 여기서 끝난다 — 위의 이유로 화면에 옮기지 않는다.
+        /*
+         * **취소는 실패가 아니다.** StrictMode 의 첫 마운트와, 자리에 다른 키가 오는 순간이
+         * 여기로 온다 — 그것을 *못 받았다* 로 그리면 사용자가 하지 않은 일이 화면에 남는다.
+         * `live` 는 정리에서만 내려가고 정리는 언제나 `abort()` 와 함께 온다.
+         */
+        if (!live) return
+        setRestoreFailedKey(savedKey)
       })
     return () => {
       live = false
       controller.abort()
     }
-  }, [draftId, savedKey, hasPicked, restored])
+  }, [draftId, savedKey, hasPicked, restored, restoreFailedKey])
 
   async function start(file: File): Promise<void> {
     /*
@@ -282,6 +305,15 @@ export function ImageSlotField({
       onChange(null)
       return
     }
+    if (action === 'refetch') {
+      /*
+       * **되받기만 다시 부른다** (⑤-b). 원고의 값도 저장소의 객체도 건드리지 않는다 — 실패한
+       * 것은 받아 오는 일뿐이고, 올린 것은 그대로 있다. 실패한 키를 비우면 위의 효과가 다시
+       * 돌면서 같은 요청을 한 번 더 보낸다.
+       */
+      setRestoreFailedKey(null)
+      return
+    }
     // pick · repick · replace — **셋이 같은 일이다.** 고르면 발급부터 다시 한다.
     fileRef.current?.click()
   }
@@ -291,7 +323,13 @@ export function ImageSlotField({
    * 키일 때만** 그려진다 (`slotImageUrl`).
    */
   const imageUrl = slotImageUrl(picked?.url ?? null, restored, savedKey)
-  const body = slotBody(state, imageUrl !== null)
+  /*
+   * 되받기가 어디까지 왔는가 (⑤-a · ⑤-b). **효과가 아니라 그릴 그림에서 나온다** —
+   * 효과는 그린 뒤에 돌므로, 여기서 상태를 따로 들면 첫 프레임이 *"올라간 이미지"* 로 깜빡인 뒤
+   * 받는 중으로 바뀐다.
+   */
+  const restore: RestoreState = restoreStateOf(imageUrl, restoreFailedKey, savedKey)
+  const body = slotBody(state, imageUrl !== null, restore)
   const size = sizeNote(state, picked?.bytes ?? null)
 
   return (
@@ -306,7 +344,35 @@ export function ImageSlotField({
       </div>
 
       <div className={css.imageRow}>
-        <div className={slotClass(slot, state)}>
+        {/*
+         * 받는 중은 **글자를 두지 않는다** (⑤-a) — 그래서 그 사실을 `aria-busy` 로 말한다.
+         * 새 문구를 짓는 것이 아니라 **움직이는 면이 눈에 하는 말**을 보조기술에도 하는 것이고,
+         * 그러지 않으면 화면을 못 보는 작성자에게 이 자리는 여전히 아무 말도 하지 않는다.
+         */}
+        <div
+          className={slotClass(slot, state, restore)}
+          aria-busy={restore === 'fetching' ? true : undefined}
+        >
+          {/*
+           * 못 받은 자리의 그림 조각 (⑤-b). **색으로 말하지 않는다** (ADR-0010) — 옆의 한 줄이
+           * 같은 것을 글로 말하고, 이것은 그 옆에 서는 표시다. 읽어 주지 않는 이유도 그것이다.
+           */}
+          {restore === 'failed' ? (
+            <svg
+              className={css.slotIcon}
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <rect x="3" y="4" width="18" height="16" rx="2" />
+              <path d="M4 20L20 4" />
+            </svg>
+          ) : null}
           {/*
            * **이 `src` 에 객체 키가 오는 경로는 없다** (I-8). 방금 고른 파일이든 서버가 중계한
            * 바이트든, 들어가는 것은 우리가 만든 `blob:` 하나다. `alt` 가 비어 있는 것은
@@ -320,13 +386,17 @@ export function ImageSlotField({
            * 실패는 **읽어 주게** 한다 (`role="alert"`) — 자리 안의 글이 곧 서버가 준 문구이고
            * (F-4), 조용히 지나가면 사용자는 왜 아무 일도 없는지 모른다. 같은 문장을 밖에
            * 한 번 더 두지 않는다: 스크린리더가 두 번 읽는다.
+           *
+           * **못 받음(⑤-b)은 `alert` 이 아니라 `status` 다.** 이 실패는 화면을 여는 동안
+           * 일어나므로 `alert` 로 두면 원고를 열 때마다 읽던 것을 끊는다 — 그런데 조용히 두면
+           * *다시 불러오기* 를 누르고 또 실패했을 때 아무 말도 없다. 그 사이가 `status` 다.
            */}
           {body.note ? (
             <span
               className={body.image ? `${css.imageSlotNote} ${css.overNote}` : css.imageSlotNote}
-              role={state.status === 'failed' ? 'alert' : undefined}
+              role={noteRole(state, restore)}
             >
-              {statusNote(state)}
+              {statusNote(state, restore)}
             </span>
           ) : null}
           {/*
@@ -344,7 +414,7 @@ export function ImageSlotField({
 
         <div className={css.imageControls}>
           <div className={css.imageActions}>
-            {actionsFor(state).map((action) => (
+            {actionsFor(state, restore).map((action) => (
               <button
                 key={action}
                 type="button"
@@ -387,10 +457,29 @@ export function ImageSlotField({
   )
 }
 
-/** 커버 160 · 초상 96 (아트보드). **비율은 토큰이 정하고 높이를 px 로 박지 않는다** (F-9). */
-function slotClass(slot: ImageSlot, state: ImageUploadState): string {
+/**
+ * 커버 160 · 초상 96 (아트보드). **비율은 토큰이 정하고 높이를 px 로 박지 않는다** (F-9).
+ *
+ * **⑤-a 도 ⑤-b 도 ④ 의 판을 쓰지 않는다.** 받는 중은 ⑤ 에 그림 자리를 비우는 클래스가
+ * 하나 붙을 뿐이고, 못 받음은 ⑤ 그대로다 — `--danger` 는 *누르면 되돌릴 수 없다* 의 표시라
+ * 상태를 말할 뿐인 자리에 얹지 않는다 (ADR-0010).
+ */
+function slotClass(slot: ImageSlot, state: ImageUploadState, restore: RestoreState): string {
   const width = slot === 'cover' ? ` ${css.cover}` : ''
   if (state.status === 'failed') return `${css.imageSlot}${width} ${css.slotFailed}`
   if (state.status === 'empty') return `${css.imageSlot}${width}`
-  return `${css.imageSlot}${width} ${css.slotFilled}`
+  const filled = `${css.imageSlot}${width} ${css.slotFilled}`
+  return restore === 'fetching' ? `${filled} ${css.slotFetching}` : filled
+}
+
+/**
+ * 자리 안의 한 줄을 읽어 주는가.
+ *
+ * **④ 는 끊고 들어간다** (`alert`) — 방금 사용자가 파일을 골랐고 그 일이 실패했다.
+ * **⑤-b 는 기다린다** (`status`) — 화면을 여는 동안 일어난 일이라 끊을 자리가 아니다.
+ * 나머지 셋은 옆의 글이 같은 것을 말하므로 라이브 영역이 아니다.
+ */
+function noteRole(state: ImageUploadState, restore: RestoreState): 'alert' | 'status' | undefined {
+  if (restore === 'failed') return 'status'
+  return state.status === 'failed' ? 'alert' : undefined
 }
