@@ -17,11 +17,11 @@ import { AppRoutes } from './routes/router'
  * 여기서 내려보내는 것이 그 길이며, **소비자는 여전히 가드 하나**라서 위 판단은 그대로 선다.
  */
 export function App() {
-  const { state, signIn } = useAuthSession()
+  const { state, signIn, signOut } = useAuthSession()
 
   return (
     <BrowserRouter>
-      <AppRoutes session={state} onSignedIn={signIn} />
+      <AppRoutes session={state} onSignedIn={signIn} onSignedOut={signOut} />
     </BrowserRouter>
   )
 }

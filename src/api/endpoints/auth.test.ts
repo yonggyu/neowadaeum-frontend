@@ -7,6 +7,7 @@ import { ApiError } from '../client'
 import {
   getConsentTerms,
   issueLoginNonce,
+  logout,
   loginWithOAuth,
   refreshToken,
   type OAuthLoginRequest,
@@ -171,8 +172,13 @@ describe('loginWithOAuth', () => {
  * **인증 경로는 이제 셋이다** (§13-87, #185). `issueLoginNonce` 가 늘었고 **그것은 이 옵션을
  * 받지 않는다** — 로그인보다 앞이라 실어 보낼 자격 증명이 없다. 이 블록이 그 경로를 **이름으로**
  * 안다: "인증 파일 안에 있으니 붙어도 된다" 로 새 경로가 조용히 넘어가는 것을 막는다.
+ *
+ * **오퍼레이션은 셋이 됐지만 경로는 여전히 둘이다** (§13-94, #231). `logout` 이 늘었고 그것은
+ * **재발급과 같은 경로**다 — 쿠키의 `Path` 가 그 경로 하나이므로 다른 자리에 두면 브라우저가
+ * 쿠키를 붙이지 않는다. 세는 단위가 *오퍼레이션*이 아니라 **자격 증명이 오가는 경로**라는 것이
+ * 이 경계가 지키려던 것이고, 그 수는 늘지 않았다.
  */
-describe('withCredentials 는 계약이 허락한 두 오퍼레이션 밖으로 번지지 않는다', () => {
+describe('withCredentials 는 계약이 허락한 두 경로 밖으로 번지지 않는다', () => {
   afterEach(() => {
     vi.unstubAllGlobals()
   })
@@ -186,6 +192,37 @@ describe('withCredentials 는 계약이 허락한 두 오퍼레이션 밖으로 
     expect(lastInit(fetchMock).credentials).toBeUndefined()
     // CSRF 를 요구하는 경로는 재발급 하나다 — 여기에도 붙지 않는다.
     expect(lastHeaders(fetchMock)['X-XSRF-TOKEN']).toBeUndefined()
+  })
+
+  it('S13_94_로그아웃은_쿠키를_싣는다__싣지_않으면_Set_Cookie_를_버려_쿠키가_남는다', async () => {
+    const fetchMock = mockFetch(new Response(null, { status: 204 }))
+
+    await logout()
+
+    // 싣지 않으면 브라우저가 응답의 `Set-Cookie` 를 버린다 — 화면은 성공으로 보이고
+    // 새로고침하면 다시 로그인된 상태가 된다. 로그아웃에서 가장 나쁜 실패다.
+    expect(lastInit(fetchMock).credentials).toBe('include')
+    expect(lastInit(fetchMock).method).toBe('DELETE')
+  })
+
+  it('S13_94_로그아웃도_CSRF_토큰을_돌려보낸다__재발급과_같은_경로라_같은_요구가_걸린다', async () => {
+    // 브라우저에서 실제로 이것이 빠져 `403` 을 받았다 — 계약 표면만 보면 지나간다.
+    // 러너에 DOM 이 없다 (#224) — `readCsrfToken` 이 보는 것만 세운다.
+    vi.stubGlobal('document', { cookie: 'XSRF-TOKEN=csrf-1' })
+    const fetchMock = mockFetch(new Response(null, { status: 204 }))
+
+    await logout()
+
+    expect(lastHeaders(fetchMock)['X-XSRF-TOKEN']).toBe('csrf-1')
+  })
+
+  it('S13_94_로그아웃은_재발급과_같은_경로다__자격_증명이_오가는_경로는_여전히_둘이다', async () => {
+    const fetchMock = mockFetch(new Response(null, { status: 204 }))
+
+    await logout()
+
+    // 쿠키의 `Path` 가 이 경로 하나다. 다른 자리에 두면 쿠키가 실려 오지 않는다 (§13-94).
+    expect(String(fetchMock.mock.calls[0]?.[0])).toContain('/auth/refresh')
   })
 
   it('다른_경로는_쿠키를_싣지_않는다 — 기본값 same-origin 그대로다', async () => {

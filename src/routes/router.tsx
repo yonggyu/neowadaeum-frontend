@@ -45,6 +45,7 @@ import { ROUTES } from './routes'
 export function AppRoutes({
   session,
   onSignedIn,
+  onSignedOut,
 }: {
   session: AuthState
   /**
@@ -54,6 +55,14 @@ export function AppRoutes({
    * 그 화면 하나이기 때문이고, 그래서 앱 전체를 감싸는 Provider 없이도 갱신 경로가 선다.
    */
   onSignedIn: (tokens: TokenResponse) => Promise<void>
+  /**
+   * 계정 설정이 로그아웃을 알리는 길 (#231).
+   *
+   * `onSignedIn` 과 **같은 모양으로 하나 더** 낸다. 인증 상태를 바꾸는 사건이 둘에서 셋이
+   * 됐지만 그것을 읽는 소비자는 여전히 가드 하나이므로, Context 를 만들 근거는 아직 서지
+   * 않는다 (#217 이 같은 판단을 했다).
+   */
+  onSignedOut: (signal?: AbortSignal) => Promise<void>
 }) {
   return (
     <Routes>
@@ -80,7 +89,7 @@ export function AppRoutes({
            * 계정 설정 (6d). 셸이 붙는다 — 6d 의 모바일 프레임이 **하단 탭바를 유지**하고 그
            * 세 번째 칸이 이 화면이다. 자기 자리로 돌아오는 길이 보여야 한다.
            */}
-          <Route path={ROUTES.accountSettings} element={<AccountSettingsScreen />} />
+          <Route path={ROUTES.accountSettings} element={<AccountSettingsScreen onSignedOut={onSignedOut} />} />
         {/*
          * 원고 목록 (#54) — 셸이 붙는다. 훑고 고르고 돌아오는 화면이고, 3g 의 "＋ 작품
          * 만들기" CTA 가 셸 상단에서 이리로 온다.

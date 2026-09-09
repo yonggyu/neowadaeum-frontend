@@ -35,7 +35,12 @@ import styles from './AccountSettingsScreen.module.css'
  * 항목이 넷뿐이라 **Desktop 에서도 2열로 벌리지 않는다** — 420px 단일 컬럼을 중앙에 둔다
  * (6d). 사이드 내비를 만들 만한 분량이 아니고, 폭에 맞춰 늘리면 빈 화면이 된다 (F-9).
  */
-export function AccountSettingsScreen() {
+export function AccountSettingsScreen({
+  onSignedOut,
+}: {
+  /** 로그아웃을 앱의 인증 상태로 들이는 길 (#231) — `#217` 이 낸 길의 반대 방향이다. */
+  onSignedOut: (signal?: AbortSignal) => Promise<void>
+}) {
   const policies = usePolicies()
   const [confirming, setConfirming] = useState(false)
 
@@ -51,6 +56,18 @@ export function AccountSettingsScreen() {
         <PolicySection state={policies} />
 
         <h2 className={styles.sectionTitle}>계정</h2>
+        <ul className={styles.rows}>
+          <li>
+            <LogoutRow onSignedOut={onSignedOut} />
+          </li>
+        </ul>
+
+        {/*
+         * **탈퇴를 다른 목록에 둔다** (#231). 되돌릴 수 있는 것과 없는 것이 한 목록에 나란히
+         * 서면 잘못 누른다 — 두 행의 높이도 모양도 같고 다른 것은 색 하나뿐이기 때문이다.
+         * 제목을 하나 더 세우는 것이 그 둘 사이의 유일한 실제 거리다.
+         */}
+        <h2 className={styles.sectionTitle}>되돌릴 수 없는 것</h2>
         <ul className={styles.rows}>
           <li>
             <button
@@ -69,6 +86,69 @@ export function AccountSettingsScreen() {
 
       {confirming ? <WithdrawDialog onClose={() => setConfirming(false)} /> : null}
     </main>
+  )
+}
+
+/**
+ * 로그아웃 (#231, §13-94).
+ *
+ * ## 이 행이 정한 것 — 와이어프레임에 없던 자리다
+ *
+ * `5b` · `6d` 는 이 행을 그린 적이 없다. 계약이 로그아웃 경로를 막아 두었기 때문이고(§13-60),
+ * 그것이 §13-94 로 열리면서 자리가 생겼다. 그래서 **그리는 방식을 여기서 정하고 근거를 남긴다.**
+ *
+ * - **묻지 않는다.** 되돌릴 수 있는 일이다 — 다시 로그인하면 된다. 잃는 것도 없다: 진행 중이던
+ *   이야기는 서버에 있고 세션은 계정에 붙어 있다. `ConfirmDialog` 는 탈퇴가 쓰는 것이고,
+ *   같은 무게로 물으면 **되돌릴 수 없는 일과 같아 보인다**
+ * - **`--danger` 를 쓰지 않는다** (ADR-0010). 그 색은 *되돌릴 수 없음*을 말하는 자리로 좁혀
+ *   두었다. 여기 쓰면 그 뜻이 다시 흐려지고, 바로 아래 탈퇴가 같은 색이 된다
+ * - **탈퇴와 같은 목록에 두지 않는다.** 위 참조
+ * - **어디로 갈지 이 화면이 정하지 않는다.** 아래 참조
+ *
+ * ## 목적지는 가드가 정한다 — 브라우저가 그렇게 가르쳐 줬다
+ *
+ * 처음에는 이 자리에서 랜딩으로 `navigate` 했다. **브라우저에서 눌러 보니 `/login` 으로 갔다** —
+ * 상태가 익명이 되는 순간 이 화면을 감싼 `RequireAuth` 가 먼저 판정해 `<Navigate to={login}>` 을
+ * 그리고, 화면의 `navigate` 는 그 뒤에 덮인다.
+ *
+ * **고칠 것은 가드가 아니라 이쪽이었다.** 같은 판단(*로그아웃 상태에서 어디를 보여 주는가*)을 두
+ * 곳이 하게 두면 그중 하나가 먼저 낡는다 — `#217` 이 정확히 그 종류의 결함이었다. 그래서 이
+ * 화면은 **이동하지 않는다.** 서버가 무르고 상태가 익명이 되면 그 뒤는 가드 하나의 일이다.
+ *
+ * **실패하면 나가지 않는다.** 서버가 쿠키를 무르지 못했으면 브라우저는 여전히 들고 있고,
+ * 화면만 익명으로 만들면 **새로고침이 그것을 뒤집는다.** 그래서 상태도 바꾸지 않고 이동도 하지
+ * 않으며, 서버가 준 문구를 그대로 보여 준다 (F-4).
+ */
+function LogoutRow({ onSignedOut }: { onSignedOut: (signal?: AbortSignal) => Promise<void> }) {
+  const [submitting, setSubmitting] = useState(false)
+  const [failure, setFailure] = useState<ApiError | null>(null)
+
+  async function submit(): Promise<void> {
+    setSubmitting(true)
+    setFailure(null)
+    try {
+      // 이동하지 않는다 — 상태가 익명이 되면 가드가 이 화면을 떠나보낸다 (위 참조).
+      await onSignedOut()
+    } catch (error) {
+      setFailure(toApiError(error))
+      setSubmitting(false)
+    }
+  }
+
+  return (
+    <>
+      <button type="button" className={styles.row} onClick={() => void submit()} disabled={submitting}>
+        {submitting ? '나가는 중…' : '로그아웃'}
+        <span className={styles.chevron} aria-hidden="true">
+          ›
+        </span>
+      </button>
+      {failure === null ? null : (
+        <p className={`${shared.meta} ${styles.rowNotice}`} role="alert">
+          {failure.message}
+        </p>
+      )}
+    </>
   )
 }
 
