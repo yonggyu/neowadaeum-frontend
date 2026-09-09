@@ -1,4 +1,5 @@
-import { ApiError, hasAccessToken, renewAccessToken } from '../api/client'
+import { ApiError, hasAccessToken, renewAccessToken, setAccessToken } from '../api/client'
+import type { TokenResponse } from '../api/endpoints/auth'
 import { getMe, type MeResponse } from '../api/endpoints/me'
 
 /**
@@ -58,4 +59,27 @@ export async function restoreSession(signal?: AbortSignal): Promise<AuthState> {
     // 요청을 실제로 일으킨 화면이 한다).
     return { kind: 'anonymous', reason: 'unreachable' }
   }
+}
+
+/**
+ * 로그인이 방금 성공했다 — 그 사실을 인증 상태로 바꾼다 (#217).
+ *
+ * **토큰이 도착하는 자리와 인증 상태가 만들어지는 자리를 하나로 묶는다.** 그 둘이 갈라져
+ * 있던 것이 `#217` 이다: 로그인 화면이 `setAccessToken` 으로 모듈 변수만 갱신했고, 가드가
+ * 보는 `AuthState` 는 부팅 때의 `anonymous` 그대로여서 로그인 직후 보호 라우트가 열리지
+ * 않았다. **여기를 지나지 않고 토큰만 넣는 길을 만들지 않는다.**
+ *
+ * `TokenResponse` 는 계정을 싣지 않는다 — `accessToken` · `tokenType` · `expiresIn` 셋뿐이다.
+ * 그래서 `authenticated` 를 여기서 지어낼 수 없고 `restoreSession` 을 그대로 다시 탄다.
+ * 토큰이 방금 들어갔으므로 그 안의 재발급 단계는 지나가고 `GET /me` 한 번만 나간다 — 새
+ * 경로가 아니라 **부팅이 걷던 길의 뒷부분**이다.
+ *
+ * 실패도 부팅과 같은 뜻을 갖는다: 서버가 답하지 못했으면 `unreachable` 이고, 그것은
+ * 로그아웃이 아니다. 그 판정을 화면이 다시 하지 않도록 여기서 갈라 두지 않는다 —
+ * `guardDecision` 하나가 그 넷을 읽는다.
+ */
+export async function beginSession(tokens: TokenResponse): Promise<AuthState> {
+  // 저장소에 쓰지 않는다 — 메모리에만 둔다 (F-3).
+  setAccessToken(tokens.accessToken)
+  return restoreSession()
 }

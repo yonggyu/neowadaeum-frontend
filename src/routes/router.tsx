@@ -1,5 +1,6 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 
+import type { TokenResponse } from '../api/endpoints/auth'
 import type { AuthState } from '../auth/session'
 import { AccountSettingsScreen } from '../screens/account/AccountSettingsScreen'
 import { AdminAuthScreen } from '../screens/admin/AdminAuthScreen'
@@ -41,7 +42,19 @@ import { ROUTES } from './routes'
  * **랜딩과 로그인 둘**이고, 나머지는 전부 `RequireAuth` 안에 든다. 라이브러리도 예외가 아니다 —
  * `getLibrary` · `getStoryDetail` 은 `security: []` 를 달고 있지 않다.
  */
-export function AppRoutes({ session }: { session: AuthState }) {
+export function AppRoutes({
+  session,
+  onSignedIn,
+}: {
+  session: AuthState
+  /**
+   * 로그인 화면이 성공을 알리는 길 (#217).
+   *
+   * **라우트가 이것을 나른다.** 로그인 화면만이 이 값을 받는 이유는 토큰이 도착하는 자리가
+   * 그 화면 하나이기 때문이고, 그래서 앱 전체를 감싸는 Provider 없이도 갱신 경로가 선다.
+   */
+  onSignedIn: (tokens: TokenResponse) => Promise<void>
+}) {
   return (
     <Routes>
       {/*
@@ -87,7 +100,7 @@ export function AppRoutes({ session }: { session: AuthState }) {
        * 최초 로그인의 추가 정보(생년월일 · 약관)는 별 라우트가 아니다 — 6b 가 "같은 화면 교체,
        * 페이지 이동 없음"으로 정했다. LoginScreen 안에서 단계로 바뀐다.
        */}
-      <Route path={ROUTES.login} element={<LoginScreen />} />
+      <Route path={ROUTES.login} element={<LoginScreen onSignedIn={onSignedIn} />} />
 
       {/*
        * Play — 셸을 붙이지 않는다.

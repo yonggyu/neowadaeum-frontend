@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
-import { ApiError, setAccessToken } from '../../api/client'
+import { ApiError } from '../../api/client'
 import { loginWithOAuth, type TokenResponse } from '../../api/endpoints/auth'
 import { ROUTES } from '../../routes/routes'
 import shared from './account.module.css'
@@ -21,7 +21,18 @@ import styles from './LoginScreen.module.css'
  */
 type Step = { kind: 'signIn' } | { kind: 'consent'; idToken: string }
 
-export function LoginScreen() {
+export function LoginScreen({
+  onSignedIn,
+}: {
+  /**
+   * 로그인 성공을 앱의 인증 상태로 들이는 길 (#217).
+   *
+   * **화면이 직접 `setAccessToken` 을 부르지 않는 이유가 이것이다.** 토큰만 넣으면 가드가
+   * 보는 `AuthState` 는 부팅 때의 값 그대로여서, 성공한 로그인이 곧바로 로그인 화면으로
+   * 되돌아왔다. 이 prop 이 그 두 자리를 하나의 길로 잇는다.
+   */
+  onSignedIn: (tokens: TokenResponse) => Promise<void>
+}) {
   const navigate = useNavigate()
   const [step, setStep] = useState<Step>({ kind: 'signIn' })
   const [submitting, setSubmitting] = useState(false)
@@ -53,13 +64,28 @@ export function LoginScreen() {
    */
   useEffect(() => () => signInRef.current?.abort(), [])
 
-  /** 토큰이 도착하는 유일한 자리. 메모리에만 둔다 — 저장소에 쓰지 않는다 (F-3). */
+  /**
+   * 토큰이 도착하는 유일한 자리 (#217).
+   *
+   * **인증 상태가 선 뒤에 옮긴다.** `onSignedIn` 이 토큰을 메모리에 넣고(F-3 — 저장소에 쓰지
+   * 않는다) `GET /me` 로 계정을 확인해 앱의 `AuthState` 를 세운다. 기다리지 않고 `navigate`
+   * 하면 가드가 아직 `anonymous` 를 보고 여기로 되돌린다 — 그것이 이 이슈가 본 화면이다.
+   *
+   * **성공하지 못했을 때 여기서 다시 판정하지 않는다.** `GET /me` 가 답하지 못했으면 그
+   * 사실은 `unreachable` 로 상태에 남고, 그것을 화면으로 옮기는 일은 가드 하나가 한다
+   * (`RequireAuth`). 여기서 한 번 더 해석하면 같은 상태를 읽는 자리가 둘이 된다.
+   *
+   * **신호를 받는다** (#182). `onSignedIn` 이 왕복 하나를 더 기다리므로 그동안 사용자가
+   * 화면을 떠날 수 있고, 떠난 뒤의 `navigate` 는 사용자를 라이브러리까지 끌고 간다.
+   * 인증 상태는 그대로 세운다 — 로그인은 실제로 성립했고, 걷힌 것은 **이 화면의 이동**뿐이다.
+   */
   const enter = useCallback(
-    (tokens: TokenResponse): void => {
-      setAccessToken(tokens.accessToken)
+    async (tokens: TokenResponse, signal?: AbortSignal): Promise<void> => {
+      await onSignedIn(tokens)
+      if (signal?.aborted === true) return
       navigate(ROUTES.library, { replace: true })
     },
-    [navigate],
+    [onSignedIn, navigate],
   )
 
   /**
@@ -78,7 +104,7 @@ export function LoginScreen() {
         // 기존 회원은 `idToken` 만 보낸다. 매번 동의를 다시 받으면 동의 이력이 로그인 이력이 된다.
         // **같은 신호를 넘긴다** — 넘기지 않으면 떠난 뒤 도착한 응답이 `enter()` 를 지나
         // `navigate` 로 사용자를 라이브러리까지 끌고 간다 (#182).
-        enter(await loginWithOAuth({ idToken }, signal))
+        await enter(await loginWithOAuth({ idToken }, signal), signal)
       } catch (error) {
         if (signal.aborted) return
         // 최초 로그인이면 서버가 "가입 정보가 더 필요하다"고 답한다 — 실패가 아니라 다음 단계다.
