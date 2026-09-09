@@ -1,0 +1,8 @@
+fg #1a1a1a | fg-muted rgba(0,0,0,.55) | fg-subtle rgba(0,0,0,.38)
+bg #faf8f4 | bg-sunken #f0eee9 | border rgba(0,0,0,.12)
+accent #2b6ca8 | focus #2a78d6 | danger #d64545 | danger-wash rgb(214 69 69/4%)
+in-review fg#7d5a12 bg#faf3e3 border#d8bd85 dot#9a7418
+fs xs12 sm13 base14 md15 lg16 2lg17 xl20 2xl24 3xl32
+lh tight1.3 snug1.4 normal1.5 relaxed1.6 loose1.7 read1.75
+sp 4 8 12 16 24 32 48 64 | r sm8 md12 lg16 xl24
+ratio cover 2/3 | visual-tall 4/5 | visual-wide 16/9

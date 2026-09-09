@@ -1,0 +1,56 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600&family=Noto+Serif+KR:wght@400;600&display=swap">
+  <style>
+    body { margin: 0; font-family: "IBM Plex Sans KR", system-ui, -apple-system, sans-serif; font-size: 14px; color: #1a1a1a; background: #faf8f4; }
+    * { box-sizing: border-box; }
+    p, h1, h2, h3 { margin: 0; }
+    a { color: #2b6ca8; } a:hover { color: #1f5178; }
+    ul { margin: 0; padding: 0; list-style: none; }
+  </style>
+</helmet>
+
+<div style="min-height: 100%; padding: 32px; background: #faf8f4;">
+  <h1 style="font-family: 'Noto Serif KR', serif; font-size: 24px; line-height: 1.3; font-weight: 600;">Step 3 — 같은 이름 둘</h1>
+  <p style="margin-top: 8px; max-width: 62ch; color: rgba(0,0,0,.55); font-size: 15px; line-height: 1.7;">계약이 중복을 막지 않으므로 <strong style="color:#1a1a1a; font-weight:600;">화면도 거절하지 않는다.</strong> 세 줄이 서고, 선언된 이름은 둘이다. 이 안이 정하는 것은 그 사실을 <strong style="color:#1a1a1a; font-weight:600;">어디서 말하는가</strong>다.</p>
+
+  <div style="display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 32px; margin-top: 32px; align-items: start;">
+    <div style="display: flex; flex-direction: column; gap: 16px;">
+      <p style="font-size: 17px; line-height: 1.4;">인물</p>
+      <ul style="display: flex; flex-direction: column; gap: 16px;"><li style="display: flex; flex-direction: column; gap: 8px;"><div style="display: flex; gap: 8px; align-items: flex-start;"><input style="flex: 0 0 160px; min-width: 0; min-height: 48px; padding: 12px; border: 1px solid rgba(0,0,0,.12); border-radius: 8px; background: #faf8f4; color: #1a1a1a; font: inherit; font-size: 14px;" value="해진"><input style="flex: 1 1 auto; min-width: 0; min-height: 48px; padding: 12px; border: 1px solid rgba(0,0,0,.12); border-radius: 8px; background: #faf8f4; color: #1a1a1a; font: inherit; font-size: 14px;" value="등대의 마지막 기록자."><button type="button" style="min-height: 48px; padding: 0 16px; border: 1px solid rgba(0,0,0,.12); border-radius: 12px; background: #faf8f4; color: rgba(0,0,0,.55); font: inherit; font-size: 14px; cursor: pointer;">제거</button></div></li><li style="display: flex; flex-direction: column; gap: 8px;"><div style="display: flex; gap: 8px; align-items: flex-start;"><input style="flex: 0 0 160px; min-width: 0; min-height: 48px; padding: 12px; border: 1px solid rgba(0,0,0,.12); border-radius: 8px; background: #faf8f4; color: #1a1a1a; font: inherit; font-size: 14px;" value="해진"><input style="flex: 1 1 auto; min-width: 0; min-height: 48px; padding: 12px; border: 1px solid rgba(0,0,0,.12); border-radius: 8px; background: #faf8f4; color: #1a1a1a; font: inherit; font-size: 14px;" value="스무 해 전 일지를 쓴 사람."><button type="button" style="min-height: 48px; padding: 0 16px; border: 1px solid rgba(0,0,0,.12); border-radius: 12px; background: #faf8f4; color: rgba(0,0,0,.55); font: inherit; font-size: 14px; cursor: pointer;">제거</button></div><div style="display: flex; gap: 8px; align-items: flex-start; padding: 8px 12px; border: 1px solid #d8bd85; border-radius: 8px; background: #faf3e3;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#7d5a12" stroke-width="2" stroke-linecap="round" aria-hidden="true" style="flex: 0 0 auto; margin-top: 2px;"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v6"></path><path d="M12 16.5v.5"></path></svg><p style="color: #7d5a12; font-size: 13px; line-height: 1.6;">이 이름은 이미 선언돼 있어요. <strong style="font-weight: 600;">조건에는 하나로 들어가고, 하나를 지워도 이름은 남아요.</strong></p></div></li><li style="display: flex; flex-direction: column; gap: 8px;"><div style="display: flex; gap: 8px; align-items: flex-start;"><input style="flex: 0 0 160px; min-width: 0; min-height: 48px; padding: 12px; border: 1px solid rgba(0,0,0,.12); border-radius: 8px; background: #faf8f4; color: #1a1a1a; font: inherit; font-size: 14px;" value="노인"><input style="flex: 1 1 auto; min-width: 0; min-height: 48px; padding: 12px; border: 1px solid rgba(0,0,0,.12); border-radius: 8px; background: #faf8f4; color: #1a1a1a; font: inherit; font-size: 14px;" value="이름을 밝히지 않는다."><button type="button" style="min-height: 48px; padding: 0 16px; border: 1px solid rgba(0,0,0,.12); border-radius: 12px; background: #faf8f4; color: rgba(0,0,0,.55); font: inherit; font-size: 14px; cursor: pointer;">제거</button></div></li></ul>
+      <button type="button" style="min-height: 48px; padding: 0 16px; border: 1px solid rgba(0,0,0,.12); border-radius: 12px; background: #faf8f4; color: rgba(0,0,0,.55); font: inherit; font-size: 14px; cursor: pointer; width: 100%;">＋ 인물 추가</button>
+
+      <p style="margin-top: 16px; font-size: 17px; line-height: 1.4;">플래그</p>
+      <ul style="display: flex; flex-direction: column; gap: 16px;">
+        <li style="display: flex; gap: 8px; align-items: flex-start;"><input style="flex: 1 1 auto; min-width: 0; min-height: 48px; padding: 12px; border: 1px solid rgba(0,0,0,.12); border-radius: 8px; background: #faf8f4; color: #1a1a1a; font: inherit; font-size: 14px;" value="등대를_보았다"><button type="button" style="min-height: 48px; padding: 0 16px; border: 1px solid rgba(0,0,0,.12); border-radius: 12px; background: #faf8f4; color: rgba(0,0,0,.55); font: inherit; font-size: 14px; cursor: pointer;">제거</button></li>
+        <li style="display: flex; flex-direction: column; gap: 8px;">
+          <div style="display: flex; gap: 8px; align-items: flex-start;"><input style="flex: 1 1 auto; min-width: 0; min-height: 48px; padding: 12px; border: 1px solid rgba(0,0,0,.12); border-radius: 8px; background: #faf8f4; color: #1a1a1a; font: inherit; font-size: 14px;" value="등대를_보았다"><button type="button" style="min-height: 48px; padding: 0 16px; border: 1px solid rgba(0,0,0,.12); border-radius: 12px; background: #faf8f4; color: rgba(0,0,0,.55); font: inherit; font-size: 14px; cursor: pointer;">제거</button></div>
+          <div style="display: flex; gap: 8px; align-items: flex-start; padding: 8px 12px; border: 1px solid #d8bd85; border-radius: 8px; background: #faf3e3;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#7d5a12" stroke-width="2" stroke-linecap="round" aria-hidden="true" style="flex: 0 0 auto; margin-top: 2px;"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v6"></path><path d="M12 16.5v.5"></path></svg><p style="color: #7d5a12; font-size: 13px; line-height: 1.6;">이 이름은 이미 선언돼 있어요. <strong style="font-weight: 600;">조건에는 하나로 들어가고, 하나를 지워도 이름은 남아요.</strong></p></div>
+        </li>
+      </ul>
+    </div>
+    
+<div style="display: flex; flex-direction: column; gap: 12px; padding: 16px; border: 1px dashed rgba(0,0,0,.12); border-radius: 16px; background: #f0eee9;">
+  <p style="font-size: 13px; font-weight: 600; color: rgba(0,0,0,.55);">이 원고가 선언한 이름</p>
+  <ul style="display: flex; flex-wrap: wrap; gap: 8px;">
+    <li style="padding: 4px 12px; border: 1px solid rgba(0,0,0,.12); border-radius: 8px; background: #faf8f4; font-size: 13px;">해진</li>
+    <li style="padding: 4px 12px; border: 1px solid rgba(0,0,0,.12); border-radius: 8px; background: #faf8f4; font-size: 13px;">노인</li>
+  </ul>
+  <p style="color: rgba(0,0,0,.55); font-size: 13px; line-height: 1.6;">조건이 가리킬 수 있는 이름은 이 <strong style="color:#1a1a1a; font-weight:600;">둘</strong>뿐입니다.</p>
+</div>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 8px; max-width: 62ch; margin-top: 32px; padding: 16px; border-left: 3px solid #1a1a1a; background: #f0eee9;">
+    <p style="font-size: 13px; font-weight: 600;">이 안이 고른 것</p>
+    <p style="color: rgba(0,0,0,.55); font-size: 13px; line-height: 1.6;">막지 않고 <strong style="color:#1a1a1a; font-weight:600;">알린다</strong> — 계약이 허용하는 것을 화면이 거절하면 이미 저장된 원고를 어떻게 다룰지가 따라온다. 안내는 <strong style="color:#1a1a1a; font-weight:600;">두 번째 줄부터</strong> 붙는다(첫 줄은 잘못이 없다). 인물과 플래그가 같은 모양이다. 문구는 &lsquo;중복&rsquo;이라 말하지 않고 <strong style="color:#1a1a1a; font-weight:600;">결과</strong>를 말한다. 색은 검수 대기(<code style="font-family: ui-monospace, Menlo, monospace; font-size: 12px;">in-review</code>)의 것 — 오류가 아니라 알아 둘 것이라서 <code style="font-family: ui-monospace, Menlo, monospace; font-size: 12px;">--danger</code> 를 쓰지 않는다.</p>
+  </div>
+</div></x-dc>
+</body>
+</html>
