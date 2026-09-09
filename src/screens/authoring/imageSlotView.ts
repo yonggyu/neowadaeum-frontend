@@ -11,17 +11,53 @@ import type { ImageUploadState } from './imageUpload'
  * 컴포넌트에서 꺼내 둔 이유는 `precheck.ts` · `imageUpload.ts` 와 같다 — **이 레포의 러너에
  * DOM 이 없다.** 버튼이 언제 몇 개인지는 아트보드가 값으로 적어 둔 것이고(390 — *"세 버튼이
  * 동시에 있는 순간이 없습니다"*), 값으로 적힌 것은 테스트가 지킬 수 있어야 한다.
+ *
+ * **다섯은 그대로다** (#173). 9차 아트보드 `SlotStates` 가 되받기의 두 자리(⑤-a 받는 중 ·
+ * ⑤-b 못 받음)를 더했지만 둘 다 **⑤ 안에 있다** — 칸이 아니라 ⑤ 의 그림 자리가 바뀐다.
+ * 그래서 여기 늘어난 것은 상태가 아니라 **축 하나**(`RestoreState`)이고, 아래 세 함수가
+ * 그 축을 함께 읽는다.
  */
 
 /**
- * 자리 하나가 내놓는 행동 — **다섯 상태에 걸쳐 다섯 가지뿐이다.**
+ * 되받기가 어디까지 왔는가 — **상태 ⑤ 안의 축이다** (9차 아트보드 `SlotStates` ⑤-a · ⑤-b).
+ *
+ * **여섯째 칸이 아니다.** 아트보드가 그 자리에 적어 둔 것이 그것이다 — *"칸을 늘리지 않는다
+ * — ⑤ 안에서 그림 자리만 비운다"*. 그래서 `ImageUploadState` 에 상태를 더하지 않고 **축을
+ * 하나 옆에 둔다**: 다섯 칸은 *올리는 일*이 어디까지 왔는가를 말하고, 이 셋은 **이미 올라간
+ * 것을 되받아 오는 일**(`readDraftImage`, §13-78)이 어디까지 왔는가를 말한다. 둘을 한
+ * 열거로 합치면 아트보드가 다섯으로 못박아 둔 칸이 그날로 일곱이 된다.
+ *
+ * `idle` 은 *되받을 것이 없다* 와 *이미 받았다* 를 함께 덮는다. 둘을 가르는 값이 화면에서
+ * 하는 일이 없기 때문이다 — 그릴 그림이 있으면 그리고, 없으면 아래 둘 중 하나다.
+ */
+export type RestoreState = 'idle' | 'fetching' | 'failed'
+
+/**
+ * 못 받았을 때 자리에 적히는 한 줄. **아트보드가 정한 말이다** (`SlotStates` ⑤-b).
+ *
+ * **서버가 준 문구를 옮기지 않는다** — 여기에는 옮길 것이 없다. 되받기는 바이트를 받는
+ * 요청이고 그 실패의 절반은 네트워크(응답 자체가 없다)이며, `404`(*올린 적이 있는데 지금
+ * 없다*)와 네트워크 실패를 **나누지 않기로** 했다 (9차 브리프 §2 — `B-2`·`B-3`). 나누지
+ * 않기로 한 자리에 서버 문구를 실으면 화면이 둘을 다시 가르게 된다.
+ *
+ * **④ 의 실패 문구와 같은 자리에 두지 않는다.** 저쪽은 `imageUpload.ts` 가 서버의 말을
+ * 담아 오는 값이고(F-4), 이쪽은 아트보드가 정한 고정된 한 줄이다.
+ */
+export const RESTORE_FAILED_NOTE = '이미지를 불러오지 못했어요'
+
+/**
+ * 자리 하나가 내놓는 행동 — **다섯 상태에 걸쳐 여섯 가지뿐이다.**
  *
  * `pick` 과 `repick` 과 `replace` 는 **같은 일**(파일 고르기 → 발급부터 다시)을 하고 이름만
  * 다르다. 셋을 하나로 합치지 않은 것은 아트보드가 세 자리에 다른 말을 적었기 때문이다 —
  * ① *이미지 고르기* · ④ *다시 고르기* · ⑤ *교체*. 라벨을 컴포넌트가 상태로 다시 갈라 쓰면
  * 그 분기가 두 곳(여기와 화면)에 생긴다.
+ *
+ * **`refetch` 만 파일을 고르지 않는다.** 나머지 다섯이 원고나 저장소를 건드리는 데 반해
+ * 이것은 **이미 올라가 있는 것을 다시 받아 오기만** 한다 — ⑤-b 가 `repick` 을 쓸 수 없는
+ * 이유가 그것이다 (아래 `actionsFor`).
  */
-export type SlotAction = 'pick' | 'cancel' | 'repick' | 'replace' | 'remove'
+export type SlotAction = 'pick' | 'cancel' | 'repick' | 'replace' | 'remove' | 'refetch'
 
 /** 버튼에 적히는 말. 아트보드의 것이며 여기서 짓지 않는다. */
 export const ACTION_LABEL: Record<SlotAction, string> = {
@@ -30,6 +66,7 @@ export const ACTION_LABEL: Record<SlotAction, string> = {
   repick: '다시 고르기',
   replace: '교체',
   remove: '제거',
+  refetch: '다시 불러오기',
 }
 
 /**
@@ -41,8 +78,16 @@ export const ACTION_LABEL: Record<SlotAction, string> = {
  *
  * **`uploaded` 에서만 둘이다.** 셋이 동시에 있는 순간이 없다 (390 아트보드) — 올리는 중에는
  * 버튼 자리가 `cancel` 하나로 바뀐다.
+ *
+ * **못 받은 자리(⑤-b)는 `refetch` 하나다** (9차 아트보드 `SlotStates` · `SlotStates390`).
+ * 셋을 나란히 두면 그 규칙이 바로 깨지고, 셋 중 무엇을 지울지는 이미 정해져 있다 —
+ * **`repick`(다시 고르기)을 여기 쓰지 않는다.** 이 자리에서 실패한 것은 *받아 오는 일*이고
+ * 올린 것은 저장소에 그대로 있으므로, 다시 고르라고 권하는 것은 **올라가 있는 것을 지우라고
+ * 권하는 셈**이다. 되받기는 다시 부를 수 있으니 문은 그쪽으로 낸다 (`B-2` — *갈 수 없는
+ * 곳으로 가는 문을 그리지 않는다*).
  */
-export function actionsFor(state: ImageUploadState): readonly SlotAction[] {
+export function actionsFor(state: ImageUploadState, restore: RestoreState): readonly SlotAction[] {
+  if (restore === 'failed') return ['refetch']
   switch (state.status) {
     case 'empty':
       return ['pick']
@@ -66,10 +111,14 @@ export function actionsFor(state: ImageUploadState): readonly SlotAction[] {
  *
  * ⑤ 는 *"올라간 이미지"* 다. **그림을 못 그릴 때 남는 자리다** — 원래는 그것이 ⑤ 의 항상이었다
  * (응답에 이미지 주소가 없어서, I-8). §13-78 이 바이트를 받는 길을 열어 지금은 그림이 오고,
- * 이 한 줄은 **아직 못 받았거나 받지 못한 경우**에 그대로 남는다. 어느 쪽이든 화면이 새로
- * 지어내는 문장은 없다.
+ * 이 한 줄은 **되받기가 아직 시작되지 않은 짧은 사이**에 남는다.
+ *
+ * **못 받은 자리는 그 한 줄로 두지 않는다** (⑤-b). *"올라간 이미지"* 는 받는 중과 못 받음을
+ * 같은 모양으로 만들고, 그것이 `#173` 이 연 자리다 — 작성자는 *아직 오는 중인지 영영 안
+ * 오는지*를 알 수 없었다.
  */
-export function statusNote(state: ImageUploadState): string {
+export function statusNote(state: ImageUploadState, restore: RestoreState): string {
+  if (restore === 'failed') return RESTORE_FAILED_NOTE
   switch (state.status) {
     case 'empty':
       return '이미지 고르기'
@@ -106,8 +155,25 @@ export interface SlotBody {
  *
  * 진행 중(②③)에는 **둘 다** 온다. 방금 고른 파일이 무엇인지 보이면서, 지금 어느 걸음인지도
  * 함께 말해야 한다 — 그림만 두면 올라간 것과 올라가는 중이 같아 보인다.
+ *
+ * **받는 중(⑤-a)에는 둘 다 없다.** 아트보드가 그린 것이 그것이다 — 자리도 버튼도 그대로고
+ * **그림 자리만 비운다.** 글자를 두지 않는 것은 *"올라간 이미지"* 를 남기면 못 받은 자리와
+ * 다시 같아 보이기 때문이고, 비어 있는 그 면을 그리는 것은 CSS(`slotFetching`)다.
+ *
+ * **못 받음(⑤-b)에는 한 줄만 온다.** ④ 와 같은 모양이지만 같은 이유는 아니다 — 저쪽은
+ * *그릴 그림이 사라졌기* 때문이고 이쪽은 **아직 오지 않았기** 때문이다.
  */
-export function slotBody(state: ImageUploadState, hasPreview: boolean): SlotBody {
+export function slotBody(
+  state: ImageUploadState,
+  hasPreview: boolean,
+  restore: RestoreState,
+): SlotBody {
+  if (restore === 'fetching') {
+    return { image: false, note: false }
+  }
+  if (restore === 'failed') {
+    return { image: false, note: true }
+  }
   if (state.status === 'failed') {
     return { image: false, note: true }
   }
@@ -153,6 +219,34 @@ export function slotImageUrl(
   if (picked !== null) return picked
   if (restored === null || savedKey === null) return null
   return restored.key === savedKey ? restored.url : null
+}
+
+/**
+ * 되받기가 어디까지 왔는가 — **그릴 그림이 있는지에서 나온다** (`slotImageUrl` 의 결과).
+ *
+ * 화면에 그림이 있으면(방금 고른 것이든 되받은 것이든) 기다릴 것이 없다. 그림이 없는데
+ * **확정된 키가 있으면** 그 키의 바이트가 오는 중이거나 오지 않은 것이고, 그 둘을 가르는
+ * 것이 `failedKey` 다.
+ *
+ * **이 축이 ⑤ 밖으로 새지 않는 것은 `savedKey` 때문이다.** 확정된 키는 `uploaded` 에서만
+ * 나오므로(`objectKeyOf`), ①②③④ 에서는 이 함수가 언제나 `idle` 이다 — 받는 중이 여섯째
+ * 칸이 아니라는 말을 주석이 아니라 **구조로** 지키는 자리다.
+ *
+ * **실패를 키로 기억한다.** 인물의 순서가 바뀌거나 하나가 지워지면 같은 자리에 다른 키가
+ * 오는데, 그때 앞 키의 실패가 남으면 화면은 **아직 불러 본 적도 없는 그림을 못 받았다고**
+ * 말한다. `slotImageUrl` 이 되받은 그림을 키로 대조하는 것과 같은 이유다.
+ *
+ * @param imageUrl 지금 그리고 있는 그림. 없으면 `null`
+ * @param failedKey 되받기가 실패한 키. 아직 실패하지 않았거나 다시 부르는 중이면 `null`
+ * @param savedKey 지금 이 자리가 가리키는 확정된 키 (`objectKeyOf`)
+ */
+export function restoreStateOf(
+  imageUrl: string | null,
+  failedKey: string | null,
+  savedKey: string | null,
+): RestoreState {
+  if (savedKey === null || imageUrl !== null) return 'idle'
+  return failedKey === savedKey ? 'failed' : 'fetching'
 }
 
 /**
