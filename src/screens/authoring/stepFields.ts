@@ -398,6 +398,30 @@ export function conditionSources(values: StepValues): ConditionSources {
 const declaredNames = (names: readonly string[]): string[] => [...new Set(names.filter(isDeclared))]
 
 /**
+ * 이 자리가 **앞에서 이미 선언한 이름을 다시 세우는가** (#155, 9차 캔버스 `DuplicateName`).
+ *
+ * `declaredNames` 가 접는 것을 **반대에서 본 것**이다 — 저쪽이 남기는 것은 처음 나온 자리이고,
+ * 여기가 참이라고 답하는 것은 그 뒤에 선 자리다. 그래서 **첫 줄은 언제나 거짓**이다: 첫 줄은
+ * 잘못한 것이 없고, 조건이 실제로 가리키는 것도 그 줄의 이름이다.
+ *
+ * **막는 판정이 아니다.** 계약이 중복을 막지 않으므로 화면도 거절하지 않는다 (#144 가 그
+ * 판단을 세웠다). 이 값이 하는 일은 하나뿐이다 — 두 Step 이 다른 개수를 말하는 이유를 그
+ * 자리에서 말할지 정한다.
+ *
+ * **`trim()` 하지 않는다.** 서버가 집합으로 접는 것은 문자열 그대로이고(§13-69 · §13-73 #2),
+ * `conditionSources` 도 다듬지 않는다 — ` 봄 ` 과 `봄` 은 **서로 다른 선언**이다. 여기서만
+ * 같다고 말하면 화면은 하나로 센다고 알리고 Step 4 는 둘을 세운다.
+ *
+ * **빈 줄은 세지 않는다.** 서버가 건너뛰므로(§13-73 #4) 선언이 되지 않고, "추가" 가 빈 줄을
+ * 먼저 만드는 화면이라 그러지 않으면 줄을 더한 순간 안내가 뜬다.
+ */
+export function repeatsEarlierName(names: readonly string[], index: number): boolean {
+  const name = names[index]
+  if (name === undefined || !isDeclared(name)) return false
+  return names.slice(0, index).includes(name)
+}
+
+/**
  * 이 이름이 **원고의 선언으로 남는가.**
  *
  * 빈 항목은 서버가 건너뛴다 (§13-71 *"이름이 빈 항목은 인물이 아니다"* · §13-73 #4) — 건너뛴

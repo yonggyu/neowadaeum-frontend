@@ -512,6 +512,57 @@
 }
 
 /*
+ * ── 같은 이름이 두 번째로 선 자리 (#155 · 9차 캔버스 `DuplicateName`) ─────────
+ *
+ * **인물 카드와 플래그 줄이 같은 모양을 쓴다.** 아트보드가 둘을 같은 것으로 그렸고, 같은
+ * 사실에 서로 다른 표시를 두면 작성자는 두 번째 것을 새로운 사실로 읽는다. 그래서 이 규칙만
+ * 두 목록이 공유한다 — 두 목록이 나눠 쓰는 유일한 자리다.
+ *
+ * **막는 표시가 아니라 알리는 표시다.** 계약이 중복을 막지 않으므로 화면도 거절하지 않는다.
+ * 그래서 `--danger` 를 쓰지 않는다 (ADR-0010) — 걸린 칸(`.controlBlocked` · `.blockedMessage`)
+ * 과 같은 빨강을 얹으면 *고치기 전에는 나아갈 수 없는 잘못*으로 읽히고, 실제로는 그대로
+ * 제출된다. 색은 검수 대기의 것이며 라이트/다크 두 판이 `tokens.css` 에 있다.
+ *
+ * **색만으로 말하지 않는다.** 표시와 테두리가 지는 몫은 *여기 볼 것이 있다*까지이고, 무슨
+ * 일이 일어나는지는 문장이 적는다.
+ *
+ * 네 폭에서 모양이 같다 (F-9). 표시 하나와 문장 하나뿐이라 1440 에서 벌릴 것이 없고, 390 은
+ * 문장이 접히며 표시가 첫 줄 옆에 남는다 — 좌측 컬럼의 폭(460 → 520)이 이미 그 차이를 만든다.
+ */
+
+.declaredTwice {
+  display: flex;
+  gap: var(--sp-2);
+  align-items: flex-start;
+  padding: var(--sp-2) var(--sp-3);
+  border: 1px solid var(--status-in-review-border);
+  border-radius: var(--r-sm);
+  background: var(--status-in-review-bg);
+  color: var(--status-in-review-fg);
+}
+
+/* 문장의 첫 줄 옆에 선다 — 접혀 여러 줄이 돼도 가운데로 내려가지 않는다 */
+
+.declaredTwiceMark {
+  flex: 0 0 auto;
+  width: 14px;
+  height: 14px;
+  margin-top: var(--sp-1);
+}
+
+.declaredTwiceText {
+  margin: 0;
+  font-size: var(--fs-sm);
+  line-height: var(--lh-relaxed);
+}
+
+/* 아트보드가 굵게 그린 절 — 작성자가 실제로 마주치는 **결과**다 */
+
+.declaredTwiceResult {
+  font-weight: 600;
+}
+
+/*
  * ── Step 3 의 플래그 절 (7차 `A-1` · #125) ────────────────────────────────────
  *
  * **인물 카드의 값을 나눠 쓰지 않는다.** 두 목록이 같은 단계에 있지만 그리는 것이 다르다 —
