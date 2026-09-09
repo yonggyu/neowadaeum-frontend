@@ -1,5 +1,5 @@
 /**
- * Google 이 발급한 ID 토큰을 얻는 자리 (#83, #185).
+ * Google 이 발급한 ID 토큰을 얻는 자리 (#83, #185, #181).
  *
  * 계약의 `POST /auth/oauth/google` 은 `idToken` 을 요구하고, 그것을 만드는 것은 우리 서버가
  * 아니라 Google 이다. **dev 우회가 없다** — 실제 OAuth 앱(클라이언트 ID · 승인된 오리진)이
@@ -26,24 +26,35 @@
  * `api/` 를 부르는 것은 의존성 방향(바깥 → 안)에 맞지만, "브라우저 SDK 어댑터" 하나였던 책임이
  * "서버가 받아 줄 ID 토큰을 얻는 일" 로 넓어졌다. 그 이름이 이 파일의 실제 책임이다.
  *
- * ## 왜 One Tap(`prompt`) 인가 — `renderButton` 을 쓰지 않은 이유
+ * ## 길이 둘이다 — One Tap 이 먼저이고 렌더 버튼은 뒤에 온다 (#181)
  *
  * GIS 로 ID 토큰을 받는 길은 둘이다.
  *
  * 1. `initialize()` + `prompt()` — 브라우저가 그리는 계정 선택 창(FedCM). **DOM 자리가 필요 없다.**
- * 2. `renderButton()` — Google 이 그린 버튼을 우리가 준 `<div>` 안에 그린다.
+ * 2. `initialize()` + `renderButton()` — Google 이 그린 버튼을 우리가 준 자리에 그린다.
  *
- * 2번은 **화면을 갈아야 한다.** `LoginScreen` 의 "Google로 계속하기" 버튼을 지우고 그 자리에
- * Google 이 그리는 버튼을 넣어야 하며, 그러면 6b 가 정한 버튼 높이(56px)와 네 폭(F-9)이
- * Google 의 렌더러 손에 넘어간다. 이 이슈는 **`googleIdToken.ts` 하나만 바꾸도록** 경계를
- * 그어 두었고(#83), 그 경계는 화면 계약을 지키기 위한 것이다. 그래서 1번을 골랐다 —
- * `GoogleIdTokenProvider` 의 "부르면 토큰을 준다" 는 모양이 그대로 성립하는 것도 1번뿐이다.
+ * **ADR-0011 이 1번을 고른 근거는 그대로다.** 2번을 *주 수단*으로 삼으면 `LoginScreen` 의
+ * "Google로 계속하기" 를 지우게 되고, 그러면 6b 가 정한 버튼 높이(56px)와 네 폭(F-9)이
+ * Google 의 렌더러 손에 넘어간다. 그 결정은 **뒤집히지 않았다** — 주 수단은 지금도 1번이다.
  *
- * **포기한 것을 적어 둔다.** One Tap 은 Google 이 *보조 수단*으로 설계한 것이라 자체 쿨다운이
- * 있다 — 사용자가 여러 번 닫으면 한동안 창이 뜨지 않는다. 이 앱에서는 로그인 수단이 이것
- * 하나뿐이므로 그때 로그인이 막힌다. **그 상태에서도 조용히 멈추지 않고 아래처럼 명시적으로
- * 실패한다**는 것이 지금 보장하는 전부이며, 쿨다운에 걸린 사용자에게 무엇을 줄지는 별도
- * 결정이다(이슈 후보 — `renderButton` 을 곁들이려면 6b 를 다시 그려야 한다).
+ * **그 결정이 미뤄 둔 값을 여기서 치른다.** One Tap 은 Google 이 *보조 수단*으로 설계한
+ * 것이라 자체 쿨다운이 있다 — 사용자가 여러 번 닫으면 한동안 창이 뜨지 않는다. 이 앱은
+ * 로그인 수단이 이것 하나뿐이고(`provider` enum 이 `[google]`), 랜딩과 로그인을 뺀 전부가
+ * `RequireAuth` 뒤에 있어 **그 한 번의 실패가 앱 전체의 실패**였다. 명시적으로 실패하기는
+ * 하지만 **빠져나갈 길이 없는** 상태였고, 소유자가 그 자리에 **곁들이는 쪽**을 골랐다
+ * (9차 캔버스 `LoginOptionA`).
+ *
+ * 그래서 이 파일이 내보내는 것이 둘이다.
+ *
+ * - `requestGoogleIdToken` — **주 수단.** 우리 버튼이 부르고 One Tap 을 띄운다.
+ * - `mountGoogleSignInButton` — **빠져나갈 길.** One Tap 이 실패한 뒤에만 화면이 세운다.
+ *
+ * **둘의 대가가 다르다.** 뒤의 것은 높이 · 반경 · 문구를 Google 이 정한다 — 아트보드가 그
+ * 값을 적어 두고 받아들였다. 받아들인 범위는 **보조 자리 하나**이고, 주 버튼은 그대로다.
+ *
+ * **원인을 말하지 않는다.** 화면이 아는 것은 *"안 떴다"* 까지이고(아래 FedCM 절), 쿨다운인지
+ * 차단기인지 알 방법이 없다. 그러므로 "쿨다운입니다" 라고 적지 않는다 — 그것은 추측을
+ * 사실처럼 적는 것이다. 이 파일이 하는 일은 **다른 길을 하나 더 두는 것**뿐이다.
  *
  * ## 약속이 반드시 끝난다
  *
@@ -55,6 +66,12 @@
  * - moment 알림이 skipped(창이 뜨지 않음) 또는 dismissed(사용자가 닫음) 를 알린다 → reject
  * - `AbortSignal` 이 끊긴다 → One Tap 을 걷고 reject
  * - 위 어느 것도 오지 않으면 감시 타이머가 → reject
+ *
+ * **렌더 버튼 쪽은 끝나는 길이 둘뿐이다** (#181) — 사람이 눌러 콜백이 오거나, 화면이 그
+ * 버튼을 걷거나. 감시 타이머를 걸지 않는다: 저기서 타이머가 필요한 이유는 *GIS 가 제가 연
+ * 창에 대해 아무 말도 하지 않을 수 있기* 때문인데, 여기서 기다리는 것은 **사람의 클릭**이라
+ * 상한을 두면 아직 화면을 보고 있는 사람에게서 버튼을 빼앗는 셈이 된다. 대신 그리는 자리가
+ * 사라지면 반드시 걷힌다 — `LoginScreen` 의 effect 정리가 그것을 보장한다.
  *
  * moment 알림의 **표시(display) 계열은 FedCM 전환으로 사라졌다** — `isDisplayed()` ·
  * `getNotDisplayedReason()` 은 더 이상 오지 않고, `isSkippedMoment()` 는 오되 이유가 비며,
@@ -159,7 +176,7 @@ const GSI_SCRIPT_SRC = 'https://accounts.google.com/gsi/client'
  *
  * F-2 는 *API 계약* 타입을 손으로 적지 말라는 규칙이고 이것은 브라우저 SDK 라 대상이 다르다 —
  * 계약처럼 생성할 수 있는 원본이 없다. 그래도 손으로 적은 타입은 실제와 어긋나면 조용히
- * 틀리므로, 넓게 적지 않고 **부르는 네 개**로 좁힌다. 새로 부르는 것이 생기면 그때 넓힌다.
+ * 틀리므로, 넓게 적지 않고 **부르는 다섯 개**로 좁힌다. 새로 부르는 것이 생기면 그때 넓힌다.
  */
 type CredentialResponse = { credential?: string }
 
@@ -181,9 +198,45 @@ type IdentityServices = {
         cancel_on_tap_outside: boolean
       }): void
       prompt(momentListener: (notification: PromptMomentNotification) => void): void
+      /**
+       * Google 이 그린 버튼을 `parent` 안에 그린다 (#181).
+       *
+       * **`width` 를 넘기지 않는다.** GIS 는 이 값을 px 로만 받는데, 그 순간 우리가 네 폭에
+       * 걸쳐 버튼 폭을 손으로 세는 셈이 되고 카드(420px, 390 에서는 342px)를 넘는 값이
+       * 들어가면 **가로 스크롤이 생긴다** (F-9). 넘기지 않으면 GIS 가 제 글자 폭만큼만
+       * 잡으므로 어느 폭에서도 카드 안에 든다 — 아트보드가 그린 것도 그 모양이다.
+       */
+      renderButton(parent: HTMLElement, options: RenderButtonOptions): void
       cancel(): void
     }
   }
+}
+
+/**
+ * 그려 달라고 부탁하는 모양 (#181).
+ *
+ * 다섯 다 아트보드가 그린 버튼의 값이다 — 흰 바탕 · 4px 반경 · 40px 높이 · "계속하기" 문구.
+ * **부탁일 뿐이고 결과를 우리가 정하지 못한다**: 실제 높이 · 반경 · 문구는 GIS 가 정하며,
+ * 문구의 언어는 브라우저 로캘을 따른다. 그것이 이 자리에서 받아들이기로 한 대가다.
+ *
+ * `theme` 은 다크에서도 `outline`(흰 바탕)이다. 시스템 다크에 맞춰 `filled_black` 으로
+ * 바꾸면 `--bg`(거의 검정) 위에 검은 버튼이 놓여 사라진다 — 어두운 바탕에서 눈에 남는 쪽을
+ * 고른다. 토글을 만들지 않는 것은 `E-4` 와 같다.
+ */
+type RenderButtonOptions = {
+  type: 'standard'
+  theme: 'outline'
+  size: 'large'
+  text: 'continue_with'
+  shape: 'rectangular'
+}
+
+const RENDER_BUTTON_OPTIONS: RenderButtonOptions = {
+  type: 'standard',
+  theme: 'outline',
+  size: 'large',
+  text: 'continue_with',
+  shape: 'rectangular',
 }
 
 /**
@@ -324,22 +377,38 @@ async function requestLoginNonce(signal: AbortSignal): Promise<string> {
   }
 }
 
+/**
+ * 두 길이 함께 쓰는 준비 — 설정 · GIS · **서버가 발급한 nonce** (§13-87).
+ *
+ * **한 자리에 둔 이유가 nonce 다** (#181). 빠져나갈 길이 이 준비를 지나지 않으면 그것은
+ * *nonce 없이 로그인하는 경로*가 되고, 계약이 필수로 만든 대조가 그 길에서만 빠진다.
+ * 여기를 지나는 한 두 길이 **같은 방식으로 같은 서버 값을 싣는다** — 각자 자기 값을 받으므로
+ * 값을 돌려쓰지도 않는다(한 번 통과하면 끝나는 값이다).
+ *
+ * **GIS 를 먼저 받고 nonce 를 나중에 받는다.** 순서가 뒤바뀌면 스크립트를 받지 못한 왕복마다
+ * 서버에 쓰이지 않을 nonce 가 하나씩 남고, 인증 경로 셋이 함께 쓰는 IP 한도를 그만큼 태운다
+ * (백엔드 S-8). 이 순서면 실패는 Google 쪽에서 끝난다.
+ */
+async function prepareSignIn(
+  signal: AbortSignal,
+): Promise<{ google: IdentityServices; clientId: string; nonce: string }> {
+  const clientId = requiredClientId()
+  const google = await loadIdentityServices()
+  const nonce = await requestLoginNonce(signal)
+  return { google, clientId, nonce }
+}
+
 /** 부르면 ID 토큰 하나를 준다. 화면은 이 모양만 안다. */
 export type GoogleIdTokenProvider = (signal: AbortSignal) => Promise<string>
 
 /**
- * One Tap 을 띄우고 ID 토큰을 받아 그대로 돌려준다.
+ * One Tap 을 띄우고 ID 토큰을 받아 그대로 돌려준다. **주 수단이다** — 6b 의 56px 버튼이 부른다.
  *
  * **토큰은 반환값으로만 흐른다** — `localStorage` · `sessionStorage` · 쿠키 · 모듈 변수 어디에도
  * 쓰지 않고, `LoginScreen` 의 메모리에서 끝난다 (F-3).
  */
 export const requestGoogleIdToken: GoogleIdTokenProvider = async (signal) => {
-  const clientId = requiredClientId()
-  // **GIS 를 먼저 받고 nonce 를 나중에 받는다.** 순서가 뒤바뀌면 스크립트를 받지 못한 왕복마다
-  // 서버에 쓰이지 않을 nonce 가 하나씩 남고, 인증 경로 셋이 함께 쓰는 IP 한도를 그만큼 태운다
-  // (백엔드 S-8). 이 순서면 실패는 Google 쪽에서 끝난다.
-  const google = await loadIdentityServices()
-  const nonce = await requestLoginNonce(signal)
+  const { google, clientId, nonce } = await prepareSignIn(signal)
 
   return new Promise<string>((resolve, reject) => {
     if (signal.aborted) {
@@ -400,5 +469,88 @@ export const requestGoogleIdToken: GoogleIdTokenProvider = async (signal) => {
         fail(SIGN_IN_FAILURE.dismissed)
       }
     })
+  })
+}
+
+/**
+ * `parent` 안에 Google 이 그린 버튼을 세우고, 그것을 눌러 받은 ID 토큰 하나를 준다.
+ *
+ * 화면은 이 모양만 안다 — **`GoogleIdTokenProvider` 와 다른 타입인 것이 사실 그대로다.**
+ * 저쪽은 *부르면 토큰을 준다* 이고 이쪽은 *자리를 주면 언젠가 사람이 누른다* 라, 호출 지점과
+ * 결과 지점이 갈린다. 하나로 합치면 `signal` 뒤에 숨은 DOM 자리를 부르는 쪽이 알아야 한다.
+ */
+export type GoogleSignInButtonMounter = (parent: HTMLElement, signal: AbortSignal) => Promise<string>
+
+/**
+ * 빠져나갈 길 (#181, 9차 캔버스 `LoginOptionA`).
+ *
+ * **One Tap 이 실패한 뒤에만 화면이 부른다.** 부르는 자리를 그렇게 좁혀 둔 이유는 두 가지다 —
+ * 로그인 진입점이 늘 둘이면 6b 가 정한 주 버튼이 흐려지고, `initialize()` 앞에 붙는 nonce
+ * 발급이 로그인 화면을 여는 것만으로 서버에 상태를 하나 만들기 때문이다 (S-8).
+ *
+ * **nonce 는 여기서도 서버 값이다** (§13-87). `prepareSignIn` 을 지나므로 One Tap 과 같은
+ * 방식으로 받아 **가공 없이** `initialize({ nonce })` 로 간다. 지어내지도, 저 위에서 쓰던
+ * 값을 물려받지도 않는다 — 이 함수 한 번이 nonce 한 번이다.
+ *
+ * **`prompt()` 를 부르지 않는다.** 여기서 초대장을 한 번 더 띄우면 방금 뜨지 않은 그 창을
+ * 다시 부르는 것이고, 사용자가 그것을 또 닫으면 쿨다운만 깊어진다.
+ *
+ * **다시 누를 수 있는 상태로 두지 않는다.** 한 번 그린 버튼은 nonce 하나에 묶여 있고 nonce
+ * 는 수명이 짧다(계약이 `expiresInSeconds` 로 말한다). 그래서 화면은 실패할 때마다 이 자리를
+ * 걷었다가 다시 세운다 — 그 왕복 하나하나가 **사용자가 누른 결과**이며, 코드가 스스로 다시
+ * 받는 자리는 여기에도 없다 (#185 · #142 와 같은 판정).
+ */
+export const mountGoogleSignInButton: GoogleSignInButtonMounter = async (parent, signal) => {
+  const { google, clientId, nonce } = await prepareSignIn(signal)
+
+  return new Promise<string>((resolve, reject) => {
+    if (signal.aborted) {
+      reject(new GoogleSignInUnavailableError(SIGN_IN_FAILURE.aborted))
+      return
+    }
+
+    let settled = false
+
+    /** 끝나는 길이 둘이므로 먼저 온 하나만 유효하다. */
+    function settle(outcome: () => void): void {
+      if (settled) return
+      settled = true
+      signal.removeEventListener('abort', abandon)
+      outcome()
+    }
+
+    function abandon(): void {
+      settle(() => {
+        // **우리가 그리게 한 것을 우리가 걷는다.** `cancel()` 은 부르지 않는다 — 그것은 One Tap
+        // 창을 닫는 일이고 이 길에는 열린 창이 없다. 부르면 같은 순간 주 버튼이 띄운 창을 닫는다.
+        parent.replaceChildren()
+        reject(new GoogleSignInUnavailableError(SIGN_IN_FAILURE.aborted))
+      })
+    }
+
+    signal.addEventListener('abort', abandon)
+
+    google.accounts.id.initialize({
+      client_id: clientId,
+      // 받은 값을 **그대로** 싣는다 (§13-87). 이 한 줄이 ID 토큰의 `nonce` 클레임이 된다.
+      nonce,
+      auto_select: false,
+      cancel_on_tap_outside: true,
+      callback: (response) => {
+        const credential = response.credential
+        if (typeof credential !== 'string' || credential === '') {
+          settle(() => reject(new GoogleSignInUnavailableError(SIGN_IN_FAILURE.noCredential)))
+          return
+        }
+        settle(() => resolve(credential))
+      },
+    })
+
+    try {
+      google.accounts.id.renderButton(parent, RENDER_BUTTON_OPTIONS)
+    } catch {
+      // 그리지 못했다 — 자리를 비워 둔 채 성공한 척하지 않는다. 빈 자리는 돌아가는 것처럼 보인다.
+      settle(() => reject(new GoogleSignInUnavailableError(SIGN_IN_FAILURE.scriptFailed)))
+    }
   })
 }

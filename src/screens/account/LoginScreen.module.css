@@ -71,9 +71,63 @@
   }
 }
 
-/* 버튼 아래에 붙는 것 — 실패 문구도, 보조 링크도 같은 간격이다 */
+/* 버튼 아래에 붙는 것 — 실패 문구도, 보조 링크도, 빠져나갈 길도 같은 간격이다 */
 .stacked {
   margin-top: var(--sp-3);
+}
+
+/*
+ * 빠져나갈 길 — One Tap 이 열리지 않은 사람에게 남는 둘째 진입점 (#181, 9차 캔버스 `LoginOptionA`).
+ *
+ * **폭 규칙을 새로 만들지 않는다.** 카드가 이미 어느 폭에서도 420px 단일 컬럼이라(6b) 이
+ * 블록은 그 안에서 세로로만 쌓인다 — 미디어 쿼리가 하나도 늘지 않는 것이 F-9 를 지키는 방식이다.
+ * 간격도 `.stacked` 를 그대로 쓴다: 버튼 아래에 붙는 것들이 같은 간격이라는 규칙이 이미 있다.
+ */
+.fallback {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  align-items: center;
+}
+
+/*
+ * 조건을 말하는 줄이다 — **원인이 아니다.** 화면은 창이 왜 안 떴는지 알 수 없다.
+ * 양쪽 선은 장식이라 `::before` · `::after` 로 둔다. 읽어 줄 것이 없으므로 DOM 에도 없다.
+ */
+.fallbackLabel {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  width: 100%;
+  margin: 0;
+  color: var(--fg-muted);
+  font-size: var(--fs-xs);
+}
+
+.fallbackLabel::before,
+.fallbackLabel::after {
+  flex: 1 1 0;
+  height: 1px;
+  background: var(--border);
+  content: '';
+}
+
+/*
+ * Google 이 그리는 자리.
+ *
+ * **높이 · 반경 · 문구를 우리가 정하지 못한다** — 아트보드가 그 값을 적고 이 자리 하나에서만
+ * 받아들였다. 그래서 여기에는 크기를 적지 않는다: 적어도 지켜지지 않고, 적으면 다음 사람이
+ * 지켜지는 줄 안다.
+ *
+ * 정하는 것은 **넘칠 때 어디가 넘치는가** 하나다 (F-9). GIS 가 어느 날 우리가 예상한 것보다
+ * 넓게 그려도 스크롤은 **이 상자 안에서** 생기고 페이지가 가로로 밀리지 않는다 — 390 에서
+ * 카드는 342px 이고, 그 폭을 넘기는 순간 네 폭 중 하나가 무너진다.
+ */
+.fallbackButton {
+  display: flex;
+  justify-content: center;
+  max-width: 100%;
+  overflow-x: auto;
 }
 
 /* fieldset 의 기본 테두리·여백을 지운다. legend 를 라벨로 쓰기 위해 fieldset 을 택했다 */
