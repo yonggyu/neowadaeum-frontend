@@ -11,7 +11,6 @@ import { REPORT_REASONS } from '../report/report'
 import {
   AUTO_CHECK_VERDICT_LABEL,
   authorLabel,
-  coverFact,
   DEFAULT_DETAIL_PANEL,
   endingBadges,
   GENRE_ABSENCE_HINT,
@@ -252,7 +251,7 @@ describe('§13-68_미리보기가_없으면_없다고_적는다', () => {
 
 
 /**
- * 장르와 커버 (#134, backend #368 · 정정본 §13-77).
+ * 장르 (#134, backend #368 · 정정본 §13-77). **커버는 `reviewImage.test.ts` 로 옮겼다** (#153).
  *
  * **화면을 그리지 않고 판정만 확인한다** — 러너에 DOM 이 없다. 여기서 못박는 것은 *무엇을
  * 그리는가*가 아니라 *무엇을 지어내지 않는가*이며, 그 둘이 어긋나는 자리가 곧 표류다.
@@ -299,23 +298,3 @@ describe('genreChips — 라벨도 순서도 서버의 것이다 (§13-77)', () 
   })
 })
 
-describe('S11_커버는_객체_키를_화면으로_흘리지_않는다', () => {
-  it('키를_받아도_문장에_담지_않는다 — 객체 키는 저장소 구조를 드러낸다 (S-11)', () => {
-    // 값은 무해한 더미다 (S-11 — 이 레포는 공개다). 확인하는 것은 이 함수가 **무엇을 받든**
-    // 그것을 돌려주지 않는다는 사실이다.
-    const fact = coverFact('dummy-key-segment/dummy-object')
-    expect(JSON.stringify(fact)).not.toContain('dummy-key-segment')
-    expect(JSON.stringify(fact)).not.toContain('dummy-object')
-  })
-
-  it('커버가_있으면_판정의_이해관계를_함께_적는다 — 승인이 이 커버를 옮긴다 (§13-74)', () => {
-    const fact = coverFact('dummy-key-segment/dummy-object')
-    expect(fact.note).not.toBeNull()
-  })
-
-  it('커버가_없는_원고가_정상이다 — 결함처럼 적지 않는다 (§13-78)', () => {
-    // 커버를 올리지 않은 원고는 정상이며 `null` 이다. 덧붙이는 문장을 두지 않는다.
-    expect(coverFact(null).note).toBeNull()
-    expect(coverFact(null).status.length).toBeGreaterThan(0)
-  })
-})
