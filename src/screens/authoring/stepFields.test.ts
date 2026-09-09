@@ -17,6 +17,7 @@ import {
   moveCharacter,
   readValues,
   removeFlag,
+  repeatsEarlierName,
   setFlag,
   SETTING_DETAIL_MAX,
   SHORT_DESCRIPTION_MAX,
@@ -439,6 +440,61 @@ describe('conditionSources — 같은 이름은 한 줄이다 (#144)', () => {
     for (const candidate of conditionSources(values).flags) {
       expect(saved['flags']).toContain(candidate)
     }
+  })
+})
+
+/**
+ * 접힌 사실을 **그 줄에서 말할지** 정하는 판정 (#155 — `#144` 의 나머지).
+ *
+ * `conditionSources` 가 접은 결과를 Step 4 가 쓰는 동안 Step 3 은 두 줄을 그대로 세운다.
+ * 둘 다 맞지만 **작성자에게 설명이 없었다** — 그 어긋남은 하나를 지웠을 때 *지운 것을 가리키던
+ * 조건이 살아 있는* 모습으로 처음 드러난다.
+ */
+describe('repeatsEarlierName — 두 번째 줄부터 알린다 (#155)', () => {
+  it('F155_첫_줄에는_붙지_않는다__첫_줄은_잘못한_것이_없다', () => {
+    // 조건이 실제로 가리키는 것도 첫 줄의 이름이다 (`conditionSources` 가 남기는 자리).
+    expect(repeatsEarlierName(['봄', '봄'], 0)).toBe(false)
+    expect(repeatsEarlierName(['봄', '봄'], 1)).toBe(true)
+  })
+
+  it('F155_세_번째까지_이어진다__셋째도_새로_선언하는_것이_아니다', () => {
+    expect(repeatsEarlierName(['봄', '봄', '봄'], 2)).toBe(true)
+  })
+
+  it('F155_사이에_다른_이름이_있어도_앞을_본다', () => {
+    expect(repeatsEarlierName(['봄', '여름', '봄'], 2)).toBe(true)
+    expect(repeatsEarlierName(['봄', '여름', '봄'], 1)).toBe(false)
+  })
+
+  /**
+   * **접는 규칙과 같은 눈으로 본다** (§13-69 · §13-73 #2). 여기서만 다듬으면 화면은 하나로
+   * 센다고 알리고 `conditionSources` 는 둘을 세운다 — 알린 것과 고를 수 있는 것이 갈라진다.
+   */
+  it('F155_공백이_다르면_다른_이름이다__conditionSources_와_같은_판정이다', () => {
+    expect(repeatsEarlierName([' 봄 ', '봄'], 1)).toBe(false)
+    expect(conditionSources({ ...readValues({}), flags: [' 봄 ', '봄'] }).flags).toHaveLength(2)
+  })
+
+  it('F155_빈_줄은_세지_않는다__추가가_빈_줄을_먼저_만든다', () => {
+    // 서버가 빈 항목을 건너뛰므로 (§13-73 #4) 선언이 되지 않는다. 세면 줄을 하나 더한
+    // 순간 안내가 뜨고, 그 상태는 예외가 아니라 이 화면의 기본값이다.
+    expect(repeatsEarlierName(['', ''], 1)).toBe(false)
+    expect(repeatsEarlierName(['   ', '   '], 1)).toBe(false)
+  })
+
+  it('F155_없는_자리를_물으면_거짓이다', () => {
+    expect(repeatsEarlierName(['봄'], 7)).toBe(false)
+    expect(repeatsEarlierName([], 0)).toBe(false)
+  })
+
+  /**
+   * **막는 판정이 아니다** — 계약이 중복을 막지 않으므로 화면도 거절하지 않는다 (#144).
+   * 알린 뒤에도 원고에 실리는 것은 작성자가 친 두 줄 그대로다.
+   */
+  it('F155_알릴_뿐_원고를_고치지_않는다', () => {
+    const values: StepValues = { ...readValues({}), flags: ['봄', '봄'] }
+    expect(repeatsEarlierName(values.flags, 1)).toBe(true)
+    expect(writeValues({}, values)['flags']).toEqual(['봄', '봄'])
   })
 })
 
