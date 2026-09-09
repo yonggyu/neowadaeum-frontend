@@ -17,6 +17,7 @@ import {
   type RestoreState,
   type RestoredImage,
   type SlotAction,
+  type SlotIcon,
 } from './imageSlotView'
 import {
   EMPTY,
@@ -298,6 +299,11 @@ export function ImageSlotField({
       /*
        * 저장소의 객체를 지우지 않는다 — **계약에 그 길이 없다.** 원고가 그 키를 가리키지
        * 않게 될 뿐이고, 버려진 객체를 정리하는 것은 서버의 몫이다.
+       *
+       * **못 받은 자리(⑤-b)도 같은 길로 온다** (#211). 거기서 이 버튼이 하는 일이 ⑤ 에서와
+       * 똑같은 것이 그 자리에 이것을 둘 수 있는 이유다 — 객체가 영영 없으면 원고가 그 키를
+       * 놓는 것이 곧 정리이고, 있다면 작성자가 그것을 놓기로 한 것이다. 어느 쪽이든 이
+       * 코드가 하는 일은 하나뿐이라 분기가 늘지 않는다.
        */
       replacePreview(null)
       setState(EMPTY)
@@ -354,25 +360,11 @@ export function ImageSlotField({
           aria-busy={restore === 'fetching' ? true : undefined}
         >
           {/*
-           * 못 받은 자리의 그림 조각 (⑤-b). **색으로 말하지 않는다** (ADR-0010) — 옆의 한 줄이
-           * 같은 것을 글로 말하고, 이것은 그 옆에 서는 표시다. 읽어 주지 않는 이유도 그것이다.
+           * 빈 자리(①)와 못 받은 자리(⑤-b)의 그림 조각. **색으로 말하지 않는다** (ADR-0010) —
+           * 바로 아래 한 줄이 같은 것을 글로 말하고, 이것은 그 옆에 서는 표시다. 읽어 주지
+           * 않는 이유도 그것이다.
            */}
-          {restore === 'failed' ? (
-            <svg
-              className={css.slotIcon}
-              width="20"
-              height="20"
-              viewBox="0 0 24 24"
-              fill="none"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden="true"
-            >
-              <rect x="3" y="4" width="18" height="16" rx="2" />
-              <path d="M4 20L20 4" />
-            </svg>
-          ) : null}
+          {body.icon === null ? null : <SlotGlyph icon={body.icon} />}
           {/*
            * **이 `src` 에 객체 키가 오는 경로는 없다** (I-8). 방금 고른 파일이든 서버가 중계한
            * 바이트든, 들어가는 것은 우리가 만든 `blob:` 하나다. `alt` 가 비어 있는 것은
@@ -454,6 +446,42 @@ export function ImageSlotField({
         }}
       />
     </div>
+  )
+}
+
+/**
+ * 자리 안의 그림 조각 — **아트보드가 그린 둘뿐이다** (9차 `SlotStates` ① · ⑤-b, #213).
+ *
+ * 어느 상태가 무엇을 갖는지는 여기서 정하지 않는다. `slotBody` 가 정하고 이 함수는 **고른
+ * 조각을 그리기만** 한다 — 상태를 다시 읽으면 그 판단이 두 곳에 생긴다.
+ *
+ * **한 스타일이다** — 24 그리드 · 1.5 선 · 둥근 끝, 색은 `.slotIcon` 의 `--fg-subtle` 하나.
+ * `broken` 이 `picture` 의 액자를 그대로 두고 대각선만 더한 것도 아트보드의 것이며, 그래서
+ * 둘을 한 자리에 둔다 — 나뉘어 있으면 한쪽만 고쳐지고 두 조각이 곧 다른 그림이 된다.
+ */
+function SlotGlyph({ icon }: { icon: SlotIcon }) {
+  return (
+    <svg
+      className={css.slotIcon}
+      width="20"
+      height="20"
+      viewBox="0 0 24 24"
+      fill="none"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <rect x="3" y="4" width="18" height="16" rx="2" />
+      {icon === 'picture' ? (
+        <>
+          <circle cx="8.5" cy="9.5" r="1.5" />
+          <path d="M21 15l-5-4-4.5 4-2-1.5L3 18" />
+        </>
+      ) : (
+        <path d="M4 20L20 4" />
+      )}
+    </svg>
   )
 }
 

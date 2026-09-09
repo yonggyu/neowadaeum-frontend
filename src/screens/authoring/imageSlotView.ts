@@ -79,15 +79,27 @@ export const ACTION_LABEL: Record<SlotAction, string> = {
  * **`uploaded` 에서만 둘이다.** 셋이 동시에 있는 순간이 없다 (390 아트보드) — 올리는 중에는
  * 버튼 자리가 `cancel` 하나로 바뀐다.
  *
- * **못 받은 자리(⑤-b)는 `refetch` 하나다** (9차 아트보드 `SlotStates` · `SlotStates390`).
- * 셋을 나란히 두면 그 규칙이 바로 깨지고, 셋 중 무엇을 지울지는 이미 정해져 있다 —
- * **`repick`(다시 고르기)을 여기 쓰지 않는다.** 이 자리에서 실패한 것은 *받아 오는 일*이고
- * 올린 것은 저장소에 그대로 있으므로, 다시 고르라고 권하는 것은 **올라가 있는 것을 지우라고
- * 권하는 셈**이다. 되받기는 다시 부를 수 있으니 문은 그쪽으로 낸다 (`B-2` — *갈 수 없는
- * 곳으로 가는 문을 그리지 않는다*).
+ * **못 받은 자리(⑤-b)는 `refetch` 와 `remove` 둘이다** (#211). 아트보드는 여기 버튼을 하나만
+ * 그렸지만, 그 하나로는 **객체가 영영 없는 경우**(원고는 키를 드는데 저장소에 객체가 없다)에
+ * 작성자가 빠져나갈 길이 없다 — *다시 불러오기* 는 몇 번이든 같은 결과를 내고, 그것이야말로
+ * `B-2` 가 금지한 **갈 수 없는 곳으로 가는 문**이다.
+ *
+ * **`repick`(다시 고르기)은 여전히 여기 쓰지 않는다.** 그것이 ⑤-b 가 ④ 와 갈리는 자리다 —
+ * 이 자리에서 실패한 것은 *받아 오는 일*이고 올린 것은 저장소에 그대로 있을 수 있으므로,
+ * 다시 고르라고 권하는 것은 **사용자가 하지 않은 일을 그의 잘못으로 만드는** 말이다.
+ *
+ * **`remove` 는 성격이 다르다.** ⑤ · ⑤-a 에서와 **똑같이** 원고에서 키를 떼기만 한다
+ * (`ImageSlotField` 의 `act` — 저장소를 지우는 길은 계약에 없다). 세 자리에서 뜻이 같으므로
+ * 여기 두는 것은 새 행동이 아니라 **빠져 있던 것을 되돌리는 것**이고, 없는 객체를 원고에서도
+ * 놓는 말이라 *"올라가 있는 것을 지우라"* 와도 겹치지 않는다.
+ *
+ * **`replace` 는 두지 않는다.** *교체* 는 *이것 대신 다른 것* 인데 이 자리에는 그 *이것* 이
+ * 없고, 셋을 나란히 두면 *"세 버튼이 동시에 있는 순간이 없다"* (390 아트보드)가 깨진다.
+ * 제거하면 자리가 ① 이 되고 거기에 *이미지 고르기* 가 참인 말로 서 있다 — 걸음이 하나 늘지만
+ * 걸음마다 화면이 사실을 말한다.
  */
 export function actionsFor(state: ImageUploadState, restore: RestoreState): readonly SlotAction[] {
-  if (restore === 'failed') return ['refetch']
+  if (restore === 'failed') return ['refetch', 'remove']
   switch (state.status) {
     case 'empty':
       return ['pick']
@@ -133,12 +145,26 @@ export function statusNote(state: ImageUploadState, restore: RestoreState): stri
   }
 }
 
-/** 자리 안에 무엇이 오는가 — 그림 · 한 줄. 둘 다 오기도 하고 하나만 오기도 한다. */
+/**
+ * 자리 안에 서는 그림 조각 — **아트보드가 그린 것은 둘뿐이다** (`SlotStates`, #213).
+ *
+ * `picture` 는 ① 비어 있음의 액자이고, `broken` 은 **그 액자를 그대로 두고 대각선을 그은
+ * 것**이다 (⑤-b). 둘이 같은 24 그리드 · 같은 1.5 선 · 같은 톤인 것이 아트보드에서 우연이
+ * 아닌 근거가 그것이다 — 뒤의 것이 앞의 것에서 파생된 모양이다.
+ *
+ * **나머지 다섯 자리에는 아이콘이 없다.** ②③⑤·⑤-a 는 그림이나 그 자리를 대신하는 면이
+ * 이미 칸을 채우고, ④ 는 서버가 준 문구가 그 자리를 쓴다 — 아트보드가 그렇게 그렸다.
+ */
+export type SlotIcon = 'picture' | 'broken'
+
+/** 자리 안에 무엇이 오는가 — 그림 조각 · 그림 · 한 줄. 셋이 다 오지는 않는다. */
 export interface SlotBody {
   /** 그림을 그린다 — 방금 고른 파일이거나, 서버에서 되받은 바이트다 (`slotImageUrl`) */
   readonly image: boolean
   /** `statusNote` 를 적는다 */
   readonly note: boolean
+  /** 글자 위에 서는 조각. 없으면 `null` */
+  readonly icon: SlotIcon | null
 }
 
 /**
@@ -160,8 +186,12 @@ export interface SlotBody {
  * **그림 자리만 비운다.** 글자를 두지 않는 것은 *"올라간 이미지"* 를 남기면 못 받은 자리와
  * 다시 같아 보이기 때문이고, 비어 있는 그 면을 그리는 것은 CSS(`slotFetching`)다.
  *
- * **못 받음(⑤-b)에는 한 줄만 온다.** ④ 와 같은 모양이지만 같은 이유는 아니다 — 저쪽은
- * *그릴 그림이 사라졌기* 때문이고 이쪽은 **아직 오지 않았기** 때문이다.
+ * **못 받음(⑤-b)에는 조각과 한 줄이 온다.** ④ 와 같은 모양이지만 같은 이유는 아니다 —
+ * 저쪽은 *그릴 그림이 사라졌기* 때문이고 이쪽은 **아직 오지 않았기** 때문이다.
+ *
+ * **아이콘은 그림이 없는 자리에만 온다** (#213). ① 과 ⑤-b 둘이고, 아트보드가 그 둘에만
+ * 그렸다 — 칸이 비어 있는데 **왜 비어 있는지**를 글자 하나로만 말하는 자리가 그 둘이기
+ * 때문이다. 그림 위에 얹지 않는 것은 조각이 말할 것을 이미 그림이 말하고 있어서다.
  */
 export function slotBody(
   state: ImageUploadState,
@@ -169,16 +199,25 @@ export function slotBody(
   restore: RestoreState,
 ): SlotBody {
   if (restore === 'fetching') {
-    return { image: false, note: false }
+    return { image: false, note: false, icon: null }
   }
   if (restore === 'failed') {
-    return { image: false, note: true }
+    return { image: false, note: true, icon: 'broken' }
   }
   if (state.status === 'failed') {
-    return { image: false, note: true }
+    return { image: false, note: true, icon: null }
   }
   const image = hasPreview
-  return { image, note: !image || state.status === 'uploading' || state.status === 'committing' }
+  return {
+    image,
+    note: !image || state.status === 'uploading' || state.status === 'committing',
+    /*
+     * **고르자마자 액자가 사라진다.** 파일을 고른 직후의 한 프레임은 아직 `empty` 인데
+     * 미리보기는 이미 있다 (`ImageSlotField.start` — 발급을 부르기 전이다). 그때 액자를
+     * 그리면 방금 고른 그림 위에 *여기에 그림이 온다* 가 겹친다.
+     */
+    icon: !image && state.status === 'empty' ? 'picture' : null,
+  }
 }
 
 /**

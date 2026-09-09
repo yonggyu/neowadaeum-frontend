@@ -117,6 +117,7 @@ describe('자리 안에 무엇이 오는가', () => {
     ).toEqual({
       image: false,
       note: true,
+      icon: null,
     })
   })
 
@@ -124,18 +125,26 @@ describe('자리 안에 무엇이 오는가', () => {
     // 되받기가 시작되기 전의 짧은 사이다. 시작되면 아래 ⑤-a 가 이 한 줄을 걷는다.
     const reopened = savedImage(COMMITTED.objectKey)
 
-    expect(slotBody(reopened, false, 'idle')).toEqual({ image: false, note: true })
+    expect(slotBody(reopened, false, 'idle')).toEqual({ image: false, note: true, icon: null })
     expect(statusNote(reopened, 'idle')).toBe('올라간 이미지')
   })
 
   it('진행_중에는_그림과_한_줄이_함께_온다', () => {
     // 그림만 두면 올라간 것과 올라가는 중이 같아 보인다.
-    expect(slotBody(uploading(ISSUED), true, 'idle')).toEqual({ image: true, note: true })
-    expect(slotBody(committing(), true, 'idle')).toEqual({ image: true, note: true })
+    expect(slotBody(uploading(ISSUED), true, 'idle')).toEqual({
+      image: true,
+      note: true,
+      icon: null,
+    })
+    expect(slotBody(committing(), true, 'idle')).toEqual({ image: true, note: true, icon: null })
   })
 
   it('방금_올린_자리는_그림만_그린다', () => {
-    expect(slotBody(uploaded(COMMITTED), true, 'idle')).toEqual({ image: true, note: false })
+    expect(slotBody(uploaded(COMMITTED), true, 'idle')).toEqual({
+      image: true,
+      note: false,
+      icon: null,
+    })
   })
 })
 
@@ -159,21 +168,28 @@ describe('되받기 — ⑤ 안의 두 자리 (#173)', () => {
   it('173_받는_중은_여섯째_칸이_아니다 — ⑤ 의 버튼이 그대로다', () => {
     // 아트보드: *"칸을 늘리지 않는다 — ⑤ 안에서 그림 자리만 비운다"*.
     expect(actionsFor(REOPENED, 'fetching')).toEqual(['replace', 'remove'])
-    expect(slotBody(REOPENED, false, 'fetching')).toEqual({ image: false, note: false })
+    expect(slotBody(REOPENED, false, 'fetching')).toEqual({
+      image: false,
+      note: false,
+      icon: null,
+    })
   })
 
   it('173_못_받음은_④_의_다시_고르기를_권하지_않는다', () => {
     // 올라간 것은 그대로 있다 — 다시 고르라고 하면 그것을 지우라고 권하는 셈이 된다.
-    expect(actionsFor(REOPENED, 'failed')).toEqual(['refetch'])
+    // `#211` 이 이 자리에 `remove` 를 더한 뒤에도 **이 경계는 그대로다** (아래 describe).
     expect(actionsFor(REOPENED, 'failed')).not.toContain('repick')
-    expect(actionsFor(REOPENED, 'failed')).not.toContain('remove')
     expect(ACTION_LABEL.refetch).toBe('다시 불러오기')
   })
 
   it('173_못_받은_자리는_아트보드의_한_줄을_적는다', () => {
     expect(statusNote(REOPENED, 'failed')).toBe(RESTORE_FAILED_NOTE)
     expect(RESTORE_FAILED_NOTE).toBe('이미지를 불러오지 못했어요')
-    expect(slotBody(REOPENED, false, 'failed')).toEqual({ image: false, note: true })
+    expect(slotBody(REOPENED, false, 'failed')).toEqual({
+      image: false,
+      note: true,
+      icon: 'broken',
+    })
   })
 
   it('173_그림이_있으면_기다릴_것이_없다', () => {
@@ -201,6 +217,81 @@ describe('되받기 — ⑤ 안의 두 자리 (#173)', () => {
       if (saved !== null) continue
       expect(restoreStateOf(null, KEY, saved)).toBe('idle')
     }
+  })
+})
+
+/**
+ * 못 받은 자리에서 나가는 길 (⑤-b, #211).
+ *
+ * 아트보드는 여기 버튼을 하나만 그렸다. 그 하나로는 **객체가 영영 없는 경우** 작성자가
+ * 되살릴 수도 치울 수도 없는 이미지를 원고에 붙인 채 남는다 — *다시 불러오기* 가 몇 번이든
+ * 같은 결과를 내기 때문이고, 그것이 `B-2` 가 금지한 **갈 수 없는 곳으로 가는 문**이다.
+ */
+describe('못 받은 자리에서 나가는 길 (#211)', () => {
+  const REOPENED = savedImage(COMMITTED.objectKey)
+
+  it('211_영구히_못_받는_이미지를_작성자가_스스로_치울_수_있다', () => {
+    expect(actionsFor(REOPENED, 'failed')).toEqual(['refetch', 'remove'])
+    expect(ACTION_LABEL.remove).toBe('제거')
+  })
+
+  it('211_④_의_다시_고르기와_경계가_흐려지지_않는다', () => {
+    // 사용자가 하지 않은 일을 그의 잘못으로 만들지 않는다 — 그 경계를 긋는 것이 `repick` 의
+    // 부재이고, `remove` 는 ⑤ · ⑤-a 에서와 **같은 뜻**(원고에서 키를 뗀다)이라 겹치지 않는다.
+    expect(actionsFor(REOPENED, 'failed')).not.toContain('repick')
+    expect(actionsFor(failed(new StorageUploadError(403)), 'idle')).toEqual(['repick'])
+  })
+
+  it('211_교체는_두지_않는다 — 제거하면 자리가 ① 이 되고 거기에 참인 말이 서 있다', () => {
+    // 셋을 나란히 두면 *"세 버튼이 동시에 있는 순간이 없다"* 가 그 자리에서 깨진다.
+    expect(actionsFor(REOPENED, 'failed')).not.toContain('replace')
+    expect(actionsFor(EMPTY, 'idle')).toEqual(['pick'])
+    expect(ACTION_LABEL.pick).toBe('이미지 고르기')
+  })
+
+  it('211_되받기가_실패해도_원고의_값은_이_함수가_건드리지_않는다', () => {
+    // 나가는 길이 생겼다고 상태가 바뀌지는 않는다 — 누르기 전까지 ⑤ 는 ⑤ 다.
+    expect(objectKeyOf(REOPENED)).toBe(COMMITTED.objectKey)
+    expect(statusNote(REOPENED, 'failed')).toBe(RESTORE_FAILED_NOTE)
+  })
+})
+
+/**
+ * 자리 안의 그림 조각 (#213).
+ *
+ * 9차 아트보드 `SlotStates` 는 **① 과 ⑤-b 에만** 조각을 그렸고, 뒤의 것은 앞의 것의 액자에
+ * 대각선을 그은 모양이다. 코드는 ⑤-b 의 것만 갖고 있어서 **한 슬롯 안에서 어떤 상태는
+ * 아이콘이 있고 어떤 상태는 없는** 모양이었다.
+ */
+describe('자리 안의 그림 조각 (#213)', () => {
+  const REOPENED = savedImage(COMMITTED.objectKey)
+
+  it('213_비어_있음도_아이콘을_갖는다', () => {
+    expect(slotBody(EMPTY, false, 'idle').icon).toBe('picture')
+  })
+
+  it('213_아트보드가_그린_두_자리에만_조각이_있다', () => {
+    // ①(picture) · ⑤-b(broken) 둘. 나머지는 그림이나 서버가 준 문구가 그 칸을 쓴다.
+    expect(slotBody(REOPENED, false, 'failed').icon).toBe('broken')
+    expect(slotBody(uploading(ISSUED), true, 'idle').icon).toBeNull()
+    expect(slotBody(committing(), true, 'idle').icon).toBeNull()
+    expect(slotBody(failed(new StorageUploadError(403)), false, 'idle').icon).toBeNull()
+    expect(slotBody(uploaded(COMMITTED), true, 'idle').icon).toBeNull()
+    expect(slotBody(REOPENED, false, 'fetching').icon).toBeNull()
+  })
+
+  it('213_조각은_그림이_없는_자리에만_온다', () => {
+    // 그림 위에 얹으면 조각이 말할 것을 이미 그림이 말하고 있다. 고른 직후의 한 프레임이
+    // 아직 `empty` 인데 미리보기는 있는 자리라(`start`), 이 규칙이 값으로 지켜져야 한다.
+    for (const state of FIVE_STATES) {
+      for (const restore of RESTORE_STATES) {
+        for (const hasPreview of [false, true]) {
+          const body = slotBody(state, hasPreview, restore)
+          if (body.icon !== null) expect(body.image).toBe(false)
+        }
+      }
+    }
+    expect(slotBody(EMPTY, true, 'idle').icon).toBeNull()
   })
 })
 
