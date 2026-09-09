@@ -1,0 +1,60 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=Noto+Serif+KR:wght@400;600;700&display=swap">
+  <style>
+    body { margin: 0; font-family: "IBM Plex Sans KR", system-ui, sans-serif; }
+    a { color: #2b6ca8; } a:hover { color: #1f5180; }
+  </style>
+</helmet>
+
+<div style="position: relative; width: 1440px; height: 1120px; background: #faf8f4; color: #1a1a1a; overflow: hidden">
+
+  <div style="display: flex; align-items: center; justify-content: space-between; height: 56px; padding: 0 24px; border-bottom: 1px solid rgba(0,0,0,.12); box-sizing: border-box">
+    <div style="font-weight: 700; font-size: 15px">너와다음</div>
+    <div style="display: flex; gap: 32px; font-size: 14px; color: rgba(0,0,0,.55)">
+      <div>Library</div><div>My Stories</div><div>계정</div>
+    </div>
+    <div style="display: inline-flex; align-items: center; height: 40px; padding: 0 16px; border: 1px solid #1a1a1a; border-radius: 12px; font-size: 14px">＋ 작품 만들기</div>
+  </div>
+
+  <div style="padding: 32px 32px 64px">
+    <div style="width: 760px; margin: 0 auto">
+      <div style="width: 760px; height: 428px; background: #f0eee9; border-radius: 12px"></div>
+      <div style="font-family: 'Noto Serif KR', serif; font-size: 24px; line-height: 1.4; margin: 24px 0 24px">당신의 선택이 다음 이야기를 만든다.</div>
+      <div style="font-size: 14px; line-height: 1.6; color: rgba(0,0,0,.55)">읽고, 고르고, 이어지는 인터랙티브 스토리.</div>
+      <div style="display: flex; gap: 12px; margin-top: 32px; padding: 12px 0">
+        <div style="display: inline-flex; align-items: center; justify-content: center; min-height: 56px; padding: 0 24px; border: 1px solid #1a1a1a; border-radius: 12px; background: #1a1a1a; color: #faf8f4; font-size: 14px; font-weight: 500">이야기 시작하기</div>
+        <div style="display: inline-flex; align-items: center; justify-content: center; min-height: 56px; padding: 0 24px; border: 1px solid #1a1a1a; border-radius: 12px; background: #faf8f4; color: #1a1a1a; font-size: 14px; font-weight: 500">작품 둘러보기</div>
+      </div>
+    </div>
+
+    <div style="margin-top: 48px; font-size: 20px; line-height: 1.4; font-weight: 600">대표 작품</div>
+    <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; margin-top: 16px">
+      <div><div style="height: 300px; background: #f0eee9; border-radius: 12px"></div></div>
+      <div><div style="height: 300px; background: #f0eee9; border-radius: 12px"></div></div>
+      <div><div style="height: 300px; background: #f0eee9; border-radius: 12px"></div></div>
+      <div><div style="height: 300px; background: #f0eee9; border-radius: 12px"></div></div>
+    </div>
+  </div>
+
+  <div style="position: absolute; left: 0; top: 740px; width: 1440px; border-top: 2px dashed #d64545"></div>
+  <div style="position: absolute; left: 24px; top: 748px; font-size: 12px; font-weight: 600; color: #d64545; letter-spacing: .02em">폴드 740</div>
+
+  <div style="position: absolute; left: 24px; top: 830px; width: 380px; padding: 16px; background: #faf8f4; border: 1px solid rgba(0,0,0,.12); border-radius: 12px; opacity: .72">
+    <div style="font-size: 13px; font-weight: 600; margin-bottom: 8px">C · Visual 이 폭 전체를 받지 않는다 — 고르지 않았다</div>
+    <div style="font-size: 13px; line-height: 1.6; color: rgba(0,0,0,.55)">히어로에 최대 폭을 두고 가운데 세운다. 화면 하나의 예외가 아니라 <span style="font-family: ui-monospace, Menlo, monospace">tokens.css</span> 의 규칙으로 두는 안이다.</div>
+    <div style="font-size: 13px; line-height: 1.6; margin-top: 12px"><span style="font-weight: 600">근거</span> — 셋 중 유일하게 #199 의 남은 구간(800~1023)과 Story Detail(1h)까지 같은 값 하나로 닫는다. 폭마다 예외를 두지 않는다.</div>
+    <div style="font-size: 13px; line-height: 1.6; margin-top: 12px; color: #d64545"><span style="font-weight: 600">막힌 자리</span> — <span style="font-weight: 600">새 토큰이 필요하다.</span> 760 은 근거 없는 예시였고, 그 숫자를 정하는 일이 곧 새 결정이다. B 가 값 없이 같은 문제를 닫으므로 지금은 고르지 않는다. <span style="color: #1a1a1a">#199 의 남은 구간과 1h 는 이 안이 다시 불릴 자리다.</span></div>
+  </div>
+
+</div>
+</x-dc>
+</body>
+</html>
