@@ -24,6 +24,7 @@ import {
   FLAG_MAX_COUNT,
   FLAG_NAME_MAX,
   moveCharacter,
+  repeatsEarlierName,
   SETTING_DETAIL_MAX,
   SHORT_DESCRIPTION_MAX,
   toggleGenre,
@@ -228,6 +229,12 @@ export function StepCharacters({
     })
   }
 
+  /**
+   * 안내가 붙을 자리를 가리는 데 쓰는 이름들 (#155). 카드마다 다시 모으지 않는다 — 판정이
+   * 보는 것은 **이 목록 전체**이므로 목록이 하나여야 두 카드가 같은 답을 본다.
+   */
+  const characterNames = values.characters.map((character) => character.name)
+
   return (
     <>
       <h1 className={css.pageTitle}>등장인물과 플래그</h1>
@@ -238,6 +245,7 @@ export function StepCharacters({
           index={index}
           total={values.characters.length}
           character={character}
+          nameRepeated={repeatsEarlierName(characterNames, index)}
           precheck={precheck}
           onImageBusy={onImageBusy}
           onChange={(next) =>
@@ -363,6 +371,7 @@ function FlagSection({
               key={index}
               index={index}
               flag={flag}
+              repeated={repeatsEarlierName(values.flags, index)}
               precheck={precheck}
               references={referencesTo(flag)}
               onChange={(next) =>
@@ -431,6 +440,7 @@ function FlagSection({
 function FlagRow({
   index,
   flag,
+  repeated,
   precheck,
   references,
   onChange,
@@ -438,6 +448,8 @@ function FlagRow({
 }: {
   index: number
   flag: string
+  /** 이 이름이 **앞 줄에서 이미 선언됐는가** (#155). 판정은 목록을 든 절이 한다 */
+  repeated: boolean
   precheck: PrecheckHandle
   references: readonly FlagReference[]
   onChange: (flag: string) => void
@@ -486,6 +498,11 @@ function FlagRow({
         </span>
       </div>
       {blocked ? <FieldFindings field={field} value={flag} findings={found} /> : null}
+      {/*
+       * 줄 끝에 붙는다 (#155) — 인물 카드와 **같은 자리·같은 모양**이다. 걸린 자리(F-4 의
+       * 서버 문장)보다 뒤에 두는 이유는 그것이 고쳐야 하는 것이고 이것은 알아 둘 것이라서다.
+       */}
+      {repeated ? <DeclaredTwiceNotice /> : null}
     </li>
   )
 }
@@ -541,6 +558,8 @@ interface CharacterCardProps {
   index: number
   total: number
   character: CharacterDraft
+  /** 이 이름이 **앞의 카드에서 이미 선언됐는가** (#155). 판정은 목록을 든 쪽이 한다 */
+  nameRepeated: boolean
   precheck: PrecheckHandle
   onImageBusy: (key: string, busy: boolean) => void
   onChange: (character: CharacterDraft) => void
@@ -553,6 +572,7 @@ function CharacterCard({
   index,
   total,
   character,
+  nameRepeated,
   precheck,
   onImageBusy,
   onChange,
@@ -621,6 +641,16 @@ function CharacterCard({
             onChange={(name) => onChange({ ...character, name })}
             precheck={precheck}
           />
+          {/*
+           * 이 카드가 세운 이름이 앞 카드에서 이미 선언된 것일 때 (#155).
+           *
+           * **이름 칸 바로 아래다.** 아트보드가 정한 것은 *줄 아래 전폭*이고, 인물 카드에는
+           * 그 "줄" 이 없다 — 칸 셋이 언제나 세로로 쌓인다. 그래서 아트보드가 390 에서 이름
+           * 칸에 테두리를 물들여 이어 붙인 그 관계를 **자리로** 만든다: 붙어 있으면 무엇에
+           * 대한 말인지 묻지 않아도 되고, `.control` 에 두 번째 테두리 상태를 만들어
+           * `controlBlocked`(F-4 가 막은 칸) 와 다투게 하지 않아도 된다.
+           */}
+          {nameRepeated ? <DeclaredTwiceNotice /> : null}
           <DraftField
             field={oneLineField}
             label="한 줄 소개"
@@ -651,5 +681,63 @@ function CharacterCard({
         </div>
       </div>
     </section>
+  )
+}
+
+/**
+ * 같은 이름이 **두 번째로** 선 자리 (#155 · 9차 캔버스 `DuplicateName` · `DuplicateName390`).
+ *
+ * ## 무엇을 말하는가
+ *
+ * Step 3 은 같은 이름 두 줄을 그대로 세우고 Step 4 는 하나로 센다 — **둘 다 맞다.** 서버가
+ * `flags[]` 와 `characters[].name` 을 **집합**으로 읽어 화이트리스트로 발행하므로 (§13-69 ·
+ * §13-73 #2) 선언이 둘이어도 선언된 이름은 하나이고, 그래서 하나를 지워도 그 이름은 원고에
+ * 남아 그것을 가리키던 조건이 멀쩡하다 (`flagRemovedEntirely`, #125). 그 어긋남이 **지우는
+ * 자리에서야** 드러나는 것을 여기서 미리 말한다.
+ *
+ * ## 막지 않고 알린다
+ *
+ * 막는 쪽은 **계약이 허용하는 것을 화면이 거절하는 것**이고, 그러면 이미 저장된 원고를 어떻게
+ * 다룰지가 따라온다 — `#144` 가 그것을 범위 밖으로 둔 판단이 그대로 유효하다. 그래서 입력을
+ * 되돌리지도, 저장을 막지도, 다음 단계를 잠그지도 않는다.
+ *
+ * ## 두 번째 줄부터다
+ *
+ * **첫 줄은 잘못한 것이 없다.** 조건이 실제로 가리키는 것도 첫 줄의 이름이고, 둘 다에 붙이면
+ * 고칠 곳이 둘이라고 말하는 셈이 된다. 판정은 `repeatsEarlierName` 이 한다.
+ *
+ * ## D-8 패널과 겹치지 않는다
+ *
+ * 우측 패널(*"이 원고가 선언한 이름"*)은 **접은 결과**를 보여 준다 — 조건이 고를 수 있는
+ * 이름이 무엇인지. 여기가 말하는 것은 그 결과가 아니라 **지금 이 줄에 무슨 일이 일어나는가**
+ * 이고, 무엇보다 그 패널은 1024 부터만 선다 (`.side`). 390 · 768 에서는 이 자리가 유일하다.
+ *
+ * **문구가 '중복' 이라 말하지 않는다.** 작성자가 알아야 하는 것은 이름이 겹쳤다는 분류가
+ * 아니라 그 **결과** 둘이다 — 조건에는 하나로 들어간다는 것과, 하나를 지워도 이름은 남는다는 것.
+ */
+function DeclaredTwiceNotice() {
+  return (
+    <div className={css.declaredTwice}>
+      {/* 표시 하나 — 색만으로 말하지 않기 위한 것이고, 읽히는 것은 아래 문장이다 (ADR-0010) */}
+      <svg
+        className={css.declaredTwiceMark}
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        aria-hidden="true"
+      >
+        <circle cx="12" cy="12" r="9" />
+        <path d="M12 7v6" />
+        <path d="M12 16.5v.5" />
+      </svg>
+      <p className={css.declaredTwiceText}>
+        이 이름은 이미 선언돼 있어요.{' '}
+        <strong className={css.declaredTwiceResult}>
+          조건에는 하나로 들어가고, 하나를 지워도 이름은 남아요.
+        </strong>
+      </p>
+    </div>
   )
 }

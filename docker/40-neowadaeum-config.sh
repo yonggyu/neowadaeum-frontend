@@ -36,6 +36,21 @@ fail() {
 [ -n "${API_BASE_URL:-}" ] || fail "API_BASE_URL 이 없다 — 컨테이너 환경변수로 준다. 기본값을 두지 않는다."
 [ -n "${GOOGLE_OAUTH_CLIENT_ID:-}" ] || fail "GOOGLE_OAUTH_CLIENT_ID 가 없다 — 이 값이 없으면 로그인이 성립하지 않는다."
 
+# **모양까지 본다** (#184). 있는지만 보면 **잘린 값이 그대로 Google 까지 가고**, 실패는 우리
+# 화면이 아니라 남의 도메인의 `401 invalid_client` 페이지로만 드러난다 — 사람이 버튼을 누른
+# 뒤에. 여기서 걸러야 **잘못된 값으로 컨테이너가 뜨지 않는다.** 아래에서 `PUBLIC_ORIGIN` 을
+# 같은 방식으로 다루는 이유와 같다: 빠뜨린 것과 잘못 적은 것은 다르게 나타나야 한다.
+#
+# **정본은 `src/screens/account/googleIdToken.ts` 의 `CLIENT_ID_SHAPE` 다.** *어디까지 조이는가*
+# 의 근거(왜 해시 길이를 32 로 못 박지 않는가)가 거기 있고, 두 곳이 갈라지면 같은 값이 배포와
+# dev 에서 다르게 판정된다.
+#
+# **값을 싣지 않는다 — `PUBLIC_ORIGIN` 과 다른 점이다.** 클라이언트 ID 는 계정 체계에 속하므로
+# 이 레포는 값이 아니라 키만 다룬다 (S-11).
+printf '%s' "$GOOGLE_OAUTH_CLIENT_ID" \
+  | grep -Eq '^[0-9]+-[a-zA-Z0-9]{20,}\.apps\.googleusercontent\.com$' \
+  || fail "GOOGLE_OAUTH_CLIENT_ID 의 모양이 Google 클라이언트 ID 가 아니다 — <숫자>-<해시>.apps.googleusercontent.com 인지, 값이 잘리지 않았는지 확인한다."
+
 # ── /config.js ───────────────────────────────────────────────
 #
 # JSON 문자열로 넣기 전에 역슬래시와 따옴표를 막는다. 값이 그대로 JS 안으로 들어가므로,

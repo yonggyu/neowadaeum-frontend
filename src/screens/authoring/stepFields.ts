@@ -195,6 +195,20 @@ export interface StepValues {
   readonly flags: readonly string[]
 }
 
+/**
+ * 이 원고가 **사람만 판정할 수 있는 것**을 나르는가 (§13-83, #178).
+ *
+ * 커버든 초상이든 하나면 참이다 — 계약이 *"이미지를 실은 제출"* 로 묶어 말하고 값이 무엇인지는
+ * 보지 않는다(그것은 업로드가 확정한 객체 키다). **한쪽만 보면 다른 쪽이 검수 없이 나가는
+ * 길이 되고**, 초상은 인물 수만큼 있어 커버보다 오히려 많다.
+ */
+export function carriesImage(values: StepValues): boolean {
+  return (
+    values.coverImage !== null ||
+    values.characters.some((character) => character.portraitImage !== null)
+  )
+}
+
 const text = (value: unknown): string => (typeof value === 'string' ? value : '')
 
 const nullableText = (value: unknown): string | null =>
@@ -382,6 +396,30 @@ export function conditionSources(values: StepValues): ConditionSources {
 
 /** 선언으로 남는 이름을 처음 나온 순서로 (#144). `Set` 이 서버의 `LinkedHashSet` 과 같은 자리다. */
 const declaredNames = (names: readonly string[]): string[] => [...new Set(names.filter(isDeclared))]
+
+/**
+ * 이 자리가 **앞에서 이미 선언한 이름을 다시 세우는가** (#155, 9차 캔버스 `DuplicateName`).
+ *
+ * `declaredNames` 가 접는 것을 **반대에서 본 것**이다 — 저쪽이 남기는 것은 처음 나온 자리이고,
+ * 여기가 참이라고 답하는 것은 그 뒤에 선 자리다. 그래서 **첫 줄은 언제나 거짓**이다: 첫 줄은
+ * 잘못한 것이 없고, 조건이 실제로 가리키는 것도 그 줄의 이름이다.
+ *
+ * **막는 판정이 아니다.** 계약이 중복을 막지 않으므로 화면도 거절하지 않는다 (#144 가 그
+ * 판단을 세웠다). 이 값이 하는 일은 하나뿐이다 — 두 Step 이 다른 개수를 말하는 이유를 그
+ * 자리에서 말할지 정한다.
+ *
+ * **`trim()` 하지 않는다.** 서버가 집합으로 접는 것은 문자열 그대로이고(§13-69 · §13-73 #2),
+ * `conditionSources` 도 다듬지 않는다 — ` 봄 ` 과 `봄` 은 **서로 다른 선언**이다. 여기서만
+ * 같다고 말하면 화면은 하나로 센다고 알리고 Step 4 는 둘을 세운다.
+ *
+ * **빈 줄은 세지 않는다.** 서버가 건너뛰므로(§13-73 #4) 선언이 되지 않고, "추가" 가 빈 줄을
+ * 먼저 만드는 화면이라 그러지 않으면 줄을 더한 순간 안내가 뜬다.
+ */
+export function repeatsEarlierName(names: readonly string[], index: number): boolean {
+  const name = names[index]
+  if (name === undefined || !isDeclared(name)) return false
+  return names.slice(0, index).includes(name)
+}
 
 /**
  * 이 이름이 **원고의 선언으로 남는가.**

@@ -25,7 +25,12 @@ import { RUNTIME_CONFIG_GLOBAL } from '../../runtimeConfig'
  * 값을 언제 · 어떻게 다루는가** 하나라, 계약 호출은 세워 두고 흐름만 본다.
  */
 
-const CLIENT_ID = 'test-client-id.apps.googleusercontent.com'
+/**
+ * **실제 클라이언트 ID 의 모양이다** (#184). 이 파일이 쓰던 `test-client-id.…` 은 접미사만
+ * 맞고 앞이 Google 의 것이 아니었다 — 픽스처가 실제와 다른 모양이면 모양을 보는 검사가
+ * 생기는 순간 픽스처 쪽이 먼저 깨진다. 값은 **명백히 가짜**로 둔다 (S-11).
+ */
+const CLIENT_ID = '000000000000-testclientidtestclientid00000000.apps.googleusercontent.com'
 const ID_TOKEN = 'header.payload.signature'
 /** 서버가 준 값. **다듬을 자리가 있는 모양**으로 둔다 — 가공하면 이 값과 달라진다. */
 const NONCE = ' server/issued+nonce= '
@@ -68,11 +73,19 @@ function stubDocument(): ScriptStub[] {
 }
 
 /** GIS 가 이미 실려 있는 상태. 라이브러리를 받는 길은 따로 시험한다. */
-function stubIdentityServices() {
-  const state: { config: InitializeConfig | null; moment: ((n: MomentStub) => void) | null; cancelled: number } = {
+function stubIdentityServices(options?: { renderButtonThrows?: boolean }) {
+  const state: {
+    config: InitializeConfig | null
+    moment: ((n: MomentStub) => void) | null
+    cancelled: number
+    prompted: number
+    rendered: { parent: unknown; options: Record<string, unknown> }[]
+  } = {
     config: null,
     moment: null,
     cancelled: 0,
+    prompted: 0,
+    rendered: [],
   }
   vi.stubGlobal('google', {
     accounts: {
@@ -81,15 +94,34 @@ function stubIdentityServices() {
           state.config = config
         },
         prompt: (momentListener: (n: MomentStub) => void) => {
+          state.prompted += 1
           state.moment = momentListener
         },
         cancel: () => {
           state.cancelled += 1
         },
+        renderButton: (parent: unknown, buttonOptions: Record<string, unknown>) => {
+          // GIS 는 그릴 수 없는 자리를 받으면 던진다. 그 길도 시험한다.
+          if (options?.renderButtonThrows === true) throw new Error('cannot render')
+          state.rendered.push({ parent, options: buttonOptions })
+        },
       },
     },
   })
   return state
+}
+
+/**
+ * Google 이 그릴 자리. 이 모듈이 그 자리에 대고 하는 일이 **걷는 것 하나**라 그만큼만 세운다.
+ */
+function stubParent(): { element: HTMLElement; cleared: () => number } {
+  let cleared = 0
+  const element = {
+    replaceChildren: () => {
+      cleared += 1
+    },
+  }
+  return { element: element as unknown as HTMLElement, cleared: () => cleared }
 }
 
 /** 토큰이 흘러갈 수 있는 두 저장소. 쓰이면 잡힌다 (F-3). */
@@ -192,6 +224,68 @@ describe('설정 — 기본값을 두지 않는다 (${VAR:기본값} 금지)', (
     await expect(requestGoogleIdToken(new AbortController().signal)).rejects.toThrowError(
       SIGN_IN_FAILURE.missingClientId,
     )
+  })
+
+  it('모양이_아니면_실패한다__잘린_값이_Google_까지_가서_남의_401_로_드러나지_않는다_184', async () => {
+    // 실제로 걸린 값과 같은 모양이다 — 접미사는 맞고 **해시만 잘렸다**. 눈으로 한 판정이
+    // 정확히 접미사였고, 그래서 통과했다.
+    stubRuntimeConfig({
+      GOOGLE_OAUTH_CLIENT_ID: '000000000000-abcdefgh.apps.googleusercontent.com',
+    })
+    const appended = stubDocument()
+    stubIdentityServices()
+    const { requestGoogleIdToken, SIGN_IN_FAILURE } = await loadModule()
+
+    await expect(requestGoogleIdToken(new AbortController().signal)).rejects.toThrowError(
+      SIGN_IN_FAILURE.malformedClientId,
+    )
+    // 부르기 전에 판정한다 — GIS 를 받으러 가지도 않는다.
+    expect(appended).toHaveLength(0)
+  })
+
+  it('빠뜨린_것과_잘못_적은_것을_나눈다__넣은_사람이_무엇을_잘못했는지_안다_184', async () => {
+    stubRuntimeConfig({ GOOGLE_OAUTH_CLIENT_ID: '내가 넣은 값' })
+    stubDocument()
+    stubIdentityServices()
+    const { requestGoogleIdToken, SIGN_IN_FAILURE } = await loadModule()
+
+    const failure = await requestGoogleIdToken(new AbortController().signal).catch(
+      (error: unknown) => error,
+    )
+    expect(failure).toBeInstanceOf(Error)
+    expect((failure as Error).message).toBe(SIGN_IN_FAILURE.malformedClientId)
+    expect((failure as Error).message).not.toBe(SIGN_IN_FAILURE.missingClientId)
+  })
+
+  it('실패_문구에_값을_싣지_않는다__이_레포는_값이_아니라_키만_다룬다_S11', async () => {
+    const wrong = '000000000000-abcdefgh.apps.googleusercontent.com'
+    stubRuntimeConfig({ GOOGLE_OAUTH_CLIENT_ID: wrong })
+    stubDocument()
+    stubIdentityServices()
+    const { requestGoogleIdToken, SIGN_IN_FAILURE } = await loadModule()
+
+    const failure = await requestGoogleIdToken(new AbortController().signal).catch(
+      (error: unknown) => error,
+    )
+    expect((failure as Error).message).not.toContain(wrong)
+    expect((failure as Error).message).not.toContain('abcdefgh')
+    expect(SIGN_IN_FAILURE.malformedClientId).not.toContain(wrong)
+  })
+
+  it('모양을_32자로_못박지_않는다__Google_이_형식을_바꾸는_날_멀쩡한_값이_거절되지_않는다_184', async () => {
+    // 하한만 둔다. 관측값(32)보다 짧지만 잘린 값(8)보다 충분히 긴 해시는 통과해야 한다 —
+    // 여기서 조이면 그 실패는 *로그인 전체가 막히는 것* 이고, 이번 결함보다 나쁘다.
+    stubRuntimeConfig({
+      GOOGLE_OAUTH_CLIENT_ID: '1-abcdefghijklmnopqrstuvwx.apps.googleusercontent.com',
+    })
+    stubDocument()
+    const gis = stubIdentityServices()
+    const { requestGoogleIdToken } = await loadModule()
+
+    void requestGoogleIdToken(new AbortController().signal).catch(() => {})
+    await untilPrompted()
+
+    expect(gis.config?.client_id).toBe('1-abcdefghijklmnopqrstuvwx.apps.googleusercontent.com')
   })
 
   it('설정한_클라이언트_ID_를_그대로_넘긴다__그리고_auto_select_를_켜지_않는다', async () => {
@@ -536,5 +630,172 @@ describe('GIS 라이브러리를 받는 길', () => {
     await expect(requestGoogleIdToken(new AbortController().signal)).rejects.toThrowError(
       SIGN_IN_FAILURE.noDocument,
     )
+  })
+})
+
+/**
+ * 빠져나갈 길 — Google 이 그린 버튼 (#181, 9차 캔버스 `LoginOptionA`).
+ *
+ * **이 자리가 지키는 것 셋** — nonce 를 지나치지 않는다(§13-87) · 뜨지 않은 창을 다시 부르지
+ * 않는다 · 자리가 사라지면 그려 둔 것을 걷는다.
+ *
+ * **여기서 확인할 수 없는 것** — 버튼이 실제로 그려지는지, 그 토큰이 계약을 통과하는지.
+ * 진짜 GIS 도 진짜 Google 계정도 부르지 않으므로 **사람이 한 번 돌려 봐야 한다** (#83 의 DoD).
+ */
+describe('#181 — One Tap 이 막힌 사람에게 남는 둘째 진입점', () => {
+  it('13_87_렌더_버튼도_서버가_발급한_nonce_를_가공_없이_싣는다__nonce_없이_로그인하는_길을_만들지_않는다', async () => {
+    stubDocument()
+    const gis = stubIdentityServices()
+    const parent = stubParent()
+    const { mountGoogleSignInButton } = await loadModule()
+
+    void mountGoogleSignInButton(parent.element, new AbortController().signal).catch(() => {})
+    await untilPrompted()
+
+    expect(issueLoginNonce).toHaveBeenCalledTimes(1)
+    expect(gis.config?.nonce).toBe(NONCE)
+    expect(gis.config?.client_id).toBe(CLIENT_ID)
+    expect(gis.config?.auto_select).toBe(false)
+  })
+
+  it('준_자리에_그린다__그리고_One_Tap_을_다시_띄우지_않는다', async () => {
+    stubDocument()
+    const gis = stubIdentityServices()
+    const parent = stubParent()
+    const { mountGoogleSignInButton } = await loadModule()
+
+    void mountGoogleSignInButton(parent.element, new AbortController().signal).catch(() => {})
+    await untilPrompted()
+
+    expect(gis.rendered).toHaveLength(1)
+    expect(gis.rendered[0]?.parent).toBe(parent.element)
+    // 방금 뜨지 않은 창을 다시 부르지 않는다 — 또 닫히면 쿨다운만 깊어진다.
+    expect(gis.prompted).toBe(0)
+  })
+
+  it('F9_폭을_넘기지_않는다__카드보다_넓은_버튼이_그려질_자리를_두지_않는다', async () => {
+    stubDocument()
+    const gis = stubIdentityServices()
+    const parent = stubParent()
+    const { mountGoogleSignInButton } = await loadModule()
+
+    void mountGoogleSignInButton(parent.element, new AbortController().signal).catch(() => {})
+    await untilPrompted()
+
+    // GIS 의 `width` 는 px 하나다. 넘기는 순간 네 폭에 걸쳐 우리가 손으로 세는 값이 되고,
+    // 390 의 카드(342px)를 넘으면 가로 스크롤이 생긴다. 넘기지 않아 GIS 가 제 폭만 잡는다.
+    expect(Object.keys(gis.rendered[0]?.options ?? {})).not.toContain('width')
+  })
+
+  it('누르면_받은_토큰을_그대로_돌려준다__그리고_어떤_저장소에도_두지_않는다_F3', async () => {
+    stubDocument()
+    const writes = stubStorages()
+    const gis = stubIdentityServices()
+    const parent = stubParent()
+    const { mountGoogleSignInButton } = await loadModule()
+
+    const pending = mountGoogleSignInButton(parent.element, new AbortController().signal)
+    await untilPrompted()
+    gis.config?.callback({ credential: ID_TOKEN })
+
+    await expect(pending).resolves.toBe(ID_TOKEN)
+    expect(writes).toEqual([])
+  })
+
+  it('토큰_없이_콜백이_오면_실패한다__계약이_요구하는_값이_없으므로_보낼_것이_없다', async () => {
+    stubDocument()
+    const gis = stubIdentityServices()
+    const parent = stubParent()
+    const { mountGoogleSignInButton, SIGN_IN_FAILURE } = await loadModule()
+
+    const pending = mountGoogleSignInButton(parent.element, new AbortController().signal)
+    await untilPrompted()
+    gis.config?.callback({})
+
+    await expect(pending).rejects.toThrowError(SIGN_IN_FAILURE.noCredential)
+  })
+
+  it('자리가_사라지면_그려_둔_것을_걷고_실패한다__그리고_One_Tap_창을_대신_닫지_않는다', async () => {
+    stubDocument()
+    const gis = stubIdentityServices()
+    const parent = stubParent()
+    const { mountGoogleSignInButton, SIGN_IN_FAILURE } = await loadModule()
+
+    const controller = new AbortController()
+    const pending = mountGoogleSignInButton(parent.element, controller.signal)
+    await untilPrompted()
+    controller.abort()
+
+    await expect(pending).rejects.toThrowError(SIGN_IN_FAILURE.aborted)
+    // 우리가 그리게 한 것을 우리가 걷는다.
+    expect(parent.cleared()).toBe(1)
+    // `cancel()` 은 One Tap 창을 닫는 일이다 — 여기서 부르면 같은 순간 주 버튼이 띄운 창을 닫는다.
+    expect(gis.cancelled).toBe(0)
+  })
+
+  it('그리지_못하면_실패한다__빈_자리를_남기면_누를_것이_있는_것처럼_보인다', async () => {
+    stubDocument()
+    stubIdentityServices({ renderButtonThrows: true })
+    const parent = stubParent()
+    const { mountGoogleSignInButton, SIGN_IN_FAILURE } = await loadModule()
+
+    const pending = mountGoogleSignInButton(parent.element, new AbortController().signal)
+
+    await expect(pending).rejects.toThrowError(SIGN_IN_FAILURE.scriptFailed)
+  })
+
+  it('발급이_실패하면_그리지_않고_서버가_준_오류를_그대로_올린다_F4', async () => {
+    stubDocument()
+    const gis = stubIdentityServices()
+    const parent = stubParent()
+    issueLoginNonce.mockRejectedValue(
+      new ApiError(429, 'RATE_LIMITED', '잠시 후 다시 시도해 주세요.', {}),
+    )
+    const { mountGoogleSignInButton } = await loadModule()
+
+    const failure = await mountGoogleSignInButton(
+      parent.element,
+      new AbortController().signal,
+    ).catch((thrown: unknown) => thrown)
+
+    expect(failure).toBeInstanceOf(ApiError)
+    expect((failure as ApiError).message).toBe('잠시 후 다시 시도해 주세요.')
+    // 통과할 수 없는 토큰을 받아 오는 버튼을 세우지 않는다.
+    expect(gis.rendered).toHaveLength(0)
+  })
+
+  it('이미_끊긴_signal_이면_그리지도_nonce_를_받지도_않는다_S8', async () => {
+    stubDocument()
+    const gis = stubIdentityServices()
+    const parent = stubParent()
+    const { mountGoogleSignInButton, SIGN_IN_FAILURE } = await loadModule()
+
+    const controller = new AbortController()
+    controller.abort()
+
+    await expect(mountGoogleSignInButton(parent.element, controller.signal)).rejects.toThrowError(
+      SIGN_IN_FAILURE.aborted,
+    )
+    expect(issueLoginNonce).not.toHaveBeenCalled()
+    expect(gis.rendered).toHaveLength(0)
+  })
+
+  it('토큰을_콘솔에_남기지_않는다__이_길에서도_남기지_않는다', async () => {
+    stubDocument()
+    const gis = stubIdentityServices()
+    const parent = stubParent()
+    const log = vi.spyOn(console, 'log').mockImplementation(() => {})
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const { mountGoogleSignInButton } = await loadModule()
+
+    const pending = mountGoogleSignInButton(parent.element, new AbortController().signal)
+    await untilPrompted()
+    gis.config?.callback({ credential: ID_TOKEN })
+    await expect(pending).resolves.toBe(ID_TOKEN)
+
+    expect(log).not.toHaveBeenCalled()
+    expect(warn).not.toHaveBeenCalled()
+    expect(error).not.toHaveBeenCalled()
   })
 })

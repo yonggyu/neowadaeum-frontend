@@ -34,7 +34,6 @@ export function LandingScreen() {
   return (
     <main className={`${css.page} ${own.landing}`} data-screen="LandingScreen">
       <section>
-        <div className={`${own.hero} ${css.skeleton}`} />
         <h1 className={css.headline}>당신의 선택이 다음 이야기를 만든다.</h1>
         <p className={own.lede}>읽고, 고르고, 이어지는 인터랙티브 스토리.</p>
         <div className={own.ctaRow}>
@@ -46,6 +45,29 @@ export function LandingScreen() {
           </Link>
         </div>
       </section>
+
+      {/*
+       * 히어로가 문구 **뒤에** 온다 (#200, 10차 캔버스 B).
+       *
+       * 앞에 있을 때 1440 에서 첫 화면이 회색 상자 하나였다 — 폭 전체를 받은 16:9 가
+       * 1376 × 774 라 폴드(740)를 넘고, 제목 top 863 · CTA top 990 으로 **앱을 설명하는
+       * 문장과 유일한 두 CTA 가 전부 스크롤 뒤**에 있었다 (F-9 는 1440 을 이름으로 든다).
+       *
+       * **비율을 낮추는 길은 없었다.** 토큰 둘 중 다른 하나(`--ratio-visual-tall`, 4:5)는
+       * 더 높고, CLAUDE.md 반응형이 높이를 px 로 박는 것을 막는다. 그래서 캔버스가 고른 것은
+       * 폭도 비율도 아닌 **순서**다 — 새 값을 하나도 만들지 않는 안이었다 (A · C 는 각각
+       * 6b 의 Split 을 빌리거나 새 토큰을 요구해서 `#129` 의 ADR 조건에 걸렸다).
+       *
+       * **`<section>` 밖에 둔 것이 그 "새 값 없음" 의 마지막 조각이다.** `.landing` 이
+       * 이미 `gap: var(--sp-12)` 로 자식 사이를 벌리므로, 직계 자식이 되면 간격이 거저 온다 —
+       * 안에 두면 `.hero` 에 `margin-top` 을 새로 달아야 하고, `.hero` 는 Story Detail 과
+       * **같은 클래스**라 그 화면까지 따라 움직인다.
+       *
+       * **이 회색은 채워지지 않는다.** `css.skeleton` 은 로딩 스켈레톤이고 계약의
+       * `LandingResponse` 에 히어로 필드가 없다. 순서를 바꾸는 것이 그 사실을 고치지는
+       * 않는다 — 그것은 따로 남는다 (#200 의 남은 물음).
+       */}
+      <div className={`${own.hero} ${css.skeleton}`} />
 
       {resource.status === 'failed' && <ErrorBlock error={resource.error} onRetry={reload} />}
 
