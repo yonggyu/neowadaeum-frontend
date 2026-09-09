@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 import { ApiError } from '../../api/client'
@@ -8,6 +8,13 @@ import shared from './account.module.css'
 import { ConsentScreen } from './ConsentScreen'
 import { mountGoogleSignInButton, requestGoogleIdToken } from './googleIdToken'
 import styles from './LoginScreen.module.css'
+import {
+  FALLBACK_REVEAL_MS,
+  fallbackView,
+  nextFallbackStage,
+  recoveryHint,
+  type FallbackStage,
+} from './signInFallback'
 
 /**
  * 로그인 · 가입 (와이어프레임 5a · 6b).
@@ -37,6 +44,17 @@ export function LoginScreen({
   const [step, setStep] = useState<Step>({ kind: 'signIn' })
   const [submitting, setSubmitting] = useState(false)
   const [failure, setFailure] = useState<unknown>(null)
+  /** 빠져나갈 길이 어디까지 와 있는가 (#218). 판정은 `signInFallback.ts` 가 한다. */
+  const [fallback, setFallback] = useState<FallbackStage>('hidden')
+  /**
+   * **GIS 가 아무 말도 하지 않은 채 흐르는 중**인가 (#218).
+   *
+   * `submitting` 과 나눈다. 저것은 *로그인 왕복 전체*라 우리 서버를 기다리는 동안에도 참인데,
+   * 아래 타이머가 재는 것은 **GIS 쪽 침묵**이다 — `NO_RESPONSE_TIMEOUT_MS` 가 재는 것과 같은
+   * 시간이며, 그래서 눈금 둘이 같은 시계를 본다. 합치면 로그인 요청이 느린 날에도 *"창이
+   * 열리지 않으면"* 이 떠서, 아무 상관 없는 자리에 다른 길을 권하게 된다.
+   */
+  const [oneTapPending, setOneTapPending] = useState(false)
 
   /**
    * 이 화면이 띄운 One Tap 과 그 뒤의 로그인 요청을 함께 걷는 신호 (#182).
@@ -63,6 +81,23 @@ export function LoginScreen({
    * 뒤에만 일어나고, 그 시점의 One Tap 은 스스로 끝나 리스너를 거둔 상태다. 걷을 것이 없다.
    */
   useEffect(() => () => signInRef.current?.abort(), [])
+
+  /*
+   * 아무 소식 없이 `FALLBACK_REVEAL_MS` 가 흐르면 **다른 길을 하나 제안한다** (#218).
+   *
+   * **감시 타이머를 대신하지 않는다.** 실패를 선언하는 자리는 여전히 `googleIdToken.ts` 의
+   * 120초이고, 여기서는 아무것도 선언하지 않는다 — 창이 떴는지 코드는 알 수 없으므로 판정을
+   * 사람에게 넘길 자리 하나를 세울 뿐이다. 그동안 주 버튼은 `확인 중…` 그대로 둔다:
+   * 되살리면 사람이 그것을 다시 눌러 `prompt()` 가 두 번 불린다.
+   */
+  useEffect(() => {
+    if (!oneTapPending) return
+    const timer = setTimeout(
+      () => setFallback((stage) => nextFallbackStage(stage, { kind: 'reveal' })),
+      FALLBACK_REVEAL_MS,
+    )
+    return () => clearTimeout(timer)
+  }, [oneTapPending])
 
   /**
    * 토큰이 도착하는 유일한 자리 (#217).
@@ -125,30 +160,59 @@ export function LoginScreen({
   async function signIn(): Promise<void> {
     setSubmitting(true)
     setFailure(null)
+    // 시도가 시작되면 자리가 내려간다. 다음에 서는 것은 **새 nonce 로 세운 버튼**이다 (#212).
+    setFallback((stage) => nextFallbackStage(stage, { kind: 'attempt' }))
     const controller = new AbortController()
     signInRef.current = controller
 
     let idToken: string
     try {
+      setOneTapPending(true)
       idToken = await requestGoogleIdToken(controller.signal)
     } catch (error) {
-      // 걷힌 것은 실패가 아니다 — 사용자가 떠난 것이고, 그것을 "로그인에 실패했어요" 로
-      // 그리면 하지 않은 일이 화면에 남는다. 화면도 이미 없다 (`ImageSlotField.start` 와 같다).
+      // 걷힌 것은 실패가 아니다 — 사용자가 떠났거나(화면도 이미 없다) 다른 길을 골랐다.
+      // 그것을 "로그인에 실패했어요" 로 그리면 하지 않은 일이 화면에 남는다.
       if (controller.signal.aborted) return
       setFailure(error)
       setSubmitting(false)
       return
+    } finally {
+      // GIS 쪽 침묵이 여기서 끝난다 — 성공이든 실패든 더 잴 것이 없다.
+      setOneTapPending(false)
     }
 
     await exchange(idToken, controller.signal)
   }
 
   /**
+   * 사람이 **창이 열리지 않았다고 답했다** (#218).
+   *
+   * 코드가 하지 못하는 판정이다 — FedCM 전환으로 표시 계열 moment 알림이 사라져 화면은 창이
+   * 떴는지 알 수 없다. 그 판정은 **보고 있는 사람 쪽이 확실하다.**
+   *
+   * **여기서 One Tap 왕복을 끊는다.** 창을 뺏는 것이 아니라 **사람이 다른 길을 고른 결과**이며,
+   * 끊어 두지 않으면 GIS 설정이 둘이 된다 — 렌더 버튼이 `initialize()` 를 한 번 더 부르는데,
+   * GIS 는 One Tap 과 렌더 버튼을 함께 써도 그것을 **한 번만** 부르라고 적어 두었다.
+   *
+   * **실패로 그리지 않는다.** 아무것도 실패하지 않았고 화면이 아는 것도 여전히 없다. 주 버튼은
+   * 다시 누를 수 있는 상태로 돌아간다 — 기다리던 왕복이 여기서 끝났으므로 그것을 누르는 것은
+   * 두 번째 `prompt()` 가 아니라 **새 시도**다.
+   */
+  const takeFallback = useCallback((): void => {
+    signInRef.current?.abort()
+    signInRef.current = null
+    setOneTapPending(false)
+    setSubmitting(false)
+    setFallback((stage) => nextFallbackStage(stage, { kind: 'taken' }))
+  }, [])
+
+  /**
    * Google 이 그린 버튼이 토큰을 줬다 (#181).
    *
-   * **실패 문구를 먼저 지운다.** 그러면 빠져나갈 길이 화면에서 내려가고(`failure` 가 그것을
-   * 세우는 조건이다), 다음 실패가 그것을 **새 nonce 로 다시 세운다.** 걷었다 세우는 것이
-   * 이 화면의 재시도이며, nonce 하나가 왕복 하나에 묶여 있다는 사실이 그렇게 그려진다.
+   * **자리를 먼저 걷는다.** 그리고 다음 실패가 그것을 **새 nonce 로 다시 세운다.** 걷었다
+   * 세우는 것이 이 화면의 재시도이며, nonce 하나가 왕복 하나에 묶여 있다는 사실이 그렇게
+   * 그려진다. **`#212` 가 물은 것이 이것이다** — 걷지 않으면 만료된 nonce 를 든 버튼이 자리에
+   * 남아, 누를 때마다 같은 `401 LOGIN_NONCE_INVALID` 를 되풀이한다.
    *
    * **신호는 화면의 것을 그대로 쓴다** (#182). 이 요청을 무의미하게 만드는 사건은 여전히
    * *화면을 떠났다* 하나이고, 방금 걷힌 버튼의 신호로 보내면 **자기가 보낸 요청을 자기가
@@ -158,6 +222,10 @@ export function LoginScreen({
     (idToken: string): void => {
       setSubmitting(true)
       setFailure(null)
+      // 자리를 걷는 것이 `failure` 하나에 매여 있지 않다 (#218 이 조건을 늘렸다). 시도가
+      // 시작될 때마다 명시적으로 내린다 — 이 한 줄이 **만료된 nonce 를 든 버튼이 자리에
+      // 남는 것**을 막는다 (#212).
+      setFallback((stage) => nextFallbackStage(stage, { kind: 'attempt' }))
       const controller = new AbortController()
       signInRef.current = controller
       void exchange(idToken, controller.signal)
@@ -177,6 +245,8 @@ export function LoginScreen({
             onSignIn={() => void signIn()}
             submitting={submitting}
             failure={failure}
+            fallback={fallback}
+            onTakeFallback={takeFallback}
             onRenderedIdToken={signInWithRenderedButton}
             onRenderedFailure={setFailure}
           />
@@ -192,22 +262,33 @@ export function LoginScreen({
  * 실패 문구가 하나인 것은 **입력이 없기 때문**이다. 무엇이 틀렸는지 나눌 입력면이 없으므로
  * 나누어 알릴 것도 없다. 서버가 준 `message` 가 있으면 그것을 그대로 덧붙인다 (F-4).
  *
- * **실패한 상태에만 넷째 것이 붙는다** (#181) — 빠져나갈 길. 그 자리는 9차 캔버스의
- * `LoginOptionA` 가 정했고, 문구도 거기서 온다.
+ * **넷째 것이 붙는 조건이 둘이 됐다** (#218) — 빠져나갈 길은 실패했을 때뿐 아니라 **아무
+ * 소식 없이 오래 기다린 뒤**에도 선다. 그 자리와 소제목은 9차 캔버스 `LoginOptionA` 가
+ * 정했고, 무엇이 언제 서는지는 `signInFallback.ts` 가 정한다.
+ *
+ * **두 조건이 한 자리를 쓴다.** 아래 셋은 각자 자리를 지키는 슬롯이라 조건이 바뀌어도 서로의
+ * 자리를 밀지 않는다 — 밀면 Google 버튼이 통째로 다시 그려지고 **nonce 가 하나 더 든다**.
  */
 function SignIn({
   onSignIn,
   submitting,
   failure,
+  fallback,
+  onTakeFallback,
   onRenderedIdToken,
   onRenderedFailure,
 }: {
   onSignIn: () => void
   submitting: boolean
   failure: unknown
+  fallback: FallbackStage
+  onTakeFallback: () => void
   onRenderedIdToken: (idToken: string) => void
   onRenderedFailure: (failure: unknown) => void
 }) {
+  const view = fallbackView(fallback, failure)
+  const hint = recoveryHint(failure)
+
   return (
     <div className={styles.card}>
       <div>
@@ -224,16 +305,48 @@ function SignIn({
           {submitting ? '확인 중…' : 'Google로 계속하기'}
         </button>
         {failure !== null ? (
-          <>
-            <p className={`${shared.meta} ${styles.stacked}`} role="alert">
+          /* 서버 문장과 회복 방법을 **한 번에** 읽어 준다 — 나누면 알림이 둘이 된다 */
+          <div className={`${shared.meta} ${styles.stacked} ${styles.notice}`} role="alert">
+            <p>
               로그인에 실패했어요 · 다시 시도
               {failure instanceof Error ? ` (${failure.message})` : null}
             </p>
-            {/* 실패 문구는 그대로 두고 그 **아래에** 다른 길을 놓는다 (#181, `LoginOptionA`) */}
-            <GoogleRenderedSignIn onIdToken={onRenderedIdToken} onFailure={onRenderedFailure} />
-          </>
+            {/* 서버 문장은 위에 그대로 두고, 그 아래에 **무엇을 누르면 되는가**만 적는다 (#212, F-4) */}
+            {hint !== null ? <p>{hint}</p> : null}
+          </div>
+        ) : null}
+        {/* 아직 아무 일도 일어나지 않았다 — 창이 떴는지 아는 사람에게 묻는다 (#218) */}
+        {view === 'offer' ? (
+          <FallbackBlock>
+            <button
+              type="button"
+              className={`${shared.button} ${shared.wide}`}
+              onClick={onTakeFallback}
+            >
+              다른 방법으로 로그인
+            </button>
+          </FallbackBlock>
+        ) : null}
+        {/* 실패 문구는 그대로 두고 그 **아래에** 다른 길을 놓는다 (#181, `LoginOptionA`) */}
+        {view === 'button' ? (
+          <GoogleRenderedSignIn onIdToken={onRenderedIdToken} onFailure={onRenderedFailure} />
         ) : null}
       </div>
+    </div>
+  )
+}
+
+/**
+ * *"창이 열리지 않으면"* 아래의 한 덩어리 (9차 캔버스 `LoginOptionA`).
+ *
+ * 두 자리가 같은 상자를 쓴다 — **묻는 조건이 같기 때문**이다. 소제목은 원인이 아니라 조건을
+ * 말하므로(창이 왜 안 떴는지 화면은 모른다) 아직 아무 일도 없는 자리에도 그대로 선다.
+ */
+function FallbackBlock({ children }: { children: ReactNode }) {
+  return (
+    <div className={`${styles.stacked} ${styles.fallback}`}>
+      <p className={styles.fallbackLabel}>창이 열리지 않으면</p>
+      {children}
     </div>
   )
 }
@@ -246,9 +359,11 @@ function SignIn({
  * FedCM 전환으로 표시 계열 moment 알림이 사라졌기 때문이다(`googleIdToken.ts`). 그래서
  * 소제목이 원인이 아니라 **조건**을 말한다: *창이 열리지 않으면.*
  *
- * **실패 상태에서만 산다.** 그래서 `failure` 가 지워지면 이 컴포넌트가 통째로 내려가고,
- * 다음 실패가 **새 nonce 로** 다시 세운다. 걷었다 세우는 것이 이 자리의 재시도이며, 코드가
- * 스스로 nonce 를 한 번 더 받는 자리는 없다 (#185).
+ * **한 시도 안에서 한 번만 산다.** 시도가 시작되면 이 컴포넌트가 통째로 내려가고(`fallback`
+ * 이 `hidden` 으로 돌아간다), 그 시도의 실패가 **새 nonce 로** 다시 세운다. 걷었다 세우는 것이
+ * 이 자리의 재시도이며, 코드가 스스로 nonce 를 한 번 더 받는 자리는 없다 (#185).
+ * **`#218` 이 서는 시점을 앞당겼지만 이 성질은 그대로다** — 앞당긴 것은 *사람이 요청했을 때*
+ * 이고, 그 요청 하나가 여전히 nonce 하나다.
  *
  * **세우지 못하면 자리를 지운다.** 빈 상자를 남기면 누를 것이 있는 것처럼 보이는데, 그것이
  * 프론트에서 가장 위험한 실패다. 실패 자체는 위의 `role="alert"` 문단이 말한다.
@@ -291,10 +406,9 @@ function GoogleRenderedSignIn({
   if (unavailable) return null
 
   return (
-    <div className={`${styles.stacked} ${styles.fallback}`}>
-      <p className={styles.fallbackLabel}>창이 열리지 않으면</p>
+    <FallbackBlock>
       {/* Google 이 이 안을 그린다 — React 는 이 자리에 자식을 두지 않는다 */}
       <div className={styles.fallbackButton} ref={parentRef} />
-    </div>
+    </FallbackBlock>
   )
 }
