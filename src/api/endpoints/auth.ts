@@ -1,3 +1,4 @@
+import { readCsrfToken } from '../csrf'
 import { request } from '../client'
 import type { components } from '../schema'
 
@@ -76,6 +77,45 @@ export function issueLoginNonce(signal?: AbortSignal): Promise<AuthNonceResponse
  * 버린다.** 그러면 재발급에 쓸 자격 증명이 처음부터 생기지 않아 새로고침이 여전히 로그인을
  * 푼다 — 이 옵션이 로그인에도 붙는 이유가 그것이다 (백엔드 §13-60 의 "프론트가 고쳐야 하는 것" 2).
  */
+/**
+ * 로그아웃 — **이 브라우저에서 나간다** (§13-94, 이슈 #473).
+ *
+ * **재발급과 같은 경로다.** 리프레시 쿠키의 `Path` 가 그 경로 하나이므로 다른 자리에 두면
+ * 브라우저가 쿠키를 붙이지 않는다 — 그래서 메서드로 가른다. **자격 증명을 싣는 *경로* 는
+ * 여전히 둘이고**(로그인 · 재발급), 늘어난 것은 그 경로의 메서드다.
+ *
+ * **`credentials: 'include'` 가 필수다.** 싣지 않으면 브라우저가 응답의 `Set-Cookie` 를
+ * 버려 **쿠키가 그대로 남는다** — 화면은 성공으로 보이고 새로고침하면 다시 로그인된 상태가
+ * 된다. 로그아웃에서 그 실패는 *돌아가는 것처럼 보이는* 것 중에서도 나쁜 쪽이다.
+ *
+ * **언제나 `204` 다** — 쿠키가 없어도, 토큰이 만료됐어도. 서버가 검증하지 않기로 했으므로
+ * (§13-94) 화면도 *나가지 못했다* 를 그릴 경우를 만들지 않는다. 남는 실패는 서버에 닿지
+ * 못한 것 하나이며 그것은 `ApiError` 로 올라온다.
+ *
+ * **서버가 무르는 것은 브라우저의 흔적까지다.** 리프레시 토큰이 상태 없는 서명 JWT 라
+ * 탈취된 토큰은 이 요청으로 무효가 되지 않는다 — 화면이 그 이상을 약속하지 않는다.
+ *
+ * ## CSRF 토큰을 여기서 읽는다 — `refreshToken` 과 다른 점이다
+ *
+ * 재발급은 토큰을 **매개변수로 받는다.** 부르는 쪽(`renewAccessToken`)이 *쿠키가 없다* 와
+ * *서버가 거절했다* 를 갈라야 하기 때문이다 — 부팅 경로라 그 둘을 뭉개면 로그인 상태를
+ * 잘못 판정한다.
+ *
+ * **여기에는 그 구분이 없다.** 어느 쪽이든 결과는 *나가지 못했다* 하나이고, 그 사실을 말하는
+ * 문장은 서버가 준다 (F-4). 그래서 읽는 자리를 부르는 쪽으로 올리지 않는다 — 올리면 화면
+ * 계층이 쿠키를 알게 되고, 없을 때 **프론트가 문구를 지어내야 하는 분기**가 새로 생긴다.
+ */
+export function logout(signal?: AbortSignal): Promise<void> {
+  return request<void>('/auth/refresh', {
+    method: 'DELETE',
+    withCredentials: true,
+    // 없으면 헤더 없이 나가고 서버가 `403` 과 그 문구로 답한다. 빈 문자열로 대신하지 않는다 —
+    // 그러면 *보냈는데 틀렸다* 가 되어 실제로 일어난 일과 다른 사실이 서버에 도착한다.
+    csrfToken: readCsrfToken() ?? undefined,
+    signal,
+  })
+}
+
 export function loginWithOAuth(
   body: OAuthLoginRequest,
   signal?: AbortSignal,

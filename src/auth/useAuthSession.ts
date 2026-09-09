@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 import type { TokenResponse } from '../api/endpoints/auth'
-import { beginSession, restoreSession, type AuthState } from './session'
+import { beginSession, endSession, restoreSession, type AuthState } from './session'
 
 /**
  * 이 훅이 내주는 것 — **읽는 값 하나와 쓰는 길 하나**.
@@ -19,6 +19,13 @@ export type AuthSession = {
    * 않고 옮기면 가드가 아직 `anonymous` 를 보고 되돌린다. 그것이 `#217` 이 본 화면이다.
    */
   signIn: (tokens: TokenResponse) => Promise<void>
+  /**
+   * 로그아웃이 성공했다 — 그 사실을 여기로 들인다 (#231).
+   *
+   * **서버가 쿠키를 무른 뒤에만 상태가 바뀐다.** 실패는 그대로 던져 부르는 쪽이 서버 문구를
+   * 보여 주게 한다 (F-4) — 나가지 못했는데 화면만 익명이 되면 새로고침이 그것을 뒤집는다.
+   */
+  signOut: (signal?: AbortSignal) => Promise<void>
 }
 
 /**
@@ -81,5 +88,15 @@ export function useAuthSession(): AuthSession {
     }
   }, [])
 
-  return { state, signIn }
+  const signOut = useCallback(async (signal?: AbortSignal): Promise<void> => {
+    const run = ++latest.current
+    // `beginSession` 과 달리 `restoring` 을 세우지 않는다 — 이 화면은 가드 **안**이라
+    // 그 사이에 "불러오는 중…" 이 한 번 스치고, 나가는 길이 깜빡이는 것으로 보인다.
+    const next = await endSession(signal)
+    if (latest.current === run) {
+      setState(next)
+    }
+  }, [])
+
+  return { state, signIn, signOut }
 }

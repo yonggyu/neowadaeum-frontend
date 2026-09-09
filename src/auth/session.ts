@@ -1,5 +1,5 @@
 import { ApiError, hasAccessToken, renewAccessToken, setAccessToken } from '../api/client'
-import type { TokenResponse } from '../api/endpoints/auth'
+import { logout, type TokenResponse } from '../api/endpoints/auth'
 import { getMe, type MeResponse } from '../api/endpoints/me'
 
 /**
@@ -82,4 +82,26 @@ export async function beginSession(tokens: TokenResponse): Promise<AuthState> {
   // 저장소에 쓰지 않는다 — 메모리에만 둔다 (F-3).
   setAccessToken(tokens.accessToken)
   return restoreSession()
+}
+
+/**
+ * 로그아웃 — **나갔다는 사실을 두 자리에서 함께 만든다** (#231, §13-94).
+ *
+ * `beginSession` 의 반대 방향이고, 같은 이유로 여기 있다: 토큰이 사라지는 자리와 인증 상태가
+ * 만들어지는 자리가 갈리면 그중 한쪽이 먼저 낡는다 (#217).
+ *
+ * **서버를 먼저 부른다.** 브라우저의 리프레시 쿠키는 `HttpOnly` 라 JS 가 지우지 못하므로,
+ * 그것을 무를 수 있는 것은 서버의 응답 하나뿐이다. 메모리만 비우면 **새로고침 한 번에 그
+ * 쿠키로 다시 로그인된다** — 사용자는 나갔다고 믿고 브라우저는 그대로 들고 있다.
+ *
+ * **실패하면 상태를 바꾸지 않고 던진다.** 나가지 못했는데 화면만 익명으로 만들면 그것이
+ * 바로 위의 실패다. 부르는 쪽이 서버 문구를 그대로 보여 준다 (F-4).
+ *
+ * 성공했을 때 액세스 토큰을 비우는 것은 **쿠키가 이미 무효가 된 뒤**다 — 순서가 반대면
+ * 요청이 자격 증명 없이 나간다.
+ */
+export async function endSession(signal?: AbortSignal): Promise<AuthState> {
+  await logout(signal)
+  setAccessToken(null)
+  return { kind: 'anonymous', reason: 'no_token' }
 }
