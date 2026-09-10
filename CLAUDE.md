@@ -55,7 +55,7 @@ CLAUDE.md(이 파일) > 백엔드의 docs/corrections.md > 백엔드의 docs/ope
 
 표지는 `grep -rn "#216" src` 로 전부 찾을 수 있다.
 
-## 불변 규칙 F-1 ~ F-8
+## 불변 규칙
 
 **이 규칙을 깨는 PR 은 반려된다.**
 
