@@ -152,6 +152,23 @@ describe('loginWithOAuth', () => {
     expect(lastHeaders(fetchMock)['X-XSRF-TOKEN']).toBeUndefined()
   })
 
+  /**
+   * **신호가 `fetch` 까지 닿는다** (#226, #182).
+   *
+   * 이 파일이 세울 수 있는 것은 여기까지다. `ConsentForm` 이 걷힌 뒤에 `submitting` 을
+   * 건드리지 않는 것은 렌더가 있어야 보이고, 이 레포에는 DOM 러너가 없다 (#224).
+   * 그래도 그 경로의 **첫 칸**은 여기서 못박힌다 — 화면이 신호를 넘겨도 계약 호출이 그것을
+   * 버리면 동의 화면의 제출은 여전히 끊기지 않는다.
+   */
+  it('S226_받은_신호를_그대로_fetch_에_싣는다__버리면_동의_화면의_제출이_끊기지_않는다', async () => {
+    const fetchMock = mockFetch(json(200, TOKENS))
+    const controller = new AbortController()
+
+    await loginWithOAuth({ idToken: 'id-token' }, controller.signal)
+
+    expect(lastInit(fetchMock).signal).toBe(controller.signal)
+  })
+
   it('요청_본문에_nonce_필드가_없다 — 값은 ID 토큰의 클레임으로만 간다 (§13-87)', () => {
     const body: OAuthLoginRequest = { idToken: 'id-token' }
 

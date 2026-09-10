@@ -39,11 +39,29 @@ import styles from './LoginScreen.module.css'
  */
 export function ConsentScreen({
   idToken,
+  signal,
   onSignedIn,
 }: {
   idToken: string
-  /** 로그인 성공을 앱의 인증 상태로 들이는 길 (#217) — `LoginScreen.enter` 가 그 자리다. */
-  onSignedIn: (tokens: TokenResponse) => Promise<void>
+  /**
+   * 이 화면을 떠나면 걷히는 신호 (#226) — **`LoginScreen` 이 로그인 단계에서 만든 그것이다.**
+   *
+   * 자기 것을 새로 만들지 않는다. `#182` 가 세운 모양이 *한 사건에 주인 하나*이고, 여기서도
+   * 제출을 무의미하게 만드는 사건은 여전히 **화면을 떠났다** 하나다. 주인이 둘이면 두 단계가
+   * 신호를 다르게 다루게 되고, 그 차이는 최초 가입 한 번에만 지나는 경로에 숨는다.
+   *
+   * 아래 `useConsentTerms` 의 컨트롤러와 다른 것이다 — 저것은 *약관을 읽는 effect* 의 것이라
+   * 재시도마다 새로 서고 사라진다. 이 신호가 덮는 것은 **제출 왕복 둘**(`loginWithOAuth` →
+   * `onSignedIn`)이다.
+   */
+  signal: AbortSignal
+  /**
+   * 로그인 성공을 앱의 인증 상태로 들이는 길 (#217) — `LoginScreen.enter` 가 그 자리다.
+   *
+   * **둘째 인자를 지우지 않는다** (#226). `enter` 는 신호를 받도록 열려 있는데 이 prop 이
+   * 그것을 좁혀 두어, 넘기고 싶어도 넘길 자리가 없었다 — 타입 하나가 경로를 막고 있었다.
+   */
+  onSignedIn: (tokens: TokenResponse, signal: AbortSignal) => Promise<void>
 }) {
   const terms = useConsentTerms()
 
@@ -53,7 +71,14 @@ export function ConsentScreen({
   if (terms.status === 'failed') {
     return <TermsUnavailable message={terms.error.message} onRetry={terms.reload} />
   }
-  return <ConsentForm idToken={idToken} options={terms.options} onSignedIn={onSignedIn} />
+  return (
+    <ConsentForm
+      idToken={idToken}
+      options={terms.options}
+      signal={signal}
+      onSignedIn={onSignedIn}
+    />
+  )
 }
 
 /**
@@ -172,11 +197,13 @@ function TermsUnavailable({ message, onRetry }: { message: string; onRetry: () =
 function ConsentForm({
   idToken,
   options,
+  signal,
   onSignedIn,
 }: {
   idToken: string
   options: ConsentOption[]
-  onSignedIn: (tokens: TokenResponse) => Promise<void>
+  signal: AbortSignal
+  onSignedIn: (tokens: TokenResponse, signal: AbortSignal) => Promise<void>
 }) {
   const [fields, setFields] = useState<BirthDateFields>(EMPTY_BIRTH_DATE)
   const [checks, setChecks] = useState<ConsentChecks>(NO_CONSENTS)
@@ -186,6 +213,22 @@ function ConsentForm({
   // 15세 미만은 계정이 만들어지지 않는다 (백엔드 R10.2) — 되돌아갈 곳은 생년월일 입력뿐이다.
   const ageRestricted = failure instanceof ApiError && failure.errorCode === 'AGE_RESTRICTED'
 
+  /**
+   * 가입을 마치는 제출 — **왕복 둘이 신호 하나 아래 있다** (#226, #182).
+   *
+   * 지키는 것 하나: **떠난 뒤 도착한 응답은 이동을 걷지만 인증 상태는 세운다.** 가입은 서버에
+   * 실제로 성립했고(계정 · 동의 이력이 남는다) 그것을 무르는 길은 화면에 없다. 걷히는 것은
+   * `enter` 의 `navigate` 하나뿐이며, 그 판단은 `#217` 이 로그인 단계에 세운 것과 같다 —
+   * 두 단계가 신호를 다르게 다루면 그 차이가 곧 다음 결함이다.
+   *
+   * **`onSignedIn` 에도 같은 신호를 넘긴다.** 앞의 왕복만 끊으면 늦게 도착한 응답이 그대로
+   * `enter` 를 지나 사용자를 라이브러리까지 끌고 간다 — `#182` 가 로그인 단계에서 막은 것이
+   * 여기서는 왕복 둘에 걸쳐 열려 있었다. 다만 신호는 `beginSession` 까지 내려가지 않는다:
+   * `GET /me` 왕복이 **로그인을 세우는 일 자체**여서, 그것을 끊으면 무르지 않기로 한 것을 무른다.
+   *
+   * 걷혔을 때 `submitting` · `failure` 를 건드리지 않는 것도 로그인 단계와 같다 — 이미 없는
+   * 화면의 상태 전이이고, 걷힌 것은 실패가 아니라 사용자가 떠난 것이다.
+   */
   async function submit(): Promise<void> {
     setSubmitting(true)
     setFailure(null)
@@ -193,17 +236,22 @@ function ConsentForm({
       // **기다린다** (#217). 인증 상태가 서기 전에 이 단계를 끝내면 다음 화면이 가드에
       // 걸려 되돌아오고, 사용자는 방금 마친 가입이 없던 일이 된 것으로 본다.
       await onSignedIn(
-        await loginWithOAuth({
-          idToken,
-          birthDate: toBirthDate(fields),
-          // 판본은 서버가 준 것을 그대로 되돌려 보낸다 (backend #261).
-          consents: toConsentItems(options, checks),
-        }),
+        await loginWithOAuth(
+          {
+            idToken,
+            birthDate: toBirthDate(fields),
+            // 판본은 서버가 준 것을 그대로 되돌려 보낸다 (backend #261).
+            consents: toConsentItems(options, checks),
+          },
+          signal,
+        ),
+        signal,
       )
     } catch (error) {
+      if (signal.aborted) return
       setFailure(error instanceof Error ? error : new Error(String(error)))
     } finally {
-      setSubmitting(false)
+      if (!signal.aborted) setSubmitting(false)
     }
   }
 
