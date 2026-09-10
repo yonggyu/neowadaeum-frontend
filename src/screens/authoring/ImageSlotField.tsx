@@ -458,6 +458,12 @@ export function ImageSlotField({
  * **한 스타일이다** — 24 그리드 · 1.5 선 · 둥근 끝, 색은 `.slotIcon` 의 `--fg-subtle` 하나.
  * `broken` 이 `picture` 의 액자를 그대로 두고 대각선만 더한 것도 아트보드의 것이며, 그래서
  * 둘을 한 자리에 둔다 — 나뉘어 있으면 한쪽만 고쳐지고 두 조각이 곧 다른 그림이 된다.
+ *
+ * **같은 액자를 `admin/ReviewImages` 의 `ImageIcon` 도 적는다 — 합치지 않는다** (#225).
+ * 뜻은 같아도(그림이 들어갈 자리) 말하는 상태가 다르다 — 여기는 *비어 있음(고르세요)*,
+ * 저기는 *커버가 있는데 아직 열지 않았음*. 도형의 주인은 두 파일 어느 쪽도 아니라
+ * **캔버스**다 (`docs/canvas-9/SlotStates.dc.html` ① · ⑤-b) — 갈라지면 맞출 곳도 거기다.
+ * 크기는 아트보드가 각자 고른 것이어서 같지 않다: 여기 20, 저기 24.
  */
 function SlotGlyph({ icon }: { icon: SlotIcon }) {
   return (
