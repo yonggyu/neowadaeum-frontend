@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 
+import { toApiError } from '../../api/client'
 import {
   getAuthoringMetadata,
   getDraft,
@@ -38,6 +39,7 @@ import {
 } from './stepFields'
 import { usePrecheck, type PrecheckHandle } from './usePrecheck'
 import { usePreviewSession, type PreviewHandle } from './usePreviewSession'
+import { limitNotes } from './validationNotice'
 import { StepBasics, StepCharacters, StepWorld } from './WizardSteps'
 
 /**
@@ -173,6 +175,15 @@ function Wizard({ draft: loaded, metadata }: { draft: Draft; metadata: Authoring
    * 알려 주는 안내다.
    */
   const seedMissing = step === 4 && chaptersMissingSeed(outline.chapters).length > 0
+
+  /**
+   * 저장이 막힌 자리에서 화면이 덧붙일 수 있는 줄 (#232).
+   *
+   * 실패가 아니거나 상한과 무관한 실패면 비어 있고, 그때 안내는 서버 문장 하나뿐이다.
+   */
+  const saveFailure = save.kind === 'failed' ? toApiError(save.error) : null
+  const limitLines =
+    saveFailure === null ? [] : limitNotes(saveFailure.errorCode, saveFailure.details)
   const uploading = Object.values(imageBusy).some((busy) => busy)
   const blocked = isBlocked(draft.safetyState) || precheck.blocked || seedMissing
 
@@ -335,6 +346,20 @@ function Wizard({ draft: loaded, metadata }: { draft: Draft; metadata: Authoring
             />
           ) : null}
           {step === 5 ? <StepPublish draftId={draft.draftId} preview={preview} carriesImage={carriesImage(values)} /> : null}
+
+          {/*
+           * 저장이 `400` 으로 막혔을 때 **서버 문장이 말하지 않는 것**을 덧붙인다 (#232, §13-96).
+           *
+           * 서버의 `message` 는 헤더의 저장 표시에 그대로 선다 (F-4) — 여기 서는 것은 그것이
+           * 말하지 않는 값, 즉 **목록이 몇 개까지인가**다. 헤더가 아니라 이 자리인 이유는
+           * 작성자가 방금 [다음] 을 누른 곳이 여기이고, 390 폭에서 헤더 한 줄은 나가기 ·
+           * 단계 · 저장 표시가 이미 나눠 쓰고 있기 때문이다 (F-9).
+           */}
+          {limitLines.map((line) => (
+            <p key={line} className={css.blockedMessage} role="alert">
+              {line}
+            </p>
+          ))}
 
           {/*
            * 검수 자체가 실패한 경우. **결과를 지우지 않는다** — 검사가 실패했다는 것은
