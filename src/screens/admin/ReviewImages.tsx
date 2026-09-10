@@ -260,6 +260,12 @@ function CharacterBody({ character }: { character: ManuscriptCharacter }) {
 
 /* 아이콘 둘은 아트보드의 것이다. 장식이므로 접근성 트리에서 감춘다 — 옆의 말이 자리를 말한다 */
 
+/*
+ * **같은 액자를 `authoring/ImageSlotField` 의 `SlotGlyph` 도 적는다 — 합치지 않는다** (#225).
+ * 뜻은 같아도 말하는 상태가 다르다 — 저기는 *비어 있음(고르세요)*, 여기는 *커버가 있는데
+ * 아직 열지 않았음*. 도형의 주인은 위(#216)와 같은 **캔버스**다 — `docs/canvas-9/Main.dc.html`
+ * 과 `ReviewDetail768.dc.html` 의 커버 판. 크기도 아트보드가 각자 골랐다: 여기 24, 저기 20.
+ */
 function ImageIcon() {
   return (
     <svg
