@@ -25,8 +25,13 @@ import {
  *
  * 추가 정보(생년월일 · 약관)는 **별 라우트가 아니라 이 화면의 단계**다. 페이지를 나누면
  * 새로고침에 `idToken` 이 사라진다 — 토큰을 메모리에만 두기 때문이다 (F-3).
+ *
+ * **동의 단계는 `idToken` 과 함께 신호도 들고 간다** (#226). 새로 만들지 않고 `signIn()` 이
+ * 만든 것을 그대로 옮긴다 — `#182` 가 세운 모양이 *한 사건에 주인 하나*이고, 두 단계를
+ * 무의미하게 만드는 사건은 여전히 **화면을 떠났다** 하나이기 때문이다. 나누면 같은 사건에
+ * 반응하는 신호가 둘이 되고, 그 뒤로는 어느 쪽이 무엇을 덮는지 다음 사람이 매번 확인해야 한다.
  */
-type Step = { kind: 'signIn' } | { kind: 'consent'; idToken: string }
+type Step = { kind: 'signIn' } | { kind: 'consent'; idToken: string; signal: AbortSignal }
 
 export function LoginScreen({
   onSignedIn,
@@ -113,6 +118,9 @@ export function LoginScreen({
    * **신호를 받는다** (#182). `onSignedIn` 이 왕복 하나를 더 기다리므로 그동안 사용자가
    * 화면을 떠날 수 있고, 떠난 뒤의 `navigate` 는 사용자를 라이브러리까지 끌고 간다.
    * 인증 상태는 그대로 세운다 — 로그인은 실제로 성립했고, 걷힌 것은 **이 화면의 이동**뿐이다.
+   *
+   * **두 단계가 같은 자리를 지난다** (#226). 동의 단계도 이 함수를 같은 신호와 함께 부른다 —
+   * 로그인 단계에만 신호가 걸려 있으면 최초 가입 한 번이 `#182` 가 막은 것을 그대로 다시 연다.
    */
   const enter = useCallback(
     async (tokens: TokenResponse, signal?: AbortSignal): Promise<void> => {
@@ -145,8 +153,10 @@ export function LoginScreen({
         // 최초 로그인이면 서버가 "가입 정보가 더 필요하다"고 답한다 — 실패가 아니라 다음 단계다.
         // **`idToken` 은 서버가 되돌려 주지 않는다.** 방금 받은 값을 그대로 들고 간다 (F-3 —
         // 어디에도 저장하지 않으므로 이 컴포넌트가 살아 있는 동안만 존재한다).
+        // **신호도 함께 넘긴다** (#226). 이 분기는 신호를 걷지 않으므로 그것은 아직 살아 있고,
+        // 걷는 자리는 여전히 위의 언마운트 정리 하나다 — 동의 단계의 제출이 그 신호를 받는다.
         if (error instanceof ApiError && error.errorCode === 'CONSENT_REQUIRED') {
-          setStep({ kind: 'consent', idToken })
+          setStep({ kind: 'consent', idToken, signal })
           return
         }
         setFailure(error)
@@ -239,7 +249,7 @@ export function LoginScreen({
       <div className={styles.visual} aria-hidden="true" />
       <div className={styles.panel}>
         {step.kind === 'consent' ? (
-          <ConsentScreen idToken={step.idToken} onSignedIn={enter} />
+          <ConsentScreen idToken={step.idToken} signal={step.signal} onSignedIn={enter} />
         ) : (
           <SignIn
             onSignIn={() => void signIn()}
