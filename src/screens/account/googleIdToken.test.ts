@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { ApiError } from '../../api/client'
 import { RUNTIME_CONFIG_GLOBAL } from '../../runtimeConfig'
+import { MAX_NONCES_PER_ATTEMPT } from './signInFallback'
 
 /**
  * Google Identity Services 로 ID 토큰을 받는 자리 (#83, #185).
@@ -797,5 +798,104 @@ describe('#181 — One Tap 이 막힌 사람에게 남는 둘째 진입점', () 
     expect(log).not.toHaveBeenCalled()
     expect(warn).not.toHaveBeenCalled()
     expect(error).not.toHaveBeenCalled()
+  })
+})
+
+/**
+ * `initialize()` 를 부르는 길이 둘이다 (#227).
+ *
+ * GIS 는 One Tap 과 렌더 버튼을 함께 쓰더라도 그것을 **한 번만** 부르라고 적어 두었다. 지금까지
+ * 둘이 겹치지 않은 이유는 설계가 아니라 **순서**였다 — `LoginScreen` 이 탈출구를 세우기 전에
+ * 앞의 왕복을 끊는다 (#218 · #212). 그 순서를 어디에서도 값으로 적어 두지 않았고, 탈출구가
+ * 서는 조건을 다시 만지면 조용히 깨진다. **`#218` 이 `#212` 의 성질을 그렇게 깰 뻔했고 그때는
+ * 테스트가 잡았다** — 이 블록이 여기에 없던 그 테스트다.
+ *
+ * **여기서 확인할 수 없는 것** — 두 번째 `initialize()` 가 진짜 GIS 에서 실제로 무엇을 하는지.
+ * 문서가 말하는 것과 실제가 다를 수 있고, 그것은 실제 계정 없이는 알 수 없다 (#83).
+ */
+describe('#227 — 한 시도 안에서 initialize() 는 한 번이다', () => {
+  it('227_One_Tap_이_살아_있으면_탈출구가_서지_않는다__두_번째_initialize_가_없다', async () => {
+    stubDocument()
+    const gis = stubIdentityServices()
+    const parent = stubParent()
+    const { requestGoogleIdToken, mountGoogleSignInButton, SIGN_IN_FAILURE } = await loadModule()
+
+    const oneTap = requestGoogleIdToken(new AbortController().signal)
+    await untilPrompted()
+    // One Tap 이 설정을 들고 있다 — 아직 아무 소식도 오지 않았다.
+    expect(gis.prompted).toBe(1)
+
+    await expect(
+      mountGoogleSignInButton(parent.element, new AbortController().signal),
+    ).rejects.toThrowError(SIGN_IN_FAILURE.oneTapNotSettled)
+
+    // 설정을 덮어쓰지도, 자리에 무언가 그리지도 않았다.
+    expect(gis.rendered).toHaveLength(0)
+
+    gis.moment?.(SKIPPED)
+    await expect(oneTap).rejects.toThrowError(SIGN_IN_FAILURE.notShown)
+  })
+
+  it('227_막힌_자리는_nonce_를_받지_않고_One_Tap_창을_대신_닫지_않는다_S8', async () => {
+    stubDocument()
+    const gis = stubIdentityServices()
+    const parent = stubParent()
+    const { requestGoogleIdToken, mountGoogleSignInButton } = await loadModule()
+
+    const oneTap = requestGoogleIdToken(new AbortController().signal)
+    await untilPrompted()
+    await mountGoogleSignInButton(parent.element, new AbortController().signal).catch(() => {})
+
+    // 세우지 못할 자리를 위해 서버에 상태를 만들지 않는다 — 판정이 발급보다 앞이다.
+    expect(issueLoginNonce).toHaveBeenCalledTimes(1)
+    // **`cancel()` 로 밀고 들어가지 않는다.** 창이 떠 있는지 화면은 알 수 없고, 계정 선택 창을
+    // 보고 있는 사람에게서 창을 뺏는 것이 `#218` 의 DoD 가 막으라고 한 일이다.
+    expect(gis.cancelled).toBe(0)
+
+    gis.moment?.(SKIPPED)
+    await oneTap.catch(() => {})
+  })
+
+  it('227_앞의_시도를_끊으면_탈출구가_선다__오늘_LoginScreen_이_하는_길이다_218', async () => {
+    stubDocument()
+    const gis = stubIdentityServices()
+    const parent = stubParent()
+    const { requestGoogleIdToken, mountGoogleSignInButton, SIGN_IN_FAILURE } = await loadModule()
+
+    // `takeFallback` 이 하는 일 그대로 — 자리를 세우기 **전에** 앞의 왕복을 끊는다.
+    const controller = new AbortController()
+    const oneTap = requestGoogleIdToken(controller.signal)
+    await untilPrompted()
+    controller.abort()
+    await expect(oneTap).rejects.toThrowError(SIGN_IN_FAILURE.aborted)
+
+    const pending = mountGoogleSignInButton(parent.element, new AbortController().signal)
+    await untilPrompted()
+    expect(gis.rendered).toHaveLength(1)
+    // 시도 하나가 서버에 만드는 nonce 는 여기까지다 (One Tap 하나 · 탈출구 하나).
+    expect(issueLoginNonce).toHaveBeenCalledTimes(MAX_NONCES_PER_ATTEMPT)
+
+    gis.config?.callback({ credential: ID_TOKEN })
+    await expect(pending).resolves.toBe(ID_TOKEN)
+  })
+
+  it('227_준비_단계에서_실패해도_빗장이_남지_않는다__탈출구가_영영_서지_못하지_않는다', async () => {
+    stubDocument()
+    const gis = stubIdentityServices()
+    const parent = stubParent()
+    // `initialize()` 에 닿기도 전에 끝나는 길 — 여기서 빗장이 새면 탈출구가 다시는 서지 못한다.
+    issueLoginNonce.mockRejectedValueOnce(
+      new ApiError(429, 'RATE_LIMITED', '잠시 후 다시 시도해 주세요.', {}),
+    )
+    const { requestGoogleIdToken, mountGoogleSignInButton } = await loadModule()
+
+    await requestGoogleIdToken(new AbortController().signal).catch(() => {})
+
+    const pending = mountGoogleSignInButton(parent.element, new AbortController().signal)
+    await untilPrompted()
+    expect(gis.rendered).toHaveLength(1)
+
+    gis.config?.callback({ credential: ID_TOKEN })
+    await expect(pending).resolves.toBe(ID_TOKEN)
   })
 })

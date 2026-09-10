@@ -52,6 +52,10 @@
  * **둘의 대가가 다르다.** 뒤의 것은 높이 · 반경 · 문구를 Google 이 정한다 — 아트보드가 그
  * 값을 적어 두고 받아들였다. 받아들인 범위는 **보조 자리 하나**이고, 주 버튼은 그대로다.
  *
+ * **그리고 둘이 `initialize()` 를 각자 부른다.** GIS 는 그것을 한 번만 부르라고 적어 두었으므로
+ * 두 길이 겹치면 안 되는데, 그것을 지키던 것이 지금까지 **순서 하나**였다. 아래 `liveOneTaps`
+ * 가 그 순서를 값으로 바꾼다 (#227).
+ *
  * **원인을 말하지 않는다.** 화면이 아는 것은 *"안 떴다"* 까지이고(아래 FedCM 절), 쿨다운인지
  * 차단기인지 알 방법이 없다. 그러므로 "쿨다운입니다" 라고 적지 않는다 — 그것은 추측을
  * 사실처럼 적는 것이다. 이 파일이 하는 일은 **다른 길을 하나 더 두는 것**뿐이다.
@@ -157,6 +161,17 @@ export const SIGN_IN_FAILURE = {
   aborted: 'Google 로그인을 중단했어요.',
   /** 아무 소식도 오지 않았다. 이 줄이 "영원히 확인 중" 을 막는다. */
   timedOut: 'Google 로그인 응답이 오지 않았어요.',
+  /**
+   * One Tap 왕복이 아직 끝나지 않았는데 탈출구를 세우려 했다 (#227).
+   *
+   * **사용자 사정이 아니다** — 부르는 순서가 어긋난 것이고, 오늘의 `LoginScreen` 은 이 자리에
+   * 닿지 않는다(탈출구를 세우기 전에 앞의 시도를 끊는다). 그래도 문구를 사람이 읽을 수 있는
+   * 말로 두는 것은 `missingClientId` 와 같은 이유다 — 이 줄이 뜨는 날 화면에 실제로 뜬다.
+   *
+   * **창이 열려 있다고 말하지 않는다.** 화면이 아는 것은 *"왕복이 끝나지 않았다"* 까지이고,
+   * 창이 떴는지는 FedCM 전환 뒤로 물을 수 없다.
+   */
+  oneTapNotSettled: '앞의 Google 로그인 시도가 아직 끝나지 않았어요 — 그것부터 끊어야 다른 방법이 서요.',
 } as const
 
 /**
@@ -398,6 +413,38 @@ async function prepareSignIn(
   return { google, clientId, nonce }
 }
 
+/**
+ * **One Tap 이 살아 있으면 렌더 버튼이 서지 않는다** (#227).
+ *
+ * GIS 는 One Tap 과 렌더 버튼을 함께 쓰더라도 `initialize()` 를 **한 번만** 부르라고 적어
+ * 두었다. 그런데 이 파일에는 그것을 부르는 길이 둘이고, 지금까지 둘이 겹치지 않은 이유는
+ * **설계가 아니라 순서**였다 — `LoginScreen` 이 탈출구를 세우기 전에 One Tap 왕복을 먼저
+ * 끊는다 (#218 의 `takeFallback` · #212 의 `attempt`). 세 자리가 우연히 맞아 있는 것이고,
+ * 탈출구가 서는 조건을 누군가 다시 만지면 **조용히** 깨진다. `#218` 이 `#212` 의 성질을 그렇게
+ * 깰 뻔했고 그때는 테스트가 잡았다 — 여기에는 그 테스트가 없었다. 이 한 칸이 그 자리다.
+ *
+ * **막을 때 `cancel()` 하지 않고 명시적으로 실패시킨다.** `cancel()` 로 밀고 들어가면 이 빗장이
+ * 하는 일은 *창을 닫는 것*이 되는데, 화면은 그 창이 떠 있는지 알 수 없고(FedCM 전환으로 표시
+ * 계열 moment 알림이 사라졌다) 계정 선택 창을 보고 있는 사람에게서 창을 뺏는 것이 정확히
+ * `#218` 의 DoD 가 막으라고 한 일이다. 알 수 없는 것을 밀어붙이는 대신 **부른 쪽이 틀렸다고
+ * 말한다** — 오늘의 `LoginScreen` 은 이 자리에 닿지 않으므로, 여기 닿았다면 그것은 순서가
+ * 바뀌었다는 뜻이다.
+ *
+ * **드는 쪽이 One Tap 하나다.** 반대 방향 — 렌더 버튼이 선 동안 주 버튼을 누르는 것 — 은 막지
+ * 않는다. 그 길이 `#212` 가 남긴 **유일한 회복 경로**이고(만료된 nonce 를 든 버튼은 다시 눌러도
+ * 같은 401 이다), 거기서 막으면 사용자가 갇힌다. 그쪽은 `nextFallbackStage` 의 `attempt` 가
+ * 자리를 내려 지킨다 — 서 있는 버튼은 *열린 창*이 아니라 **걷을 수 있는 자리**라 성질이 다르다.
+ *
+ * **빗장이 남지 않는다.** One Tap 은 끝나는 길이 넷이고 그중 하나는 감시 타이머라 반드시 끝난다.
+ * 그 끝을 `finally` 하나로 받으므로 성공 · 실패 · 취소 · 준비 단계의 예외 어디로 나가도 풀린다.
+ *
+ * **참·거짓이 아니라 센다.** 화면은 한 번에 하나만 띄우지만(주 버튼이 `submitting` 동안 눌리지
+ * 않는다) 그것 역시 **이 파일 밖의 사정**이고, 이 빗장이 있는 이유가 바로 그런 사정에 기대지
+ * 않는 것이다. 참·거짓이면 겹쳐 든 둘 중 먼저 끝난 하나가 **아직 살아 있는 나머지의 빗장까지**
+ * 풀어, 빗장이 있는데도 없는 것과 같은 순간이 생긴다.
+ */
+let liveOneTaps = 0
+
 /** 부르면 ID 토큰 하나를 준다. 화면은 이 모양만 안다. */
 export type GoogleIdTokenProvider = (signal: AbortSignal) => Promise<string>
 
@@ -406,8 +453,20 @@ export type GoogleIdTokenProvider = (signal: AbortSignal) => Promise<string>
  *
  * **토큰은 반환값으로만 흐른다** — `localStorage` · `sessionStorage` · 쿠키 · 모듈 변수 어디에도
  * 쓰지 않고, `LoginScreen` 의 메모리에서 끝난다 (F-3).
+ *
+ * **빗장을 드는 자리가 여기다** (#227). `prepareSignIn` 앞에서 든다 — nonce 왕복도 One Tap 이
+ * 살아 있는 구간이고, 그 사이에 탈출구가 서면 `initialize()` 를 부르는 순서가 뒤엉킨다.
  */
 export const requestGoogleIdToken: GoogleIdTokenProvider = async (signal) => {
+  liveOneTaps += 1
+  try {
+    return await promptOneTap(signal)
+  } finally {
+    liveOneTaps -= 1
+  }
+}
+
+async function promptOneTap(signal: AbortSignal): Promise<string> {
   const { google, clientId, nonce } = await prepareSignIn(signal)
 
   return new Promise<string>((resolve, reject) => {
@@ -499,8 +558,15 @@ export type GoogleSignInButtonMounter = (parent: HTMLElement, signal: AbortSigna
  * 는 수명이 짧다(계약이 `expiresInSeconds` 로 말한다). 그래서 화면은 실패할 때마다 이 자리를
  * 걷었다가 다시 세운다 — 그 왕복 하나하나가 **사용자가 누른 결과**이며, 코드가 스스로 다시
  * 받는 자리는 여기에도 없다 (#185 · #142 와 같은 판정).
+ *
+ * **One Tap 이 살아 있으면 서지 않는다** (#227 — `liveOneTaps` 가 그 근거를 든다). 판정을
+ * `prepareSignIn` **앞**에 두는 이유는 nonce 다: 뒤에 두면 세우지 못할 자리를 위해 서버에
+ * 상태를 하나 만들고 인증 경로 셋이 함께 쓰는 IP 한도를 태운다 (S-8).
  */
 export const mountGoogleSignInButton: GoogleSignInButtonMounter = async (parent, signal) => {
+  if (liveOneTaps > 0) {
+    throw new GoogleSignInUnavailableError(SIGN_IN_FAILURE.oneTapNotSettled)
+  }
   const { google, clientId, nonce } = await prepareSignIn(signal)
 
   return new Promise<string>((resolve, reject) => {
